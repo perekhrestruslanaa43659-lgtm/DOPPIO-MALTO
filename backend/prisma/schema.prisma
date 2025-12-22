@@ -1,0 +1,99 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Staff {
+  id              Int      @id @default(autoincrement())
+  nome            String
+  cognome         String   @default("")
+  ruolo           String
+  email           String?  @unique
+  oreMinime       Int      @default(0)
+  oreMassime      Int      @default(40)
+  costoOra        Float    @default(0)
+  postazioni      String   @default("") // Comma separated for SQLite
+  listIndex       Int      @default(999) 
+  fixedShifts     String?  @default("{}") // JSON stringified
+  createdAt       DateTime @default(now())
+  
+  unavailabilities Unavailability[]
+  assignments      Assignment[]
+}
+
+model ShiftTemplate {
+  id           Int    @id @default(autoincrement())
+  nome         String 
+  oraInizio    String 
+  oraFine      String 
+  ruoloRichiesto String 
+  giorniValidi String  // Comma separated ints e.g. "1,2,3"
+  
+  assignments Assignment[]
+}
+
+model Unavailability {
+  id        Int      @id @default(autoincrement())
+  staffId   Int
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  data      String   // "2025-12-25" (ISO Date string for simplicity in SQLite)
+  tipo      String   // "TOTALE" or "PARZIALE"
+}
+
+model Constraint {
+  id        Int    @id @default(autoincrement())
+  tipo      String // "RIPOSO_MINIMO", "MAX_ORE_GIORNO"
+  valore    String
+}
+
+model Assignment {
+  id              Int           @id @default(autoincrement())
+  data            String        // "2025-12-25"
+  staffId         Int
+  staff           Staff         @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  shiftTemplateId Int?
+  shiftTemplate   ShiftTemplate? @relation(fields: [shiftTemplateId], references: [id])
+  postazione      String?       // Specific station for this shift
+  customStart     String?       // "11:30" (Overrides template start)
+  customEnd       String?       // "18:30" (Overrides template end)
+  stato           String        @default("BOZZA") // "BOZZA", "PUBBLICATO"
+
+  // @@unique([data, staffId, shiftTemplateId]) // CAREFUL: Multi-nulls might be allowed or issue.
+  // Better to just rely on app logic or add a unique constraint that handles nulls if needed.
+  // For simplicity, let's keep it but knowing nulls behavior depends on DB.
+  // Actually, existing unique constraint MIGHT fail if I change type.
+  // Let's comment out unique constraint for now to avoid migration issues with manual shifts?
+  // User wants multiple shifts maybe?
+  // Let's KEEP strictness but maybe just on data+staffId if we only allowed 1 shift per day?
+  // No, user wants multiple.
+  // Let's remove this constraint for now to Unblock.
+
+}
+
+
+model Budget {
+  id          Int    @id @default(autoincrement())
+  data        String @unique
+  value       Float  @default(0) // Euro Total (Row 15)
+  hoursLunch  Float  @default(0) // Hours Lunch (Row 8)
+  hoursDinner Float  @default(0) // Hours Dinner (Row 11)
+  // Legacy or specific split if needed later
+  valueLunch  Float  @default(0) 
+  valueDinner Float  @default(0)
+}
+
+model CoverageRow {
+  id        Int    @id @default(autoincrement())
+  weekStart String // Identifier for the week, e.g., "2025-10-13"
+  station   String
+  frequency String
+  slots     String   @default("{}") // JSON stringified
+  extra     String   @default("{}") // JSON stringified
+}
