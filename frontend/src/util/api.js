@@ -1,15 +1,49 @@
-const API_BASE = 'http://localhost:4000/api';
+const API_BASE = '/api';
 
 async function call(path, method = 'GET', body) {
   const url = `${API_BASE}${path}`;
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  const token = localStorage.getItem('token');
+  const opts = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': token ? `Bearer ${token}` : ''
+    }
+  };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(url, opts);
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+    // Handle 401 logout?
+    if (res.status === 401) {
+      // Optionally clear token or redirect
+      // localStorage.removeItem('token');
+    }
+    const text = await res.text();
+    try {
+      const err = JSON.parse(text);
+      throw new Error(err.msg || err.error || res.statusText);
+    } catch (e) {
+      // If JSON parse fails (or logic above throws), fall back to text
+      // But if the error was the logic above, we want that message.
+      // So check if 'e' is our constructed error.
+      if (e.message && (e.message !== 'Unexpected token' && !e.message.includes('JSON'))) {
+        throw e;
+      }
+      throw new Error(text || res.statusText);
+    }
+  }
   return res.json();
 }
 
 export default {
+  // Auth
+  login: (email, password) => call('/login', 'POST', { email, password }),
+  register: (data) => call('/register', 'POST', data), // { name, email, password, role }
+  getUsers: () => call('/users', 'GET'),
+  deleteUser: (id) => call(`/users/${id}`, 'DELETE'),
+  getProfile: () => call('/profile', 'GET'),
+  updateProfile: (data) => call('/profile', 'PUT', data),
+
   // Staff
   getStaff: () => call('/staff', 'GET'),
   upsertStaff: (staff) => call('/staff', 'POST', staff), // POST handles create
@@ -22,8 +56,28 @@ export default {
   createShiftTemplate: (tmpl) => call('/shift-templates', 'POST', tmpl),
 
   // Unavailability
-  getUnavailability: () => call('/unavailability', 'GET'),
+  getUnavailability: (start, end) => {
+    let url = '/unavailability';
+    if (start || end) {
+      const p = new URLSearchParams();
+      if (start) p.append('startDate', start);
+      if (end) p.append('endDate', end);
+      url += `?${p.toString()}`;
+    }
+    return call(url, 'GET');
+  },
   upsertUnavailability: (item) => call('/unavailability', 'POST', item),
+  deleteUnavailability: (id) => call(`/unavailability/${id}`, 'DELETE'),
+  getActivityHistory: (start, end) => {
+    let url = '/activity-history';
+    if (start || end) {
+      const p = new URLSearchParams();
+      if (start) p.append('startDate', start);
+      if (end) p.append('endDate', end);
+      url += `?${p.toString()}`;
+    }
+    return call(url, 'GET');
+  },
 
   // Budget
   getBudget: () => call('/budget', 'GET'),
@@ -41,9 +95,18 @@ export default {
   // Coverage
   getCoverage: () => call('/coverage', 'GET'),
   saveCoverage: (rows) => call('/coverage', 'POST', { rows }),
+  verifySchedule: (start, end) => call('/verify-schedule', 'POST', { startDate: start, endDate: end }),
+  findCandidates: (date, start, end, station) => call('/find-candidates', 'POST', { date, start, end, station }),
+  saveAvailability: (payload) => call('/availability', 'POST', payload),
+  publishAssignments: (payload) => call('/assignments/publish', 'POST', payload),
 
   // Export
   exportCsvWeek3: (startDate, endDate) => call('/export-week3', 'POST', { startDate, endDate }),
+
+  // Recurring Shifts
+  getRecurringShifts: () => call('/recurring-shifts', 'GET'),
+  addRecurringShift: (data) => call('/recurring-shifts', 'POST', data),
+  deleteRecurringShift: (id) => call(`/recurring-shifts/${id}`, 'DELETE'),
 
   // AI Agent
   chat: (message) => call('/agent/chat', 'POST', { message }),

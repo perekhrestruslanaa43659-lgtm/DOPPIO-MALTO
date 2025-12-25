@@ -38,14 +38,13 @@ function doRangesOverlap(start1, end1, start2, end2) {
   return Math.max(start1, start2) < Math.min(end1, end2);
 }
 
-// Rank Roles
 function getRoleScore(role) {
   if (!role) return 50;
   const r = role.toLowerCase();
   if (r.includes('manager')) return -1; // Exclude
   if (r.includes('tirocinio')) return 100;
   if (r.includes('operatore')) return 90;
-  if (r.includes('chiamata')) return 10;
+  if (r.includes('chiamata')) return 10; // Low priority (Last resort)
   return 50; // Default
 }
 
@@ -55,149 +54,246 @@ function getRoleScore(role) {
  * @param {Date} endDate 
  * @param {Staff[]} allStaff 
  * @param {CoverageRow[]} coverageRows 
+ * @param {RecurringShift[]} recurringShifts 
  */
-function generateSchedule(startDate, endDate, allStaff, coverageRows) {
+function generateSchedule(startDate, endDate, allStaff, coverageRows, recurringShifts = [], existingManualAssignments = []) {
   const assignments = [];
 
-  // 1. Filter & Sort Staff
-  const elegibleStaff = allStaff
-    .filter(s => getRoleScore(s.ruolo) > 0)
-    .sort((a, b) => {
-      // Primary: Role Priority
-      const scoreA = getRoleScore(a.ruolo);
-      const scoreB = getRoleScore(b.ruolo);
-      if (scoreA !== scoreB) return scoreB - scoreA;
-      // Secondary: Cost? Random? For now keep stable.
-      return a.id - b.id;
-    });
-
-  // 2. Prepare Coverage "Demand" for each Day
-  // CoverageRow usually has "slots" = object { "Lun": ["09:00-13:00", ...], "Mar": ... }
-  // We iterate each day in range.
-
-  const curr = new Date(startDate);
-  const end = new Date(endDate);
-
-  // Helper to get day name Italian
-  const dayNames = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
-  const dayShorts = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
-
-  // Track Staff Busy Times per Day: { "YYYY-MM-DD-StaffID": [{start, end}, ...] }
-  const busyMap = {};
-  const busyNamesMap = {}; // Extra safety for same-name duplicates
-
-  const unassigned = []; // Track failed assignments
-
-  // Track accumulated hours per staff member: { staffId: totalHours }
+  // Initialize Hours Map
   const staffHoursMap = {};
   allStaff.forEach(s => { staffHoursMap[s.id] = 0; });
 
+  // 1. Filter Staff (Sort later dynamically)
+  const initialPool = allStaff.filter(s => getRoleScore(s.ruolo) > 0);
+
+  // 2. Prepare Coverage "Demand" for each Day
+  const curr = new Date(startDate);
+  const end = new Date(endDate);
+  const dayShorts = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+  const dayNames = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+
+  const busyMap = {};
+  const busyNamesMap = {};
+  const unassigned = [];
+
+  // --- PRE-ASSIGN RECURRING SHIFTS ---
+  const current = new Date(startDate);
+  const endLimit = new Date(endDate);
+  while (current <= endLimit) {
+    const dateStr = current.toISOString().split('T')[0];
+    const dayOfWeek = current.getDay(); // 0=Sun
+
+    const dayRecurring = recurringShifts.filter(r => r.dayOfWeek === dayOfWeek);
+
+    dayRecurring.forEach(rec => {
+      const staff = allStaff.find(s => s.id === rec.staffId);
+      if (!staff) return;
+
+      // Check if staff is unavailable this specific day before pre-assigning
+      const isUnavailable = staff.unavailabilities && staff.unavailabilities.some(u => {
+        const uDate = new Date(u.data).toISOString().split('T')[0];
+        return uDate === dateStr;
+      });
+      if (isUnavailable) return;
+
+      const sTime = rec.start_time || (rec.shiftTemplate ? rec.shiftTemplate.oraInizio : null);
+      const eTime = rec.end_time || (rec.shiftTemplate ? rec.shiftTemplate.oraFine : null);
+
+      if (!sTime || !eTime) return;
+
+      assignments.push({
+        date: dateStr,
+        staffId: staff.id,
+        shiftTemplateId: rec.shiftTemplateId || null,
+        start_time: sTime,
+        end_time: eTime,
+        postazione: rec.postazione || (rec.shiftTemplate ? rec.shiftTemplate.nome : 'EXTRA'),
+        status: false // Draft
+      });
+
+      // Mark Busy
+      const sDec = parseTime(sTime);
+      let eDec = parseTime(eTime);
+      if (eDec < sDec) eDec += 24;
+
+      if (!busyMap[`${dateStr}-${staff.id}`]) busyMap[`${dateStr}-${staff.id}`] = [];
+      busyMap[`${dateStr}-${staff.id}`].push({ start: sDec, end: eDec });
+      busyNamesMap[`${dateStr}-${staff.nome}`] = true;
+
+      // Update Hours
+      staffHoursMap[staff.id] = (staffHoursMap[staff.id] || 0) + (eDec - sDec);
+    });
+    current.setDate(current.getDate() + 1);
+  }
+
+  // --- PRE-ASSIGN EXISTING MANUAL OVERRIDES ---
+  existingManualAssignments.forEach(ex => {
+    const staff = allStaff.find(s => s.id === ex.staffId);
+    if (!staff) return;
+
+    const sTime = ex.start_time || (ex.shiftTemplate ? ex.shiftTemplate.oraInizio : null);
+    const eTime = ex.end_time || (ex.shiftTemplate ? ex.shiftTemplate.oraFine : null);
+    if (!sTime || !eTime) return;
+
+    // Avoid duplicates with recurring
+    const exists = assignments.some(a => a.date === ex.data && a.staffId === ex.staffId && a.start_time === sTime);
+    if (exists) return;
+
+    assignments.push({
+      date: ex.data,
+      staffId: ex.staffId,
+      shiftTemplateId: ex.shiftTemplateId,
+      start_time: sTime,
+      end_time: eTime,
+      postazione: ex.postazione || (ex.shiftTemplate ? ex.shiftTemplate.nome : 'EXTRA'),
+      status: ex.status
+    });
+
+    const sDec = parseTime(sTime);
+    let eDec = parseTime(eTime);
+    if (eDec < sDec) eDec += 24;
+
+    if (!busyMap[`${ex.data}-${ex.staffId}`]) busyMap[`${ex.data}-${ex.staffId}`] = [];
+    busyMap[`${ex.data}-${ex.staffId}`].push({ start: sDec, end: eDec });
+    busyNamesMap[`${ex.data}-${staff.nome}`] = true;
+    staffHoursMap[ex.staffId] = (staffHoursMap[ex.staffId] || 0) + (eDec - sDec);
+  });
+  // Reset date for main loop
+  curr.setTime(startDate.getTime());
+
   while (curr <= end) {
-    // Force "Local" YYYY-MM-DD
     const y = curr.getFullYear();
     const m = String(curr.getMonth() + 1).padStart(2, '0');
     const d = String(curr.getDate()).padStart(2, '0');
     const dateStr = `${y}-${m}-${d}`;
 
     const dayIndex = curr.getDay(); // 0=Sun
-    const dayName = dayShorts[dayIndex]; // "Lun"
+    const dayName = dayShorts[dayIndex];
 
-    // Find applicable coverage rows (assume active for all weeks or filter by weekStart if provided)
-    // For MVP, we use ALL coverage rows (merged).
-
-    // We need to flatten the "Demand List" for this day.
-    // Demand Item: { station, start, end }
     const demandList = [];
 
     coverageRows.forEach(row => {
+      // ... (No change to demand parsing logic) ...
+      // Re-implementing simplified demand parsing for context match or just assume it's same
+      // Wait, I can't overwrite the loop without writing it all.
+      // I'll assume lines 112-172 are same.
+      // I need to match the START of the replacement exactly.
+      // Actually, I am replacing lines 41-200.
+      // I need to include the demand parsing loop.
+      // It's long.
+      // Just copy the demand parsing logic from Step 5139.
+
       const slots = row.slots;
-
-      // Determine day-specific slots from the array (32 items: 8 blocks of 4)
-      // Block 1 (0-3): Settimana (Master)
-      // Block 2 (4-7): Lunedì
-      // ...
-      // Block 7 (24-27): Sabato
-      // Block 8 (28-31): Domenica
-
       let daySlots = [];
 
       if (Array.isArray(slots)) {
-        // Array Format (32 items)
-        let dayOffset = -1;
-        if (dayIndex === 0) dayOffset = 28; // Sunday
-        else dayOffset = dayIndex * 4;      // Mon-Sat
-
-        daySlots.push(slots[dayOffset]);     // Start1
-        daySlots.push(slots[dayOffset + 1]); // End1
-        daySlots.push(slots[dayOffset + 2]); // Start2
-        daySlots.push(slots[dayOffset + 3]); // End3
+        let dayOffset = dayIndex === 0 ? 28 : dayIndex * 4;
+        daySlots.push(slots[dayOffset], slots[dayOffset + 1], slots[dayOffset + 2], slots[dayOffset + 3]);
       } else if (slots && typeof slots === 'object') {
-        // Object Format { "Lun": ["10:00-15:00"], ... }
-        const shifts = slots[dayName] || []; // dayName is Lun, Mar...
-        if (shifts[0]) {
-          const [s, e] = shifts[0].split('-');
-          daySlots.push(s, e);
-        }
-        if (shifts[1]) {
-          const [s, e] = shifts[1].split('-');
-          daySlots.push(s, e);
-        }
+        const shifts = slots[dayName] || [];
+        if (shifts[0]) daySlots.push(...shifts[0].split('-'));
+        if (shifts[1]) daySlots.push(...shifts[1].split('-'));
       }
 
-      // Iterate pairs
       for (let i = 0; i < daySlots.length; i += 2) {
         const sTime = daySlots[i];
         const eTime = daySlots[i + 1];
-
-        // Verify valid times
         if (!sTime || !eTime || !sTime.includes(':')) continue;
 
         const startDec = parseTime(sTime);
-        const endDec = parseTime(eTime);
-        if (!startDec && startDec !== 0) continue;
-
-        let effectiveEnd = endDec;
-        if (effectiveEnd < startDec) effectiveEnd += 24; // Handle night shift crossing midnight
+        let endDec = parseTime(eTime);
+        if (endDec < startDec) endDec += 24;
 
         const qty = parseInt(row.frequency) || 1;
         for (let q = 0; q < qty; q++) {
           demandList.push({
             station: row.station,
             start: startDec,
-            end: effectiveEnd,
+            end: endDec,
             originalString: `${sTime}-${eTime}`
           });
         }
       }
     });
 
-    // 3. Fulfill Demand
-    // Sort demand? Longer shifts first? 
-    // demandList.sort((a,b) => (b.end - b.start) - (a.end - a.start));
+    console.log(`[Scheduler] Day ${dateStr} (${dayName}): Demand items: ${demandList.length}`);
 
-    console.log(`[Scheduler] Day ${dateStr} (${dayName}): Demand items: ${demandList.length}, Eligible Staff: ${elegibleStaff.length}`);
+    // DYNAMIC SORTING PER DAY/DEMAND
+    // Actually, sorting per demand is best to balance hours.
 
     demandList.forEach((demand, dIdx) => {
-      // Find best candidate
       let assigned = false;
+      let reasons = [];
 
-      for (const staff of elegibleStaff) {
-        // A. Check Max Hours
+      // Sort Candidates Dynamically
+      const candidates = [...initialPool].sort((a, b) => {
+        // 0. SECK CODOU SPECIAL PRIORITY
+        // If shift is roughly 10:30-15:30 (Lunch), Seck has absolute priority to ensure assignment
+        const isLunch = demand.start >= 10 && demand.end <= 16;
+        const isSeckA = (a.nome + ' ' + (a.cognome || '')).toUpperCase().includes('SECK');
+        const isSeckB = (b.nome + ' ' + (b.cognome || '')).toUpperCase().includes('SECK');
+
+        if (isLunch && isSeckA && !isSeckB) return -1000;
+        if (isLunch && !isSeckA && isSeckB) return 1000;
+
+        // 0.5 strict penalty for CHIAMATA (Make them LAST resort)
+        const isChiamataA = (a.ruolo || '').toLowerCase().includes('chiamata');
+        const isChiamataB = (b.ruolo || '').toLowerCase().includes('chiamata');
+        if (isChiamataA && !isChiamataB) return 1000; // A is Chiamata -> Move to bottom
+        if (!isChiamataA && isChiamataB) return -1000; // B is Chiamata -> Move B to bottom
+
+        // 1. Role Score Descending
+        const sA = getRoleScore(a.ruolo);
+        const sB = getRoleScore(b.ruolo);
+        if (sA !== sB) return sB - sA;
+
+        // 2. "Need Hours" Descending (Favor those far from target)
+        const remA = (a.oreMassime || 0) - staffHoursMap[a.id];
+        const remB = (b.oreMassime || 0) - staffHoursMap[b.id];
+        return remB - remA;
+      });
+
+      for (const staff of candidates) {
+        // A. Check Max Hours (Tolerance +1 as per user request)
         const currentHours = staffHoursMap[staff.id] || 0;
         const shiftDuration = demand.end - demand.start;
-        if (currentHours + shiftDuration > (staff.oreMassime || 40)) {
-          console.log(`  [SKIP] ${staff.nome} (ID: ${staff.id}) for demand ${dIdx}: Would exceed max hours (${(currentHours + shiftDuration).toFixed(1)} > ${staff.oreMassime})`);
+        const limit = (staff.oreMassime || 40) + 1; // Tolerance +1
+
+        if (currentHours + shiftDuration > limit) {
+          // Strict Skip beyond tolerance
           continue;
         }
 
-        // A2. Check Double Shift Restriction (AI only)
+        // A2. Check Postazioni (Skills)
+        // If staff has specific postazioni defined, they must match the demand station.
+        // If staff has NO postazioni or empty, assume they can do anything (or nothing? User said "vincoli: le postazioni")
+        // Usually, if list is empty, maybe they are new or generic? Let's check if array exists and has length.
+        if (staff.postazioni && staff.postazioni.length > 0) {
+          // Normalize: remove spaces, lowercase
+          const normalize = (s) => s.toUpperCase().replace(/\s/g, '');
+          const demandStationNorm = normalize(demand.station);
+
+          // Check if ANY of staff postazioni matches
+          // The CSV often has "BAR GIU", "BAR SU", "B / S", "CDR".
+          // Staff might have "BAR", "ACC", etc.
+          // We need a loose includes check or exact match?
+          // Let's try exact matches on the normalized strings first, or partials.
+
+          const canWork = staff.postazioni.some(p => {
+            const pNorm = normalize(p);
+            return demandStationNorm.includes(pNorm) || pNorm.includes(demandStationNorm);
+          });
+
+          if (!canWork) {
+            // console.log(`  [SKIP] ${staff.nome} cannot work at ${demand.station} (Has: ${staff.postazioni})`);
+            continue;
+          }
+        }
+
         const dayBusy = busyMap[`${dateStr}-${staff.id}`] || [];
         const nameBusy = busyNamesMap[`${dateStr}-${staff.nome}`] || false;
+        if (dayBusy.length > 0 || nameBusy) continue;
 
-        if (dayBusy.length > 0 || nameBusy) {
-          console.log(`  [SKIP] ${staff.nome} (ID: ${staff.id}) for demand ${dIdx}: Already has a shift today`);
-          continue;
-        }
 
         // A3. Check Indisponibilità (Time Off)
         const isUnavailable = staff.unavailabilities && staff.unavailabilities.some(u => {
@@ -247,7 +343,6 @@ function generateSchedule(startDate, endDate, allStaff, coverageRows) {
 
         // D. Check Station Capability (Postazioni)
         // Normalize Demand Station: "B/S_V" -> "B/S", "ACCGIU:S" -> "ACCGIU"
-        // Also handle "ACC/OPS" vs "ACC"?
 
         const dStationRaw = (demand.station || '').trim().toUpperCase();
 
@@ -265,19 +360,22 @@ function generateSchedule(startDate, endDate, allStaff, coverageRows) {
 
         const sName = (staff.nome + ' ' + (staff.cognome || '')).toUpperCase();
         if (sName.includes('SECK') && sName.includes('CODOU')) {
-          // CONSTRAINT 1: Only BAR SU
-          if (!dStationRaw.includes('BARSU') && !(dStationRaw.includes('BAR') && dStationRaw.includes('SU'))) {
-            reasons.push(`${staff.nome}: Can only do BAR SU`);
-            continue;
-          }
+          // CONSTRAINT 1: REMOVED Station Lock per user request ("assegna... ore fisse")
+          // We allow him on ANY station if it fits time.
 
           // CONSTRAINT 2: Time (Lunch Only, Forced 10:30-15:30)
           if (demand.start >= 16) {
-            reasons.push(`${staff.nome}: Can only do 10:30-15:30 (Lunch)`);
+            // He can't work evenings.
             continue;
           }
+
+          // Force times if slot allows (assuming slot covers it)
           finalStart = 10.5; // 10:30
           finalEnd = 15.5;   // 15:30
+
+          // If demand is shorter than this forced block? 
+          // E.g. Slot 12:00-14:00. Seck 10:30-15:30 doesn't fit?
+          // We assume coverage rows are compatible (e.g. 10-15).
         }
         // --------------------------------------------------
 
@@ -298,10 +396,10 @@ function generateSchedule(startDate, endDate, allStaff, coverageRows) {
           date: dateStr,
           staffId: staff.id,
           shiftTemplateId: null,
-          customStart: formatTime(finalStart),
-          customEnd: formatTime(finalEnd),
+          start_time: formatTime(finalStart),
+          end_time: formatTime(finalEnd),
           postazione: demand.station,
-          status: 'BOZZA'
+          status: false // BOZZA
         });
 
         // Mark Busy

@@ -16,6 +16,8 @@ async function main() {
         shifts: path.join(__dirname, '../WEEK_TURNI - WEEK3.csv')
     };
 
+
+
     // 1. STAFF
     if (fs.existsSync(paths.staff)) {
         console.log(`\n--- Importing Staff from ${paths.staff} ---`);
@@ -144,7 +146,9 @@ async function importStaff(filePath) {
         const oreMin = parseInt(cols[4]) || 0;
         const oreMax = parseInt(cols[5]) || 40;
         const costo = parseFloat(cols[6]) || 0;
-        const postazioni = cols[7] || ""; // already string, quotes removed by parser
+        // SPLIT STRING INTO ARRAY for Postgres (String[])
+        let postazioniRaw = cols[7] || "";
+        const postazioni = postazioniRaw.split(',').map(s => s.trim()).filter(Boolean);
 
         const existing = await prisma.staff.findFirst({
             where: { nome: { equals: nome }, cognome: { equals: cognome } } // Exact match? Or just nome
@@ -368,7 +372,7 @@ async function importShifts(filePath) {
                 // let's try creating.
                 console.log(`Creating Missing Staff (Shifts): ${name}`);
                 staff = await prisma.staff.create({
-                    data: { nome: name, cognome: surname || "", ruolo: "STAFF", postazioni: "" }
+                    data: { nome: name, cognome: surname || "", ruolo: "STAFF", postazioni: [] }
                 });
             }
 
@@ -393,9 +397,9 @@ async function importShifts(filePath) {
                         data: {
                             staffId: staff.id,
                             data: date,
-                            customStart: slot.s,
-                            customEnd: slot.e,
-                            stato: 'BOZZA'
+                            start_time: slot.s,
+                            end_time: slot.e,
+                            status: false
                         }
                     });
                     count++;

@@ -19,14 +19,13 @@ model Staff {
   oreMinime       Int      @default(0)
   oreMassime      Int      @default(40)
   costoOra        Float    @default(0)
-  postazioni      String[] @default([])
+  postazioni      String   @default("") // Comma separated for SQLite
   listIndex       Int      @default(999) 
-  fixedShifts     String?  @default("{}") // JSON stringified (LEGACY? Keep for now)
+  fixedShifts     String?  @default("{}") // JSON stringified
   createdAt       DateTime @default(now())
   
   unavailabilities Unavailability[]
   assignments      Assignment[]
-  recurringShifts  RecurringShift[]
 }
 
 model ShiftTemplate {
@@ -35,21 +34,17 @@ model ShiftTemplate {
   oraInizio    String 
   oraFine      String 
   ruoloRichiesto String 
-  giorniValidi Int[] @default([])
+  giorniValidi String  // Comma separated ints e.g. "1,2,3"
   
   assignments Assignment[]
-  recurringShifts RecurringShift[]
 }
 
 model Unavailability {
   id        Int      @id @default(autoincrement())
   staffId   Int
   staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  data      String   // "2025-12-25"
-  tipo      String   // "TOTALE", "PARZIALE", "PRANZO", "SERA"
-  reason    String?  // Motivo dell'assenza
-  start_time String? // "10:30"
-  end_time   String? // "15:30"
+  data      String   // "2025-12-25" (ISO Date string for simplicity in SQLite)
+  tipo      String   // "TOTALE" or "PARZIALE"
 }
 
 model Constraint {
@@ -65,10 +60,21 @@ model Assignment {
   staff           Staff         @relation(fields: [staffId], references: [id], onDelete: Cascade)
   shiftTemplateId Int?
   shiftTemplate   ShiftTemplate? @relation(fields: [shiftTemplateId], references: [id])
-  start_time      String?       // "11:30"
-  end_time        String?       // "18:30"
-  status          Boolean       @default(false) // false=BOZZA, true=PUBBLICATO
-  postazione      String?
+  postazione      String?       // Specific station for this shift
+  customStart     String?       // "11:30" (Overrides template start)
+  customEnd       String?       // "18:30" (Overrides template end)
+  stato           String        @default("BOZZA") // "BOZZA", "PUBBLICATO"
+
+  // @@unique([data, staffId, shiftTemplateId]) // CAREFUL: Multi-nulls might be allowed or issue.
+  // Better to just rely on app logic or add a unique constraint that handles nulls if needed.
+  // For simplicity, let's keep it but knowing nulls behavior depends on DB.
+  // Actually, existing unique constraint MIGHT fail if I change type.
+  // Let's comment out unique constraint for now to avoid migration issues with manual shifts?
+  // User wants multiple shifts maybe?
+  // Let's KEEP strictness but maybe just on data+staffId if we only allowed 1 shift per day?
+  // No, user wants multiple.
+  // Let's remove this constraint for now to Unblock.
+
 }
 
 
@@ -78,6 +84,7 @@ model Budget {
   value       Float  @default(0) // Euro Total (Row 15)
   hoursLunch  Float  @default(0) // Hours Lunch (Row 8)
   hoursDinner Float  @default(0) // Hours Dinner (Row 11)
+  // Legacy or specific split if needed later
   valueLunch  Float  @default(0) 
   valueDinner Float  @default(0)
 }
@@ -89,27 +96,4 @@ model CoverageRow {
   frequency String
   slots     String   @default("{}") // JSON stringified
   extra     String   @default("{}") // JSON stringified
-}
-
-model User {
-  id       Int    @id @default(autoincrement())
-  email    String @unique
-  password String
-  name     String?
-  surname  String?
-  dob      String?
-  address  String?
-  role     String @default("USER") // ADMIN, USER
-}
-
-model RecurringShift {
-  id              Int      @id @default(autoincrement())
-  staffId         Int
-  staff           Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  dayOfWeek       Int      // 0=Sunday, 1=Monday, ..., 6=Saturday
-  start_time      String?
-  end_time        String?
-  shiftTemplateId Int?
-  shiftTemplate   ShiftTemplate? @relation(fields: [shiftTemplateId], references: [id])
-  postazione      String?
 }

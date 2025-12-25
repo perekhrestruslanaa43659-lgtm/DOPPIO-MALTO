@@ -1,0 +1,12 @@
+node_modules
+.git
+*.log
+.env
+.env.local
+test_*.js
+debug_*.js
+*.txt
+data/
+Nuova cartella/
+Nuova cartella (2)/
+backend/prisma/migrations/

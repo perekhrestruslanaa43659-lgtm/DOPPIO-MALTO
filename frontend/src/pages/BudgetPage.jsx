@@ -14,20 +14,22 @@ function getDatesInRange(startDate, endDate) {
     return dates
 }
 
+// Helper: Get Range from Week Number (ISO) - STRICT MONDAY START
 function getWeekRange(w, year = 2025) {
-    const d = new Date(year, 0, 1 + (w - 1) * 7);
-    const dayOfWeek = d.getDay();
-    const ISOweekStart = d;
-    if (dayOfWeek <= 4)
-        ISOweekStart.setDate(d.getDate() - d.getDay() + 1);
-    else
-        ISOweekStart.setDate(d.getDate() + 8 - d.getDay());
+    const d = new Date(Date.UTC(year, 0, 4)); // Jan 4th is always in Week 1
+    const day = d.getUTCDay() || 7;
+    const startOfYear = new Date(d);
+    startOfYear.setUTCDate(d.getUTCDate() - day + 1);
 
-    const start = ISOweekStart.toISOString().split('T')[0]
-    const endD = new Date(ISOweekStart);
-    endD.setDate(endD.getDate() + 6);
-    const end = endD.toISOString().split('T')[0]
-    return { start, end }
+    const startD = new Date(startOfYear);
+    startD.setUTCDate(startOfYear.getUTCDate() + (w - 1) * 7);
+
+    const start = startD.toISOString().split('T')[0];
+    const endD = new Date(startD);
+    endD.setUTCDate(endD.getUTCDate() + 6);
+    const end = endD.toISOString().split('T')[0];
+
+    return { start, end };
 }
 
 export default function BudgetPage() {
@@ -87,8 +89,8 @@ export default function BudgetPage() {
     const getStats = (date) => {
         let hl = 0, hd = 0;
         schedule.filter(a => a.data === date).forEach(a => {
-            let start = a.customStart;
-            let end = a.customEnd;
+            let start = a.start_time;
+            let end = a.end_time;
             if (!start && a.shiftTemplate) {
                 start = a.shiftTemplate.oraInizio;
                 end = a.shiftTemplate.oraFine;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import api from '../util/api'
 import * as XLSX from 'xlsx'
+import QuarterTimeInput from '../components/QuarterTimeInput'
 
 // Helper to get dates in range
 function getDatesInRange(startDate, endDate) {
@@ -35,7 +36,7 @@ function getWeekRange(w, year = 2025) {
   return { start, end };
 }
 
-export default function TurniPage() {
+export default function TurniPage({ readOnly }) {
 
   const [schedule, setSchedule] = useState([])
   const [staff, setStaff] = useState([])
@@ -50,6 +51,45 @@ export default function TurniPage() {
   const [selectedWeek, setSelectedWeek] = useState(42)
   const [range, setRange] = useState(getWeekRange(42, 2025))
   const [shiftLength, setShiftLength] = useState(7)
+
+  const [candidateList, setCandidateList] = useState(null)
+  const [targetGap, setTargetGap] = useState(null)
+  const [manualMode, setManualMode] = useState(false)
+  const [selectedCandidate, setSelectedCandidate] = useState(null)
+  const [panarelloActive, setPanarelloActive] = useState(false)
+
+  const findCandidates = async (gap) => {
+    setTargetGap(gap);
+    setManualMode(false);
+    setSelectedCandidate(null); // Reset Selection
+    setCandidateList(null); // Loading
+    setCandidateList(null); // Loading
+    try {
+      const res = await api.findCandidates(gap.date, gap.start, gap.end, gap.station);
+      setCandidateList(res);
+    } catch (e) { alert(e.message) }
+  }
+
+  const assignCandidate = async (staffId) => {
+    if (readOnly) return;
+    if (!targetGap) return;
+    try {
+      await api.createAssignment({
+        staffId: staffId,
+        data: targetGap.date,
+        start_time: targetGap.start,
+        end_time: targetGap.end,
+        postazione: targetGap.station,
+        status: true // Direct assignment is confirmed? Or Draft? Let's assume Confirmed for "Availability" gap fill. Or Bozza? User said default Bozza. But gap fill is usually "I want this now". Let's use TRUE (Published/Confirmed) for single assignments to avoid confusion, or FALSE. User "Imposta il valore predefinito a false". Okay, FALSE.
+      });
+      alert("Assegnato!");
+      setTargetGap(null);
+      setCandidateList(null);
+      // Remove from unassigned list
+      setUnassignedShifts(prev => prev.filter(u => u !== targetGap));
+      loadData();
+    } catch (e) { alert("Errore assegnazione: " + e.message) }
+  }
 
   const changeWeek = (w, y = currentYear) => {
     const r = getWeekRange(w, parseInt(y))
@@ -70,7 +110,8 @@ export default function TurniPage() {
   async function loadData() {
     try {
       const [sch, stf, tmpl, unav, bdg] = await Promise.all([
-        api.getSchedule(range.start, range.end),
+        api.getSchedule(range.start, range.end).then(s => s.filter(x => !readOnly || x.status === true)),
+
         api.getStaff(),
         api.getShiftTemplates(),
         api.getUnavailability(),
@@ -139,6 +180,20 @@ export default function TurniPage() {
   }
 
 
+
+  async function verifyCoverage() {
+    try {
+      const res = await api.verifySchedule(range.start, range.end);
+      if (res.gaps && res.gaps.length > 0) {
+        setUnassignedShifts(res.gaps);
+        setShowUnassignedModal(true);
+      } else {
+        setUnassignedShifts([]);
+        alert("Ottimo! Tutti i turni richiesti sono coperti. ✅");
+      }
+    } catch (e) { alert("Errore verifica: " + e.message) }
+  }
+
   function handleExportExcel() {
     try {
       if (!staff || staff.length === 0) return alert("Nessun dato da esportare.");
@@ -169,8 +224,8 @@ export default function TurniPage() {
           } else {
             const posts = asns.map(a => a.postazione).filter(Boolean).join(" / ");
             const times = asns.map(a => {
-              const start = a.customStart || a.shiftTemplate?.oraInizio || "";
-              const end = a.customEnd || a.shiftTemplate?.oraFine || "";
+              const start = a.start_time || a.shiftTemplate?.oraInizio || "";
+              const end = a.end_time || a.shiftTemplate?.oraFine || "";
 
               // Add to totalEff
               if (start && end) {
@@ -247,7 +302,7 @@ export default function TurniPage() {
                 data: d.label,
                 staffId: foundStaff.id,
                 shiftTemplateId: foundTmpl.id,
-                stato: 'BOZZA'
+                status: false // BOZZA
               })
             }
           }
@@ -379,7 +434,7 @@ export default function TurniPage() {
   const getShift = (staffId, date, type) => {
     const list = (matrix[staffId] && matrix[staffId][date]) || []
     return list.find(a => {
-      const sT = a.customStart || (a.shiftTemplate ? a.shiftTemplate.oraInizio : null)
+      const sT = a.start_time || (a.shiftTemplate ? a.shiftTemplate.oraInizio : null)
       if (!sT) return false
       const startH = parseInt(sT.split(':')[0])
       if (type === 'PRANZO') return startH < 17
@@ -398,7 +453,12 @@ export default function TurniPage() {
     let l = 0, d = 0
     if (s < 17) l = Math.min(e, 17) - s
     if (e > 17) d = e - Math.max(s, 17)
-    return { l, d }
+
+    // Ensure 0.25 precision
+    return {
+      l: Math.round(l * 100) / 100,
+      d: Math.round(d * 100) / 100
+    }
   }
 
   // Calc hours logic
@@ -408,7 +468,7 @@ export default function TurniPage() {
     const [h2, m2] = end.split(':').map(Number)
     let diff = (h2 + m2 / 60) - (h1 + m1 / 60)
     if (diff < 0) diff += 24 // Over midnight
-    return diff
+    return Math.round(diff * 100) / 100
   }
 
   const getStats = () => {
@@ -425,10 +485,10 @@ export default function TurniPage() {
       const sMatrix = matrix[s.id] || {};
       Object.keys(sMatrix).forEach(d => {
         sMatrix[d].forEach(a => {
-          if (a.shiftTemplate || a.customStart) {
+          if (a.shiftTemplate || a.start_time) {
             totalShifts++;
-            const s = a.customStart || (a.shiftTemplate ? a.shiftTemplate.oraInizio : null)
-            const e = a.customEnd || (a.shiftTemplate ? a.shiftTemplate.oraFine : null)
+            const s = a.start_time || (a.shiftTemplate ? a.shiftTemplate.oraInizio : null)
+            const e = a.end_time || (a.shiftTemplate ? a.shiftTemplate.oraFine : null)
             staffHours += calcHours(s, e)
           }
         })
@@ -437,7 +497,7 @@ export default function TurniPage() {
       totalCost += staffHours * (s.costoOra || 0);
     });
 
-    const productivity = totalAssignedHours > 0 ? (totalShifts / totalAssignedHours).toFixed(2) : 0;
+    const productivity = totalAssignedHours > 0 ? (totalShifts / totalAssignedHours).toFixed(2) : '0.00';
 
     return { totalAssignedHours, totalContractHours, totalShifts, productivity, diff: totalContractHours - totalAssignedHours, totalCost }
   }
@@ -451,8 +511,8 @@ export default function TurniPage() {
       const asns = sMatrix[date]
       asns.forEach(a => {
         if (a.shiftTemplate) {
-          const s = a.customStart || a.shiftTemplate.oraInizio
-          const e = a.customEnd || a.shiftTemplate.oraFine
+          const s = a.start_time || a.shiftTemplate.oraInizio
+          const e = a.end_time || a.shiftTemplate.oraFine
           total += calcHours(s, e)
         }
       })
@@ -484,15 +544,33 @@ export default function TurniPage() {
   useEffect(() => {
     if (editingCell && editingCell.currentAsn) {
       setCustomTimes({
-        start: editingCell.currentAsn.customStart || editingCell.currentAsn.shiftTemplate?.oraInizio || '',
-        end: editingCell.currentAsn.customEnd || editingCell.currentAsn.shiftTemplate?.oraFine || ''
+        start: editingCell.currentAsn.start_time || editingCell.currentAsn.shiftTemplate?.oraInizio || '',
+        end: editingCell.currentAsn.end_time || editingCell.currentAsn.shiftTemplate?.oraFine || ''
       })
     } else {
       setCustomTimes({ start: '', end: '' })
     }
   }, [editingCell])
 
-  const handleCellClick = (staffId, date, type, currentAsn) => {
+  const handleCellClick = async (staffId, date, type, currentAsn) => {
+    if (readOnly) return;
+
+    if (panarelloActive && currentAsn) {
+      try {
+        // Toggle Status (Draft vs Confirmed)
+        const newStatus = !currentAsn.status;
+        await api.updateAssignment(currentAsn.id, {
+          ...currentAsn,
+          status: newStatus
+        });
+        // Reload to show change
+        loadData();
+        return; // Don't open modal
+      } catch (e) {
+        alert("Errore Panarello: " + e.message);
+      }
+    }
+
     // Determine day name of the clicked date
     const d = new Date(date);
     const dayNames = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
@@ -520,7 +598,7 @@ export default function TurniPage() {
   };
 
   // STATION RULES
-  const STATIONS_COMMON = ['BARGIU', 'BARSU', 'ACCSU', 'CDR', 'B/S', 'B/S_2'];
+  const STATIONS_COMMON = ['BARGIU', 'BARSU', 'ACCSU', 'CDR', 'B/S', 'B/S_2', 'CUCINA', 'MANAGER'];
   const STATIONS_BY_DAY = {
     0: ['CDR_D', 'ACCGIU:_D', 'B/S_D'], // Domenica
     1: [], // Lunedi
@@ -539,16 +617,12 @@ export default function TurniPage() {
       if (type.includes('Turno') || type.includes('In') || type.includes('Out')) {
         let newTmplId = val;
         if (newTmplId === 'MANUAL') newTmplId = ''; // Treat as custom/no-template
-        let customStart = null;
-        let customEnd = null;
-        const sEl = document.getElementById('editStart');
-        const eEl = document.getElementById('editEnd');
-        if (sEl) customStart = sEl.value;
-        if (eEl) customEnd = eEl.value;
+        let start_time = customTimes.start;
+        let end_time = customTimes.end;
 
         // --- CHECK UNAVAILABILITY ---
         // Determine effective start time for checking
-        let checkStart = customStart;
+        let checkStart = start_time;
         if (!checkStart && newTmplId) {
           const t = templates.find(x => x.id === Number(newTmplId));
           if (t) checkStart = t.oraInizio;
@@ -622,8 +696,8 @@ export default function TurniPage() {
             // Subtract old assignment if updating
             let existingTotal = getTotalHours(staffId);
             if (currentAsn) {
-              const oldS = currentAsn.customStart || currentAsn.shiftTemplate?.oraInizio;
-              const oldE = currentAsn.customEnd || currentAsn.shiftTemplate?.oraFine;
+              const oldS = currentAsn.start_time || currentAsn.shiftTemplate?.oraInizio;
+              const oldE = currentAsn.end_time || currentAsn.shiftTemplate?.oraFine;
               if (oldS && oldE) existingTotal -= calcHours(oldS, oldE);
             }
 
@@ -637,7 +711,7 @@ export default function TurniPage() {
         // -----------------------------------
 
         // Validazione Custom Shift
-        const isCustom = (!newTmplId || newTmplId === '') && (customStart && customEnd);
+        const isCustom = (!newTmplId || newTmplId === '') && (start_time && end_time);
 
         // Se non ho template e non ho orari custom, è una cancellazione
         if (!newTmplId && !isCustom && currentAsn) {
@@ -655,31 +729,37 @@ export default function TurniPage() {
 
         const payload = {
           shiftTemplateId: newTmplId ? Number(newTmplId) : null,
-          customStart,
-          customEnd,
+          start_time,
+          end_time,
           force: false // default
         };
 
         if (currentAsn) {
           await api.updateAssignment(currentAsn.id, payload)
+          console.log(`✅ Turno aggiornato su Supabase: ${staff.find(s => s.id === staffId)?.nome} - ${date}`);
         } else {
           await api.createAssignment({
             staffId,
             data: date,
             ...payload,
-            stato: 'BOZZA'
+            status: false
           })
+          console.log(`✅ Turno creato su Supabase: ${staff.find(s => s.id === staffId)?.nome} - ${date}`);
         }
       }
       else if (type.includes('Post')) {
-        if (currentAsn) await api.updateAssignment(currentAsn.id, { postazione: val })
+        if (currentAsn) {
+          await api.updateAssignment(currentAsn.id, { postazione: val })
+          console.log(`✅ Postazione aggiornata su Supabase`);
+        }
         else if (val && val.trim() !== '') alert("Devi prima assegnare un turno!")
       }
       setEditingCell(null)
       loadData()
     } catch (e) {
       // ... existing error catch block ...
-      alert("Errore salvataggio: " + e.message);
+      console.error('❌ ERRORE salvataggio su Supabase:', e);
+      alert(`❌ ERRORE: Il turno NON è stato salvato su Supabase!\n\n${e.message}\n\nRiprova o contatta l'amministratore.`);
     }
   }
 
@@ -724,20 +804,20 @@ export default function TurniPage() {
       </div>
 
       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-        <button className="btn" style={{ backgroundColor: '#673ab7', color: 'white', fontWeight: 'bold' }} onClick={generate}>
+        {!readOnly && <button className="btn" style={{ backgroundColor: '#673ab7', color: 'white', fontWeight: 'bold' }} onClick={generate}>
           🤖 Genera Turni (AI Expert)
-        </button>
-        <label className="btn" style={{ backgroundColor: '#0275d8', color: 'white' }}>
+        </button>}
+        {!readOnly && <label className="btn" style={{ backgroundColor: '#0275d8', color: 'white' }}>
           Importa Grid (CSV)
           <input type="file" style={{ display: 'none' }} onChange={handleImport} accept=".csv, .xlsx" />
-        </label>
+        </label>}
         <button className="btn" style={{ backgroundColor: '#28a745', color: 'white' }} onClick={handleExportExcel}>
           📊 Esporta Excel
         </button>
-        <button className="btn" style={{ background: '#4caf50', color: 'white' }} onClick={() => { alert('Salvataggio completato!'); loadData(); }}>
+        {!readOnly && <button className="btn" style={{ background: '#4caf50', color: 'white' }} onClick={() => { alert('Salvataggio completato!'); loadData(); }}>
           💾 Salva Tutto
-        </button>
-        <button className="btn" style={{ background: '#f44336', color: 'white' }} onClick={async () => {
+        </button>}
+        {!readOnly && <button className="btn" style={{ background: '#f44336', color: 'white' }} onClick={async () => {
           if (confirm("Vuoi cancellare TUTTI i turni di questa settimana? Questa azione non è reversibile.")) {
             try {
               await api.clearAssignments(range.start, range.end);
@@ -746,18 +826,31 @@ export default function TurniPage() {
               alert("Errore durante la cancellazione: " + e.message);
             }
           }
-        }}>Annulla Turni</button>
-
-        <button className="btn" style={{ backgroundColor: '#2e7d32', color: 'white' }} onClick={async () => {
-          if (!confirm('Vuoi aggiornare il file WEEK_TURNI - WEEK3.csv con i turni attuali?')) return;
-          try {
-            await api.exportCsvWeek3(range.start, range.end);
-            alert('File CSV aggiornato correttamente!');
-          } catch (e) {
-            alert('Errore: ' + e.message);
-          }
         }}>
-          Aggiorna CSV Week3
+          🗑️ Cancella Tutto
+        </button>}
+        <button className="btn" style={{ backgroundColor: '#ff9800', color: 'white', fontWeight: 'bold' }} onClick={verifyCoverage}>
+          🔍 Verifica Copertura
+        </button>
+
+        <button
+          className="btn"
+          style={{
+            backgroundColor: panarelloActive ? '#FFEB3B' : '#f0f0f0',
+            fontSize: '1.5em',
+            padding: '5px 15px',
+            borderRadius: '10px',
+            border: panarelloActive ? '3px solid #FBC02D' : '1px solid #ccc',
+            boxShadow: panarelloActive ? '0 0 15px rgba(255, 235, 59, 0.7)' : 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            transition: 'all 0.3s ease'
+          }}
+          onClick={() => setPanarelloActive(!panarelloActive)}
+          title="Usa l'evidenziatore per colorare/togliere il giallo (DA RIVEDERE)"
+        >
+          🖌️
         </button>
 
         {unassignedShifts.length > 0 && (
@@ -766,13 +859,15 @@ export default function TurniPage() {
           </button>
         )}
 
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '15px', fontSize: '0.9em', background: '#f0f0f0', padding: '10px', borderRadius: '5px' }}>
-          <div><strong>Budget:</strong> {stats.totalContractHours}h</div>
-          <div><strong>Effettivo:</strong> {stats.totalAssignedHours.toFixed(1)}h</div>
-          <div><strong>Costo:</strong> €{stats.totalCost.toFixed(0)}</div>
-          <div style={{ color: stats.diff >= 0 ? 'green' : 'red' }}><strong>Diff:</strong> {stats.diff.toFixed(1)}h</div>
-          <div><strong>Produttività:</strong> {stats.productivity}</div>
-        </div>
+        {!readOnly && (
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: '15px', fontSize: '0.9em', background: '#f0f0f0', padding: '10px', borderRadius: '5px' }}>
+            <div><strong>Budget:</strong> {stats.totalContractHours}h</div>
+            <div><strong>Effettivo:</strong> {stats.totalAssignedHours.toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}h</div>
+            <div><strong>Costo:</strong> €{stats.totalCost.toFixed(0)}</div>
+            <div style={{ color: stats.diff >= 0 ? 'green' : 'red' }}><strong>Diff:</strong> {stats.diff.toLocaleString('it-IT', { minimumFractionDigits: 1, maximumFractionDigits: 2 })}h</div>
+            <div><strong>Produttività:</strong> {stats.productivity}</div>
+          </div>
+        )}
       </div>
 
       {/* EDITOR OVERLAY */}
@@ -793,18 +888,8 @@ export default function TurniPage() {
                 <select className="input" defaultValue={editingCell.currentAsn ? editingCell.currentAsn.shiftTemplateId : ''} id="editSelect"
                   onChange={(e) => {
                     const tId = e.target.value;
-                    if (tId === 'MANUAL' || tId === '') {
-                      // Reset template times but keep custom times editable
-                      setCustomTimes({ start: '', end: '' });
-                      if (document.getElementById('editStart')) document.getElementById('editStart').value = '';
-                      if (document.getElementById('editEnd')) document.getElementById('editEnd').value = '';
-                      return;
-                    }
-                    const tmpl = templates.find(t => t.id === Number(tId));
                     if (tmpl) {
                       setCustomTimes({ start: tmpl.oraInizio, end: tmpl.oraFine });
-                      if (document.getElementById('editStart')) document.getElementById('editStart').value = tmpl.oraInizio;
-                      if (document.getElementById('editEnd')) document.getElementById('editEnd').value = tmpl.oraFine;
                     }
                   }}
                 >
@@ -859,11 +944,15 @@ export default function TurniPage() {
                   ))}
                 </select>
 
-                <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                  <label style={{ fontSize: '0.8em' }}>Orari (Opzionale per manuale):</label>
-                  <input id="editStart" type="time" className="input" defaultValue={customTimes.start} style={{ width: '80px' }} />
-                  <span>-</span>
-                  <input id="editEnd" type="time" className="input" defaultValue={customTimes.end} style={{ width: '80px' }} />
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'center', background: '#f8f9fa', padding: '10px', borderRadius: '5px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    <label style={{ fontSize: '0.8em', fontWeight: 'bold' }}>Inizio:</label>
+                    <QuarterTimeInput id="editStart" value={customTimes.start} onChange={(v) => setCustomTimes(prev => ({ ...prev, start: v }))} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    <label style={{ fontSize: '0.8em', fontWeight: 'bold' }}>Fine:</label>
+                    <QuarterTimeInput id="editEnd" value={customTimes.end} onChange={(v) => setCustomTimes(prev => ({ ...prev, end: v }))} />
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px' }}>
@@ -897,7 +986,8 @@ export default function TurniPage() {
             <button className="btn" style={{ marginTop: '10px', background: '#ccc' }} onClick={() => setEditingCell(null)}>Annulla</button>
           </div>
         </div>
-      )}
+      )
+      }
 
       <div style={{ overflowX: 'auto', width: '100%' }}>
         <table className="table" style={{ fontSize: '0.8em', borderCollapse: 'collapse', width: '100%', minWidth: '1600px' }}>
@@ -939,48 +1029,34 @@ export default function TurniPage() {
 
               const sMatrix = matrix[s.id] || {}
 
-              // Calculate Total Hours for Display (Inline)
-              let displayTotal = 0;
+
+
               Object.keys(sMatrix).forEach(date => {
-                const asns = sMatrix[date]
+                const asns = sMatrix[date];
                 asns.forEach(a => {
-                  const sT = a.customStart || (a.shiftTemplate ? a.shiftTemplate.oraInizio : null)
-                  const eT = a.customEnd || (a.shiftTemplate ? a.shiftTemplate.oraFine : null)
+                  const sT = a.start_time || (a.shiftTemplate ? a.shiftTemplate.oraInizio : null);
+                  const eT = a.end_time || (a.shiftTemplate ? a.shiftTemplate.oraFine : null);
+
                   if (sT && eT) {
-                    const [h1, m1] = sT.split(':').map(Number)
-                    const [h2, m2] = eT.split(':').map(Number)
-                    let start = h1 + m1 / 60
-                    let end = h2 + m2 / 60
-                    if (end < start) end += 24
-                    displayTotal += (end - start)
-                  }
-                })
-              })
-              Object.keys(sMatrix).forEach(date => {
-                const asns = sMatrix[date]
-                asns.forEach(a => {
-                  if (a.shiftTemplate) {
-                    const sT = a.customStart || a.shiftTemplate.oraInizio
-                    const eT = a.customEnd || a.shiftTemplate.oraFine
+                    const [h1, m1] = sT.split(':').map(Number);
+                    const [h2, m2] = eT.split(':').map(Number);
+                    let start = h1 + m1 / 60;
+                    let end = h2 + m2 / 60;
+                    if (end < start) end += 24;
 
-                    const [h1, m1] = sT.split(':').map(Number)
-                    const [h2, m2] = eT.split(':').map(Number)
-                    let start = h1 + m1 / 60
-                    let end = h2 + m2 / 60
-                    if (end < start) end += 24
+                    total += (end - start);
 
-                    total += (end - start)
-
-                    const CUTOFF = 17.0
+                    // Split calculation
+                    const CUTOFF = 17.0;
                     if (start < CUTOFF) {
-                      lunchH += (Math.min(end, CUTOFF) - start)
+                      lunchH += (Math.min(end, CUTOFF) - start);
                     }
                     if (end > CUTOFF) {
-                      dinnerH += (end - Math.max(start, CUTOFF))
+                      dinnerH += (end - Math.max(start, CUTOFF));
                     }
                   }
-                })
-              })
+                });
+              });
 
               return (
                 <tr key={s.id} style={{ borderBottom: '1px solid #eee' }}>
@@ -993,35 +1069,148 @@ export default function TurniPage() {
                   <td style={{ position: 'sticky', left: '190px', background: '#fff', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', color: '#666', zIndex: 10 }}>
                     {s.oreMassime || '-'}
                   </td>
-                  <td style={{ position: 'sticky', left: '240px', background: '#fff', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', fontWeight: 'bold', zIndex: 10 }}>
-                    {displayTotal.toFixed(2)}
+                  <td style={{
+                    position: 'sticky', left: '240px',
+                    background: (() => {
+                      if ((s.ruolo || '').toLowerCase().includes('chiamata')) return '#fff';
+                      const target = s.oreMassime || 0;
+                      const diff = total - target;
+                      if (diff > 0) { // Overtime
+                        return diff > 3 ? '#ffcdd2' : '#fff9c4';
+                      } else if (diff < 0) { // Undertime
+                        return '#bbdefb'; // Blue (Under hours)
+                      }
+                      return '#fff'; // Exact
+                    })(),
+                    borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', fontWeight: 'bold', zIndex: 10
+                  }}>
+                    {total.toFixed(2)}
                   </td>
 
                   {days.map(d => {
                     const lunch = getShift(s.id, d, 'PRANZO')
                     const dinner = getShift(s.id, d, 'SERA')
 
-                    const renderSlot = (asn, typePrefix, bgColor) => {
-                      const clickH = (t) => handleCellClick(s.id, d, typePrefix + t, asn)
+                    const getDayName = (dateStr) => {
+                      if (!dateStr) return '';
+                      const parts = dateStr.split('-');
+                      const d = new Date(parts[0], parts[1] - 1, parts[2]);
+                      const days = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+                      return days[d.getDay()];
+                    };
+                    const dayName = getDayName(d);
+
+                    // Availability Check - Slot Aware
+                    const findUnavail = (typeP) => {
+                      return (s.unavailabilities || []).find(u => {
+                        const uDate = u.data ? u.data.split('T')[0] : '';
+                        if (uDate !== d) return false;
+                        if (u.tipo === 'TOTALE') return true;
+                        if (u.tipo === 'PRANZO' && typeP === 'Pranzo') return true;
+                        if (u.tipo === 'SERA' && typeP === 'Sera') return true;
+                        // Partial: if tipo is PARZIALE, we'd need time logic. 
+                        // For now, let's assume PARZIALE blocks the slot if it overlaps.
+                        // Standard slots: Pranzo (<17), Sera (>=17)
+                        if (u.tipo === 'PARZIALE' && u.start_time) {
+                          const startH = parseInt(u.start_time.split(':')[0]);
+                          if (typeP === 'Pranzo' && startH < 17) return true;
+                          if (typeP === 'Sera' && startH >= 17) return true;
+                        }
+                        return false;
+                      });
+                    };
+
+                    const renderSlot = (asn, typePrefix, bgColor, dayN) => {
+                      const suffix = typePrefix === 'Pranzo' ? 'P' : 'S';
+                      const bindKey = `${dayN}_${suffix}`;
+                      const constraint = (s.fixedShifts || {})[bindKey];
+
+                      const cursorStyle = panarelloActive ? 'url("https://img.icons8.com/color/24/000000/marker.png") 0 24, crosshair' : 'pointer';
+
+                      // Determine Content and Style
+                      let cellBg = bgColor;
+                      let contentStart = '-';
+                      let contentEnd = '-';
+                      let contentPost = '';
+                      let isBlocked = false;
+
+                      const unavail = findUnavail(typePrefix);
+
+                      if (unavail) {
+                        cellBg = '#ffebee'; // Red background for Unavailability
+                        contentStart = 'INDISPONIBILE';
+                        isBlocked = true;
+                      } else if (constraint && constraint.startsWith('NO')) {
+                        cellBg = '#ffebee'; // Light Red for NO
+                        contentStart = 'NO';
+                        isBlocked = true;
+                      } else if (constraint && constraint !== 'FIX') {
+                        // Fixed Time Preference/Constraint (e.g. 10:30-15:30)
+                        // If NOT assigned, show this as a hint?
+                        if (!asn) {
+                          cellBg = '#fffde7'; // Light Yellow
+
+                          // Parse "10:30-15:30"
+                          if (constraint.includes('-')) {
+                            const [sTime, eTime] = constraint.split('-');
+                            contentStart = sTime;
+                            contentEnd = eTime;
+                          } else {
+                            contentStart = 'FIX';
+                          }
+                          // contentPost = constraint; // Too long?
+                        }
+                      }
+
+                      const clickH = (t) => {
+                        if (panarelloActive && asn) {
+                          handleCellClick(s.id, d, typePrefix + t, asn);
+                          return;
+                        }
+                        if (!isBlocked) {
+                          handleCellClick(s.id, d, typePrefix + t, asn);
+                        } else if (unavail) {
+                          if (confirm(`Rimuovere l'indisponibilità di ${s.nome} per il ${d} (${typePrefix})?`)) {
+                            api.deleteUnavailability(unavail.id)
+                              .then(() => {
+                                alert("Indisponibilità rimossa.");
+                                loadData();
+                              })
+                              .catch(e => alert("Errore: " + e.message));
+                          }
+                        }
+                      }
+
                       const fmt = (t) => {
                         if (!t) return '-';
                         const [h, m] = t.split(':').map(Number);
                         const h24 = h % 24;
                         return `${String(h24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
                       }
-                      const showStart = asn ? fmt(asn.customStart || asn.shiftTemplate?.oraInizio) : '-'
-                      const showEnd = asn ? fmt(asn.customEnd || asn.shiftTemplate?.oraFine) : '-'
+
+                      if (asn) {
+                        contentStart = fmt(asn.start_time || asn.shiftTemplate?.oraInizio);
+                        contentEnd = fmt(asn.end_time || asn.shiftTemplate?.oraFine);
+                        contentPost = asn.postazione || '';
+
+                        // Yellow for Draft (status === false)
+                        if (asn.status === false) {
+                          cellBg = '#fff9c4'; // Modern Yellow
+                          // Optionally add 'DA RIVEDERE'
+                          if (!contentPost) contentPost = 'DA RIVEDERE';
+                        }
+                      }
 
                       return (
                         <React.Fragment>
-                          <td onClick={() => clickH('In')} style={{ background: bgColor, textAlign: 'center', cursor: 'pointer', fontSize: '0.9em' }} title={asn?.shiftTemplate?.nome}>
-                            {showStart}
+                          <td onClick={() => clickH('In')} style={{ background: cellBg, textAlign: 'center', cursor: isBlocked ? 'not-allowed' : 'pointer', fontSize: '0.9em' }}>
+                            {contentStart}
                           </td>
-                          <td onClick={() => clickH('Out')} style={{ background: bgColor, textAlign: 'center', cursor: 'pointer', fontSize: '0.9em' }} title={asn?.shiftTemplate?.nome}>
-                            {showEnd}
+                          <td onClick={() => clickH('Out')} style={{ background: cellBg, textAlign: 'center', cursor: isBlocked ? 'not-allowed' : 'pointer', fontSize: '0.9em' }}>
+                            {asn ? contentEnd : (isBlocked ? '' : '-')}
                           </td>
-                          <td onClick={() => clickH('Post')} style={{ background: bgColor, textAlign: 'center', cursor: 'pointer', borderRight: typePrefix === 'Sera' ? '2px solid #aaa' : '1px solid #ddd' }}>
-                            {asn?.postazione || ''}
+                          <td onClick={() => clickH('Post')} style={{ background: cellBg, textAlign: 'center', cursor: isBlocked ? 'not-allowed' : 'pointer', borderRight: typePrefix === 'Sera' ? '2px solid #aaa' : '1px solid #ddd' }}>
+                            {contentPost}
                           </td>
                         </React.Fragment>
                       )
@@ -1029,8 +1218,8 @@ export default function TurniPage() {
 
                     return (
                       <React.Fragment key={d}>
-                        {renderSlot(lunch, 'Pranzo', '#f1f8e9')}
-                        {renderSlot(dinner, 'Sera', '#e1f5fe')}
+                        {renderSlot(lunch, 'Pranzo', '#f1f8e9', dayName)}
+                        {renderSlot(dinner, 'Sera', '#e1f5fe', dayName)}
                       </React.Fragment>
                     )
                   })}
@@ -1038,101 +1227,111 @@ export default function TurniPage() {
               )
             })}
 
-            {/* Footer Row 1: BUDGET € PRANZO */}
-            <tr style={{ background: '#fff9c4', borderTop: '2px solid #ccc' }}>
-              <td style={{ position: 'sticky', left: 0, background: '#fff9c4', borderRight: '1px solid #ddd', padding: '10px', fontWeight: 'bold', zIndex: 10 }} colSpan={2}>BUDGET € PRANZO</td>
-              <td style={{ position: 'sticky', left: '190px', background: '#fff9c4', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
-              <td style={{ position: 'sticky', left: '240px', background: '#fff9c4', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
-              {days.map(d => {
-                const dayBud = forecast[d] || {};
-                const val = dayBud.revLunch;
-                return (
-                  <React.Fragment key={d}>
-                    <td colSpan={3} style={{ textAlign: 'center', borderRight: '1px solid #ddd', fontWeight: 'bold' }}>
-                      {val !== undefined && val !== 0 ? `€ ${val}` : '-'}
-                    </td>
-                    <td colSpan={3} style={{ textAlign: 'center', borderRight: '2px solid #aaa', background: '#fbe9e7' }}></td>
-                  </React.Fragment>
-                )
-              })}
-            </tr>
+            {/* Footer Row 1: BUDGET € PRANZO - HIDE FOR OPERATORS */}
+            {!readOnly && (
+              <tr style={{ background: '#fff9c4', borderTop: '2px solid #ccc' }}>
+                <td style={{ position: 'sticky', left: 0, background: '#fff9c4', borderRight: '1px solid #ddd', padding: '10px', fontWeight: 'bold', zIndex: 10 }} colSpan={2}>BUDGET € PRANZO</td>
+                <td style={{ position: 'sticky', left: '190px', background: '#fff9c4', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
+                <td style={{ position: 'sticky', left: '240px', background: '#fff9c4', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
+                {days.map(d => {
+                  const dayBud = forecast[d] || {};
+                  const val = dayBud.revLunch;
+                  return (
+                    <React.Fragment key={d}>
+                      <td colSpan={3} style={{ textAlign: 'center', borderRight: '1px solid #ddd', fontWeight: 'bold' }}>
+                        {val !== undefined && val !== 0 ? `€ ${val}` : '-'}
+                      </td>
+                      <td colSpan={3} style={{ textAlign: 'center', borderRight: '2px solid #aaa', background: '#fbe9e7' }}></td>
+                    </React.Fragment>
+                  )
+                })}
+              </tr>
+            )}
 
-            {/* Footer Row 2: BUDGET € SERA */}
-            <tr style={{ background: '#e0f7fa', borderTop: '1px solid #ddd' }}>
-              <td style={{ position: 'sticky', left: 0, width: '190px', maxWidth: '190px', overflow: 'hidden', whiteSpace: 'nowrap', background: '#e0f7fa', borderRight: '1px solid #ddd', padding: '10px', fontWeight: 'bold', zIndex: 10 }} colSpan={2} title="BUDGET € SERA">
-                BUDGET SERA (€)
-              </td>
-              <td style={{ position: 'sticky', left: '190px', width: '50px', maxWidth: '50px', background: '#e0f7fa', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
-              <td style={{ position: 'sticky', left: '240px', width: '50px', maxWidth: '50px', background: '#e0f7fa', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
-              {days.map(d => {
-                const dayBud = forecast[d] || {};
-                const val = dayBud.revDinner;
-                return (
-                  <React.Fragment key={d}>
-                    <td colSpan={3} style={{ textAlign: 'center', borderRight: '1px solid #ddd', background: '#e1f5fe' }}></td>
-                    <td colSpan={3} style={{ textAlign: 'center', borderRight: '2px solid #aaa', fontWeight: 'bold' }}>
-                      {val !== undefined && val !== 0 ? `€ ${val}` : '-'}
-                    </td>
-                  </React.Fragment>
-                )
-              })}
-            </tr>
+            {/* Footer Row 2: BUDGET € SERA - HIDE FOR OPERATORS */}
+            {!readOnly && (
+              <tr style={{ background: '#e0f7fa', borderTop: '1px solid #ddd' }}>
+                <td style={{ position: 'sticky', left: 0, width: '190px', maxWidth: '190px', overflow: 'hidden', whiteSpace: 'nowrap', background: '#e0f7fa', borderRight: '1px solid #ddd', padding: '10px', fontWeight: 'bold', zIndex: 10 }} colSpan={2} title="BUDGET € SERA">
+                  BUDGET SERA (€)
+                </td>
+                <td style={{ position: 'sticky', left: '190px', width: '50px', maxWidth: '50px', background: '#e0f7fa', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
+                <td style={{ position: 'sticky', left: '240px', width: '50px', maxWidth: '50px', background: '#e0f7fa', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
+                {days.map(d => {
+                  const dayBud = forecast[d] || {};
+                  const val = dayBud.revDinner;
+                  return (
+                    <React.Fragment key={d}>
+                      <td colSpan={3} style={{ textAlign: 'center', borderRight: '1px solid #ddd', background: '#e1f5fe' }}></td>
+                      <td colSpan={3} style={{ textAlign: 'center', borderRight: '2px solid #aaa', fontWeight: 'bold' }}>
+                        {val !== undefined && val !== 0 ? `€ ${val}` : '-'}
+                      </td>
+                    </React.Fragment>
+                  )
+                })}
+              </tr>
+            )}
 
-            {/* Footer Row NEW: BUDGET € TOTALE */}
-            <tr style={{ background: '#b2ebf2', borderTop: '1px solid #ddd', fontWeight: 'bold' }}>
-              <td style={{ position: 'sticky', left: 0, width: '190px', maxWidth: '190px', overflow: 'hidden', whiteSpace: 'nowrap', background: '#b2ebf2', borderRight: '1px solid #ddd', padding: '10px', zIndex: 10 }} colSpan={2} title="BUDGET € TOTALE">
-                BUDGET TOTALE (€)
-              </td>
-              <td style={{ position: 'sticky', left: '190px', width: '50px', maxWidth: '50px', background: '#b2ebf2', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
-              <td style={{ position: 'sticky', left: '240px', width: '50px', maxWidth: '50px', background: '#b2ebf2', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
-              {days.map(d => {
-                const dayBud = forecast[d] || {};
-                const tot = (parseFloat(dayBud.revLunch) || 0) + (parseFloat(dayBud.revDinner) || 0);
-                return (
-                  <td key={d} colSpan={6} style={{ textAlign: 'center', borderRight: '2px solid #aaa', color: '#006064' }}>
-                    {tot !== 0 ? `€ ${tot}` : '-'}
-                  </td>
-                )
-              })}
-            </tr>
-
-            {/* Footer Row 3: BUDGET ORE PRANZO */}
-            <tr style={{ background: '#fff9c4', borderTop: '2px solid #ccc' }}>
-              <td style={{ position: 'sticky', left: 0, background: '#fff9c4', borderRight: '1px solid #ddd', padding: '10px', fontWeight: 'bold', zIndex: 10 }} colSpan={2}>BUDGET ORE PRANZO</td>
-              <td style={{ position: 'sticky', left: '190px', background: '#fff9c4', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
-              <td style={{ position: 'sticky', left: '240px', background: '#fff9c4', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
-              {days.map(d => {
-                const dayBud = forecast[d] || {};
-                const val = dayBud.hoursLunch;
-                return (
-                  <React.Fragment key={d}>
-                    <td colSpan={3} style={{ textAlign: 'center', borderRight: '1px solid #ddd' }}>
-                      {val !== undefined && val !== 0 ? val : '-'}
+            {/* Footer Row NEW: BUDGET € TOTALE - HIDE FOR OPERATORS */}
+            {!readOnly && (
+              <tr style={{ background: '#b2ebf2', borderTop: '1px solid #ddd', fontWeight: 'bold' }}>
+                <td style={{ position: 'sticky', left: 0, width: '190px', maxWidth: '190px', overflow: 'hidden', whiteSpace: 'nowrap', background: '#b2ebf2', borderRight: '1px solid #ddd', padding: '10px', zIndex: 10 }} colSpan={2} title="BUDGET € TOTALE">
+                  BUDGET TOTALE (€)
+                </td>
+                <td style={{ position: 'sticky', left: '190px', width: '50px', maxWidth: '50px', background: '#b2ebf2', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
+                <td style={{ position: 'sticky', left: '240px', width: '50px', maxWidth: '50px', background: '#b2ebf2', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
+                {days.map(d => {
+                  const dayBud = forecast[d] || {};
+                  const tot = (parseFloat(dayBud.revLunch) || 0) + (parseFloat(dayBud.revDinner) || 0);
+                  return (
+                    <td key={d} colSpan={6} style={{ textAlign: 'center', borderRight: '2px solid #aaa', color: '#006064' }}>
+                      {tot !== 0 ? `€ ${tot}` : '-'}
                     </td>
-                    <td colSpan={3} style={{ textAlign: 'center', borderRight: '2px solid #aaa', background: '#fbe9e7' }}></td>
-                  </React.Fragment>
-                )
-              })}
-            </tr>
+                  )
+                })}
+              </tr>
+            )}
 
-            {/* Footer Row 4: BUDGET ORE SERA */}
-            <tr style={{ background: '#e0f7fa', borderTop: '1px solid #ddd' }}>
-              <td style={{ position: 'sticky', left: 0, background: '#e0f7fa', borderRight: '1px solid #ddd', padding: '10px', fontWeight: 'bold', zIndex: 10 }} colSpan={2}>BUDGET ORE SERA</td>
-              <td style={{ position: 'sticky', left: '190px', background: '#e0f7fa', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
-              <td style={{ position: 'sticky', left: '240px', background: '#e0f7fa', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
-              {days.map(d => {
-                const dayBud = forecast[d] || {};
-                const val = dayBud.hoursDinner;
-                return (
-                  <React.Fragment key={d}>
-                    <td colSpan={3} style={{ textAlign: 'center', borderRight: '1px solid #ddd', background: '#e1f5fe' }}></td>
-                    <td colSpan={3} style={{ textAlign: 'center', borderRight: '2px solid #aaa' }}>
-                      {val !== undefined && val !== 0 ? val : '-'}
-                    </td>
-                  </React.Fragment>
-                )
-              })}
-            </tr>
+            {/* Footer Row 3: BUDGET ORE PRANZO - HIDE FOR OPERATORS */}
+            {!readOnly && (
+              <tr style={{ background: '#fff9c4', borderTop: '2px solid #ccc' }}>
+                <td style={{ position: 'sticky', left: 0, background: '#fff9c4', borderRight: '1px solid #ddd', padding: '10px', fontWeight: 'bold', zIndex: 10 }} colSpan={2}>BUDGET ORE PRANZO</td>
+                <td style={{ position: 'sticky', left: '190px', background: '#fff9c4', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
+                <td style={{ position: 'sticky', left: '240px', background: '#fff9c4', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
+                {days.map(d => {
+                  const dayBud = forecast[d] || {};
+                  const val = dayBud.hoursLunch;
+                  return (
+                    <React.Fragment key={d}>
+                      <td colSpan={3} style={{ textAlign: 'center', borderRight: '1px solid #ddd' }}>
+                        {val !== undefined && val !== 0 ? val : '-'}
+                      </td>
+                      <td colSpan={3} style={{ textAlign: 'center', borderRight: '2px solid #aaa', background: '#fbe9e7' }}></td>
+                    </React.Fragment>
+                  )
+                })}
+              </tr>
+            )}
+
+            {/* Footer Row 4: BUDGET ORE SERA - HIDE FOR OPERATORS */}
+            {!readOnly && (
+              <tr style={{ background: '#e0f7fa', borderTop: '1px solid #ddd' }}>
+                <td style={{ position: 'sticky', left: 0, background: '#e0f7fa', borderRight: '1px solid #ddd', padding: '10px', fontWeight: 'bold', zIndex: 10 }} colSpan={2}>BUDGET ORE SERA</td>
+                <td style={{ position: 'sticky', left: '190px', background: '#e0f7fa', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
+                <td style={{ position: 'sticky', left: '240px', background: '#e0f7fa', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
+                {days.map(d => {
+                  const dayBud = forecast[d] || {};
+                  const val = dayBud.hoursDinner;
+                  return (
+                    <React.Fragment key={d}>
+                      <td colSpan={3} style={{ textAlign: 'center', borderRight: '1px solid #ddd', background: '#e1f5fe' }}></td>
+                      <td colSpan={3} style={{ textAlign: 'center', borderRight: '2px solid #aaa' }}>
+                        {val !== undefined && val !== 0 ? val : '-'}
+                      </td>
+                    </React.Fragment>
+                  )
+                })}
+              </tr>
+            )}
 
             {/* Footer Row 5: ORE REALI PRANZO */}
             <tr style={{ background: '#f0f0f0', fontWeight: 'bold', borderTop: '1px solid #ccc' }}>
@@ -1144,8 +1343,8 @@ export default function TurniPage() {
                 staff.forEach(s => {
                   ((matrix[s.id] || {})[d] || []).forEach(a => {
                     // FIX: Check for custom start/end as AI shifts might not have a template
-                    const sT = a.customStart || (a.shiftTemplate ? a.shiftTemplate.oraInizio : null);
-                    const eT = a.customEnd || (a.shiftTemplate ? a.shiftTemplate.oraFine : null);
+                    const sT = a.start_time || (a.shiftTemplate ? a.shiftTemplate.oraInizio : null);
+                    const eT = a.end_time || (a.shiftTemplate ? a.shiftTemplate.oraFine : null);
 
                     if (sT && eT) {
                       const { l } = getSplitHours(sT, eT);
@@ -1174,8 +1373,8 @@ export default function TurniPage() {
                 staff.forEach(s => {
                   ((matrix[s.id] || {})[d] || []).forEach(a => {
                     // FIX: Check for custom start/end as AI shifts might not have a template
-                    const sT = a.customStart || (a.shiftTemplate ? a.shiftTemplate.oraInizio : null);
-                    const eT = a.customEnd || (a.shiftTemplate ? a.shiftTemplate.oraFine : null);
+                    const sT = a.start_time || (a.shiftTemplate ? a.shiftTemplate.oraInizio : null);
+                    const eT = a.end_time || (a.shiftTemplate ? a.shiftTemplate.oraFine : null);
 
                     if (sT && eT) {
                       const { d: dH } = getSplitHours(sT, eT);
@@ -1205,9 +1404,9 @@ export default function TurniPage() {
                 let eff = 0;
                 staff.forEach(s => {
                   ((matrix[s.id] || {})[d] || []).forEach(a => {
-                    if (a.shiftTemplate || a.customStart) {
-                      const sT = a.customStart || (a.shiftTemplate ? a.shiftTemplate.oraInizio : null);
-                      const eT = a.customEnd || (a.shiftTemplate ? a.shiftTemplate.oraFine : null);
+                    if (a.shiftTemplate || a.start_time) {
+                      const sT = a.start_time || (a.shiftTemplate ? a.shiftTemplate.oraInizio : null);
+                      const eT = a.end_time || (a.shiftTemplate ? a.shiftTemplate.oraFine : null);
                       const { l } = getSplitHours(sT, eT);
                       eff += l;
                     }
@@ -1237,9 +1436,9 @@ export default function TurniPage() {
                 let eff = 0;
                 staff.forEach(s => {
                   ((matrix[s.id] || {})[d] || []).forEach(a => {
-                    if (a.shiftTemplate || a.customStart) {
-                      const sT = a.customStart || (a.shiftTemplate ? a.shiftTemplate.oraInizio : null);
-                      const eT = a.customEnd || (a.shiftTemplate ? a.shiftTemplate.oraFine : null);
+                    if (a.shiftTemplate || a.start_time) {
+                      const sT = a.start_time || (a.shiftTemplate ? a.shiftTemplate.oraInizio : null);
+                      const eT = a.end_time || (a.shiftTemplate ? a.shiftTemplate.oraFine : null);
                       const { d: dH } = getSplitHours(sT, eT);
                       eff += dH;
                     }
@@ -1270,9 +1469,9 @@ export default function TurniPage() {
                 let eff = 0;
                 staff.forEach(s => {
                   ((matrix[s.id] || {})[d] || []).forEach(a => {
-                    if (a.shiftTemplate || a.customStart) {
-                      const sT = a.customStart || (a.shiftTemplate ? a.shiftTemplate.oraInizio : null);
-                      const eT = a.customEnd || (a.shiftTemplate ? a.shiftTemplate.oraFine : null);
+                    if (a.shiftTemplate || a.start_time) {
+                      const sT = a.start_time || (a.shiftTemplate ? a.shiftTemplate.oraInizio : null);
+                      const eT = a.end_time || (a.shiftTemplate ? a.shiftTemplate.oraFine : null);
                       const { l } = getSplitHours(sT, eT);
                       eff += l;
                     }
@@ -1290,77 +1489,83 @@ export default function TurniPage() {
               })}
             </tr>
 
-            {/* Footer Row 10: PROD. SERA */}
-            <tr style={{ background: '#ce93d8', fontWeight: 'bold', borderTop: '1px solid #ddd', color: '#4a148c' }}>
-              <td style={{ position: 'sticky', left: 0, background: '#ce93d8', borderRight: '1px solid #ddd', padding: '10px', zIndex: 10 }} colSpan={2}>PROD. SERA (€/h)</td>
-              <td style={{ position: 'sticky', left: '190px', background: '#ce93d8', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
-              <td style={{ position: 'sticky', left: '240px', background: '#ce93d8', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
-              {days.map(d => {
-                const db = forecast[d] || {};
-                const euro = parseFloat(db.revDinner) || 0;
-                let eff = 0;
-                staff.forEach(s => {
-                  ((matrix[s.id] || {})[d] || []).forEach(a => {
-                    if (a.shiftTemplate || a.customStart) {
-                      const sT = a.customStart || (a.shiftTemplate ? a.shiftTemplate.oraInizio : null);
-                      const eT = a.customEnd || (a.shiftTemplate ? a.shiftTemplate.oraFine : null);
-                      const { d: dH } = getSplitHours(sT, eT);
-                      eff += dH;
-                    }
-                  })
-                });
-                const prod = eff > 0 ? (euro / eff).toFixed(2) : '-';
-                return (
-                  <React.Fragment key={d}>
-                    <td colSpan={3} style={{ textAlign: 'center', borderRight: '1px solid #ddd', background: '#e1bee7' }}></td>
-                    <td colSpan={3} style={{ textAlign: 'center', borderRight: '2px solid #aaa' }}>
+            {/* Footer Row 10: PROD. SERA - HIDE FOR OPERATORS */}
+            {!readOnly && (
+              <tr style={{ background: '#ce93d8', fontWeight: 'bold', borderTop: '1px solid #ddd', color: '#4a148c' }}>
+                <td style={{ position: 'sticky', left: 0, background: '#ce93d8', borderRight: '1px solid #ddd', padding: '10px', zIndex: 10 }} colSpan={2}>PROD. SERA (€/h)</td>
+                <td style={{ position: 'sticky', left: '190px', background: '#ce93d8', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
+                <td style={{ position: 'sticky', left: '240px', background: '#ce93d8', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
+                {days.map(d => {
+                  const db = forecast[d] || {};
+                  const euro = parseFloat(db.revDinner) || 0;
+                  let eff = 0;
+                  staff.forEach(s => {
+                    ((matrix[s.id] || {})[d] || []).forEach(a => {
+                      if (a.shiftTemplate || a.start_time) {
+                        const sT = a.start_time || (a.shiftTemplate ? a.shiftTemplate.oraInizio : null);
+                        const eT = a.end_time || (a.shiftTemplate ? a.shiftTemplate.oraFine : null);
+                        const { d: dH } = getSplitHours(sT, eT);
+                        eff += dH;
+                      }
+                    })
+                  });
+                  const prod = eff > 0 ? (euro / eff).toFixed(2) : '-';
+                  return (
+                    <React.Fragment key={d}>
+                      <td colSpan={3} style={{ textAlign: 'center', borderRight: '1px solid #ddd', background: '#e1bee7' }}></td>
+                      <td colSpan={3} style={{ textAlign: 'center', borderRight: '2px solid #aaa' }}>
+                        € {prod}
+                      </td>
+                    </React.Fragment>
+                  )
+                })}
+              </tr>
+            )}
+
+            {/* Footer Row 11: PROD. GIORNALIERA - HIDE FOR OPERATORS */}
+            {!readOnly && (
+              <tr style={{ background: '#ba68c8', fontWeight: 'bold', borderTop: '2px solid #ddd', color: '#fff' }}>
+                <td style={{ position: 'sticky', left: 0, background: '#ba68c8', borderRight: '1px solid #ddd', padding: '10px', zIndex: 10 }} colSpan={2}>PROD. GIORNALIERA</td>
+                <td style={{ position: 'sticky', left: '190px', background: '#ba68c8', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
+                <td style={{ position: 'sticky', left: '240px', background: '#ba68c8', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
+                {days.map(d => {
+                  const db = forecast[d] || {};
+                  const euroL = parseFloat(db.revLunch) || 0;
+                  const euroD = parseFloat(db.revDinner) || 0;
+                  const totalRev = euroL + euroD;
+
+                  let eff = 0;
+                  staff.forEach(s => {
+                    ((matrix[s.id] || {})[d] || []).forEach(a => {
+                      if (a.shiftTemplate || a.start_time) {
+                        const sT = a.start_time || (a.shiftTemplate ? a.shiftTemplate.oraInizio : null);
+                        const eT = a.end_time || (a.shiftTemplate ? a.shiftTemplate.oraFine : null);
+                        const { l, d: dH } = getSplitHours(sT, eT);
+                        eff += (l + dH);
+                      }
+                    })
+                  });
+                  const prod = eff > 0 ? (totalRev / eff).toFixed(2) : '-';
+                  return (
+                    <td key={d} colSpan={6} style={{ textAlign: 'center', borderRight: '2px solid #aaa' }}>
                       € {prod}
                     </td>
-                  </React.Fragment>
-                )
-              })}
-            </tr>
+                  )
+                })}
+              </tr>
+            )}
 
-            {/* Footer Row 11: PROD. GIORNALIERA */}
-            <tr style={{ background: '#ba68c8', fontWeight: 'bold', borderTop: '2px solid #ddd', color: '#fff' }}>
-              <td style={{ position: 'sticky', left: 0, background: '#ba68c8', borderRight: '1px solid #ddd', padding: '10px', zIndex: 10 }} colSpan={2}>PROD. GIORNALIERA</td>
-              <td style={{ position: 'sticky', left: '190px', background: '#ba68c8', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
-              <td style={{ position: 'sticky', left: '240px', background: '#ba68c8', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
-              {days.map(d => {
-                const db = forecast[d] || {};
-                const euroL = parseFloat(db.revLunch) || 0;
-                const euroD = parseFloat(db.revDinner) || 0;
-                const totalRev = euroL + euroD;
-
-                let eff = 0;
-                staff.forEach(s => {
-                  ((matrix[s.id] || {})[d] || []).forEach(a => {
-                    if (a.shiftTemplate || a.customStart) {
-                      const sT = a.customStart || (a.shiftTemplate ? a.shiftTemplate.oraInizio : null);
-                      const eT = a.customEnd || (a.shiftTemplate ? a.shiftTemplate.oraFine : null);
-                      const { l, d: dH } = getSplitHours(sT, eT);
-                      eff += (l + dH);
-                    }
-                  })
-                });
-                const prod = eff > 0 ? (totalRev / eff).toFixed(2) : '-';
-                return (
-                  <td key={d} colSpan={6} style={{ textAlign: 'center', borderRight: '2px solid #aaa' }}>
-                    € {prod}
-                  </td>
-                )
-              })}
-            </tr>
-
-            {/* Footer Row 12: COSTI STIMATI */}
-            <tr style={{ background: '#fff3e0', fontWeight: 'bold', borderTop: '1px solid #ccc', color: '#e65100' }}>
-              <td style={{ position: 'sticky', left: 0, background: '#fff3e0', borderRight: '1px solid #ddd', padding: '10px', zIndex: 10 }} colSpan={2}>COSTI STIMATI</td>
-              <td style={{ position: 'sticky', left: '190px', background: '#fff3e0', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>€ {stats.totalCost.toFixed(0)}</td>
-              <td style={{ position: 'sticky', left: '240px', background: '#fff3e0', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
-              <td colSpan={days.length * 6} style={{ textAlign: 'center', fontSize: '0.8em', color: '#999' }}>
-                (Calcolo basato su Costo Ora Staff)
-              </td>
-            </tr>
+            {/* Footer Row 12: COSTI STIMATI - HIDE FOR OPERATORS */}
+            {!readOnly && (
+              <tr style={{ background: '#fff3e0', fontWeight: 'bold', borderTop: '1px solid #ccc', color: '#e65100' }}>
+                <td style={{ position: 'sticky', left: 0, background: '#fff3e0', borderRight: '1px solid #ddd', padding: '10px', zIndex: 10 }} colSpan={2}>COSTI STIMATI</td>
+                <td style={{ position: 'sticky', left: '190px', background: '#fff3e0', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>€ {stats.totalCost.toFixed(0)}</td>
+                <td style={{ position: 'sticky', left: '240px', background: '#fff3e0', borderRight: '2px solid #ddd', padding: '5px', textAlign: 'center', zIndex: 10 }}>-</td>
+                <td colSpan={days.length * 6} style={{ textAlign: 'center', fontSize: '0.8em', color: '#999' }}>
+                  (Calcolo basato su Costo Ora Staff)
+                </td>
+              </tr>
+            )}
 
 
           </tbody>
@@ -1370,87 +1575,168 @@ export default function TurniPage() {
 
 
       {/* Unassigned Warning Modal */}
-      {showUnassignedModal && unassignedShifts.length > 0 && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999,
-          display: 'flex', justifyContent: 'center', alignItems: 'center'
-        }}>
+      {
+        showUnassignedModal && unassignedShifts.length > 0 && !readOnly && (
           <div style={{
-            backgroundColor: 'white', padding: '20px', borderRadius: '10px',
-            maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999,
+            display: 'flex', justifyContent: 'center', alignItems: 'center'
           }}>
-            <h3 style={{ color: '#d32f2f', marginTop: 0 }}>⚠️ Turni Non Assegnati ({unassignedShifts.length})</h3>
-            <p>I seguenti turni non sono stati assegnati perché nessuno staff soddisfaceva i requisiti.</p>
+            <div style={{
+              backgroundColor: 'white', padding: '20px', borderRadius: '10px',
+              maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+            }}>
+              <h3 style={{ color: '#d32f2f', marginTop: 0 }}>⚠️ Turni Non Assegnati ({unassignedShifts.length})</h3>
+              <p>I seguenti turni non sono stati assegnati perché nessuno staff soddisfaceva i requisiti.</p>
 
-            <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #eee', marginBottom: '15px' }}>
-              {unassignedShifts.map((u, i) => (
-                <div key={i} style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
-                  <strong>{new Date(u.date).toLocaleDateString('it-IT')} - {u.station}</strong><br />
-                  <span style={{ fontSize: '0.9em', color: '#666' }}>{u.start} - {u.end}</span>
-
-                  {u.candidates && u.candidates.length > 0 && (
-                    <div style={{ marginTop: '5px', fontSize: '0.85em', background: '#f9f9f9', padding: '5px' }}>
-                      <strong>Perché scartati?</strong>
-                      <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
-                        {u.candidates.slice(0, 3).map((c, ci) => (
-                          <li key={ci}>{c.name}: {c.reason}</li>
-                        ))}
-                        {u.candidates.length > 3 && <li>...e altri {u.candidates.length - 3}</li>}
-                      </ul>
+              <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #eee', marginBottom: '15px' }}>
+                {unassignedShifts.map((u, i) => (
+                  <div key={i} style={{ padding: '10px', borderBottom: '1px solid #eee' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <strong>{new Date(u.date).toLocaleDateString('it-IT')} - {u.station}</strong><br />
+                        <span style={{ fontSize: '0.9em', color: '#666' }}>{u.start} - {u.end}</span>
+                      </div>
+                      <button className="btn" style={{ fontSize: '0.8em', background: '#2196f3', color: 'white' }} onClick={() => findCandidates(u)}>
+                        🔍 Trova Staff
+                      </button>
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button className="btn" onClick={() => setShowUnassignedModal(false)}>Chiudi (Mantieni)</button>
+                    {/* Candidate Expansion */}
+                    {targetGap === u && (
+                      <div style={{ marginTop: '10px', background: '#e3f2fd', padding: '10px', borderRadius: '5px' }}>
+
+                        {selectedCandidate ? (
+                          <div style={{ background: '#fff9c4', padding: '10px', borderRadius: '5px', border: '1px solid #fbc02d' }}>
+                            <strong>Confermi l'assegnazione a {selectedCandidate.nome} {selectedCandidate.cognome}?</strong>
+                            <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
+                              <button className="btn" style={{ background: '#2e7d32', color: 'white' }}
+                                onClick={() => { assignCandidate(selectedCandidate.id); setSelectedCandidate(null); }}>
+                                ✅ Conferma
+                              </button>
+                              <button className="btn" style={{ background: '#757575', color: 'white' }}
+                                onClick={() => setSelectedCandidate(null)}>
+                                ❌ Annulla
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            {!manualMode ? (
+                              <>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <strong>Staff Disponibile:</strong>
+                                  <button style={{ fontSize: '0.8em', background: '#ff9800', color: 'white', border: 'none', padding: '3px 8px', borderRadius: '3px', cursor: 'pointer' }}
+                                    onClick={() => setManualMode(true)}>
+                                    ➕ Manuale
+                                  </button>
+                                </div>
+
+                                {!candidateList ? <div>Caricamento...</div> : candidateList.length === 0 ? <div style={{ color: 'red' }}>Nessuno staff trovato (prova manuale).</div> : (
+                                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '5px' }}>
+                                    {candidateList.map(s => (
+                                      <button key={s.id} onClick={() => setSelectedCandidate(s)} style={{
+                                        padding: '5px 10px', border: '1px solid #2196f3', background: 'white', cursor: 'pointer', borderRadius: '3px'
+                                      }}>
+                                        {s.nome} {s.cognome}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <div style={{ background: '#fff3e0', padding: '10px', borderRadius: '5px' }}>
+                                <strong>Assegnazione Manuale (Tutti i dipendenti):</strong>
+                                <div style={{ marginTop: '5px', display: 'flex', gap: '10px' }}>
+                                  <select className="input" onChange={(e) => {
+                                    if (e.target.value) {
+                                      const s = staff.find(st => st.id === Number(e.target.value));
+                                      if (s) setSelectedCandidate(s);
+                                    }
+                                  }} value="">
+                                    <option value="">-- Seleziona Staff --</option>
+                                    {[...staff].sort((a, b) => a.nome.localeCompare(b.nome)).map(s => (
+                                      <option key={s.id} value={s.id}>{s.nome} {s.cognome}</option>
+                                    ))}
+                                  </select>
+                                  <button className="btn" style={{ background: '#9e9e9e', color: 'white', padding: '5px 10px' }} onClick={() => setManualMode(false)}>
+                                    Annulla
+                                  </button>
+                                </div>
+                                <small style={{ color: '#d32f2f' }}>Attenzione: Ignora vincoli di disponibilità.</small>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                      </div>
+                    )}
+
+                    {u.candidates && u.candidates.length > 0 && !targetGap && (
+                      <div style={{ marginTop: '5px', fontSize: '0.85em', background: '#f9f9f9', padding: '5px' }}>
+                        <strong>Perché scartati (dal generatore)?</strong>
+                        <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
+                          {u.candidates.slice(0, 3).map((c, ci) => (
+                            <li key={ci}>{c.name}: {c.reason}</li>
+                          ))}
+                          {u.candidates.length > 3 && <li>...e altri {u.candidates.length - 3}</li>}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button className="btn" onClick={() => setShowUnassignedModal(false)}>Chiudi (Mantieni)</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
-      {coverage.length > 0 && (
-        <div style={{ marginTop: '30px', borderTop: '2px solid #ccc', paddingTop: '20px' }}>
-          <h3>Fabbisogno / Copertura (Postazioni)</h3>
-          <div style={{ overflowX: 'auto', border: '1px solid #ddd' }}>
-            <table className="table" style={{ fontSize: '0.75em', borderCollapse: 'collapse', textAlign: 'center', width: '100%' }}>
-              <thead>
-                <tr style={{ background: '#eee' }}>
-                  <th rowSpan={2} style={{ border: '1px solid #999', padding: '5px' }}>Postazione</th>
-                  <th rowSpan={2} style={{ border: '1px solid #999', padding: '5px' }}>Freq</th>
-                  {/* Simplified View: Show Slots for Days */}
-                  {days.map(d => <th key={d} colSpan={4} style={{ border: '1px solid #999', background: '#e3f2fd' }}>{d}</th>)}
-                </tr>
-                <tr style={{ background: '#eee' }}>
-                  {/* In/Out headers */}
-                  {days.map((d, i) => (
-                    <React.Fragment key={i}>
-                      <th colSpan={2} style={{ border: '1px solid #ccc' }}>T1</th>
-                      <th colSpan={2} style={{ border: '1px solid #ccc' }}>T2</th>
-                    </React.Fragment>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {coverage.map((row, idx) => (
-                  <tr key={idx} style={{ borderBottom: '1px solid #ddd' }}>
-                    <td style={{ border: '1px solid #ccc', fontWeight: 'bold' }}>{row.station}</td>
-                    <td style={{ border: '1px solid #ccc' }}>{row.frequency}</td>
-                    {row.slots && row.slots.map((s, si) => (
-                      <td key={si} style={{ border: '1px solid #ccc', color: s ? '#000' : '#ccc', background: s ? '#fff' : '#f9f9f9' }}>
-                        {s}
-                      </td>
+      {
+        coverage.length > 0 && !readOnly && (
+          <div style={{ marginTop: '30px', borderTop: '2px solid #ccc', paddingTop: '20px' }}>
+            <h3>Fabbisogno / Copertura (Postazioni)</h3>
+            <div style={{ overflowX: 'auto', border: '1px solid #ddd' }}>
+              <table className="table" style={{ fontSize: '0.75em', borderCollapse: 'collapse', textAlign: 'center', width: '100%' }}>
+                <thead>
+                  <tr style={{ background: '#eee' }}>
+                    <th rowSpan={2} style={{ border: '1px solid #999', padding: '5px' }}>Postazione</th>
+                    <th rowSpan={2} style={{ border: '1px solid #999', padding: '5px' }}>Freq</th>
+                    {/* Simplified View: Show Slots for Days */}
+                    {days.map(d => <th key={d} colSpan={4} style={{ border: '1px solid #999', background: '#e3f2fd' }}>{d}</th>)}
+                  </tr>
+                  <tr style={{ background: '#eee' }}>
+                    {/* In/Out headers */}
+                    {days.map((d, i) => (
+                      <React.Fragment key={i}>
+                        <th colSpan={2} style={{ border: '1px solid #ccc' }}>T1</th>
+                        <th colSpan={2} style={{ border: '1px solid #ccc' }}>T2</th>
+                      </React.Fragment>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {coverage.map((row, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid #ddd' }}>
+                      <td style={{ border: '1px solid #ccc', fontWeight: 'bold' }}>{row.station}</td>
+                      <td style={{ border: '1px solid #ccc' }}>{row.frequency}</td>
+                      {row.slots && row.slots.map((s, si) => (
+                        <td key={si} style={{ border: '1px solid #ccc', color: s ? '#000' : '#ccc', background: s ? '#fff' : '#f9f9f9' }}>
+                          {s}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
     </div >
   )
 }

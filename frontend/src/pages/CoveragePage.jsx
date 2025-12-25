@@ -149,8 +149,50 @@ export default function CoveragePage() {
                         }
                     }
 
-                    return { ...r, slots: slots || Array(32).fill(''), extra: extra || [] };
+                    return {
+                        ...r,
+                        slots: slots || Array(32).fill(''),
+                        extra: extra || [],
+                        enabled: r.enabled !== undefined ? r.enabled : true // Default to enabled
+                    };
                 });
+
+                // Check if PASS station exists, if not add it
+                const hasPass = processed.some(row => row.station === 'PASS');
+                if (!hasPass) {
+                    // Create PASS station with specific hours
+                    const passSlots = Array(32).fill('');
+
+                    // Settimana (index 0) - template, leave empty or set default
+                    passSlots[0] = '12:00';  // Turno 1 In
+                    passSlots[1] = '18:00';  // Turno 1 Out
+                    passSlots[2] = '18:00';  // Turno 2 In
+                    passSlots[3] = '01:00';  // Turno 2 Out
+
+                    // Lunedì to Venerdì (indexes 1-5): 12:00-18:00, 18:00-01:00
+                    for (let d = 1; d <= 5; d++) {
+                        passSlots[d * 4] = '12:00';      // Turno 1 In
+                        passSlots[d * 4 + 1] = '18:00';  // Turno 1 Out
+                        passSlots[d * 4 + 2] = '18:00';  // Turno 2 In
+                        passSlots[d * 4 + 3] = '01:00';  // Turno 2 Out
+                    }
+
+                    // Sabato and Domenica (indexes 6-7): 12:00-18:00, 18:00-02:00
+                    for (let d = 6; d <= 7; d++) {
+                        passSlots[d * 4] = '12:00';      // Turno 1 In
+                        passSlots[d * 4 + 1] = '18:00';  // Turno 1 Out
+                        passSlots[d * 4 + 2] = '18:00';  // Turno 2 In
+                        passSlots[d * 4 + 3] = '02:00';  // Turno 2 Out
+                    }
+
+                    processed.push({
+                        station: 'PASS',
+                        freq: 'Tutti',
+                        slots: passSlots,
+                        extra: [],
+                        enabled: true
+                    });
+                }
 
                 setData({
                     headers: null,
@@ -288,7 +330,7 @@ export default function CoveragePage() {
                     <input type="file" style={{ display: 'none' }} onChange={handleImport} accept=".csv, .xlsx" />
                 </label>
                 <button className="btn" style={{ background: '#2196f3', color: 'white' }} onClick={() => {
-                    const newRow = { station: 'Nuova Postazione', freq: 'Tutti', slots: Array(32).fill(''), extra: Array(3).fill('') };
+                    const newRow = { station: 'Nuova Postazione', freq: 'Tutti', slots: Array(32).fill(''), extra: Array(3).fill(''), enabled: true };
                     setData({ ...data, body: [...data.body, newRow] });
                 }}>Aggiungi Riga</button>
                 <button className="btn" style={{ background: '#4caf50', color: 'white' }} onClick={handleSave}>Salva Modifiche</button>
@@ -301,13 +343,16 @@ export default function CoveragePage() {
                     <table className="table" style={{ fontSize: '1em', borderCollapse: 'collapse', textAlign: 'center', width: '100%', minWidth: '1500px' }}>
                         <thead>
                             <tr style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-                                <th rowSpan={3} style={{ border: '1px solid #999', background: '#fff', minWidth: '250px' }}>Postazione</th>
-                                <th rowSpan={3} style={{ border: '1px solid #999', background: '#fff', minWidth: '100px' }}>Ore Sett.</th>
+                                <th rowSpan={3} style={{ border: '1px solid #999', background: '#fff', minWidth: '180px', position: 'sticky', left: 0, zIndex: 12 }}>Postazione</th>
+                                <th rowSpan={3} style={{ border: '1px solid #999', background: '#fff', minWidth: '80px', position: 'sticky', left: '180px', zIndex: 12 }}>Ore Sett.</th>
                                 {days.map((d, di) => (
                                     <th key={d} colSpan={4} style={{ border: '1px solid #999', background: di === 0 ? '#fff9c4' : '#e3f2fd' }}>{d}</th>
                                 ))}
                             </tr>
                             <tr style={{ position: 'sticky', top: 30, zIndex: 10 }}>
+                                {/* Empty cells for sticky columns */}
+                                <th style={{ border: 'none', background: '#fff', position: 'sticky', left: 0, zIndex: 12 }}></th>
+                                <th style={{ border: 'none', background: '#fff', position: 'sticky', left: '180px', zIndex: 12 }}></th>
                                 {days.map((_, i) => (
                                     <React.Fragment key={i}>
                                         <th colSpan={2} style={{ border: '1px solid #ccc', background: '#fce4ec' }}>Turno 1</th>
@@ -316,6 +361,9 @@ export default function CoveragePage() {
                                 ))}
                             </tr>
                             <tr style={{ position: 'sticky', top: 60, zIndex: 10 }}>
+                                {/* Empty cells for sticky columns */}
+                                <th style={{ border: 'none', background: '#fff', position: 'sticky', left: 0, zIndex: 12 }}></th>
+                                <th style={{ border: 'none', background: '#fff', position: 'sticky', left: '180px', zIndex: 12 }}></th>
                                 {Array.from({ length: 16 }).map((_, i) => (
                                     <React.Fragment key={i}>
                                         <th style={{ border: '1px solid #ccc', minWidth: '100px', background: '#fafafa' }}>In</th>
@@ -325,16 +373,165 @@ export default function CoveragePage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {data.body.map((row, idx) => (
-                                <tr key={idx} style={{ borderBottom: '1px solid #ddd' }}>
-                                    <td style={{ border: '1px solid #ccc', background: '#fff' }}>
-                                        <input type="text" value={row.station} onChange={e => updateRow(idx, 'station', e.target.value)}
-                                            style={{ width: '100%', border: 'none', fontWeight: 'bold' }} />
-                                    </td>
-                                    <td style={{ border: '1px solid #ccc', background: '#fff', fontWeight: 'bold' }}>
-                                        {(() => {
-                                            let total = 0;
-                                            // Calculation skip Settimana (index 0), only sum days 1-7
+                            {data.body.map((row, idx) => {
+                                return (
+                                    <tr key={idx} style={{ borderBottom: '1px solid #ddd', opacity: row.enabled === false ? 0.5 : 1 }}>
+                                        <td style={{ border: '1px solid #ccc', background: '#fff', position: 'sticky', left: 0, zIndex: 5 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <button
+                                                    onClick={() => {
+                                                        const newBody = [...data.body];
+                                                        newBody[idx].enabled = !newBody[idx].enabled;
+                                                        setData({ ...data, body: newBody });
+                                                    }}
+                                                    style={{
+                                                        padding: '4px 8px',
+                                                        background: row.enabled !== false ? '#4caf50' : '#f44336',
+                                                        color: 'white',
+                                                        border: 'none',
+                                                        borderRadius: '4px',
+                                                        cursor: 'pointer',
+                                                        fontSize: '0.85em',
+                                                        fontWeight: 'bold',
+                                                        minWidth: '50px'
+                                                    }}
+                                                    title={row.enabled !== false ? "Postazione ATTIVA per generazione turni" : "Postazione DISATTIVATA - non verrà generata"}
+                                                >
+                                                    {row.enabled !== false ? 'ON' : 'OFF'}
+                                                </button>
+                                                <input type="text" value={row.station} onChange={e => updateRow(idx, 'station', e.target.value)}
+                                                    style={{ flex: 1, border: 'none', fontWeight: 'bold' }} />
+                                            </div>
+                                        </td>
+                                        <td style={{ border: '1px solid #ccc', background: '#fff', fontWeight: 'bold', position: 'sticky', left: '180px', zIndex: 5 }}>
+                                            {(() => {
+                                                let total = 0;
+                                                // Calculation skip Settimana (index 0), only sum days 1-7
+                                                for (let d = 1; d < 8; d++) {
+                                                    for (let t = 0; t < 2; t++) {
+                                                        const s = row.slots[d * 4 + t * 2];
+                                                        const e = row.slots[d * 4 + t * 2 + 1];
+                                                        if (s && e && s.includes(':') && e.includes(':')) {
+                                                            const [sh, sm] = s.split(':').map(Number);
+                                                            const [eh, em] = e.split(':').map(Number);
+                                                            let diff = (eh + em / 60) - (sh + sm / 60);
+                                                            if (diff < 0) diff += 24;
+                                                            total += diff;
+                                                        }
+                                                    }
+                                                }
+                                                return total.toFixed(1);
+                                            })()}
+                                        </td>
+                                        {row.slots && row.slots.map((s, si) => (
+                                            <td key={si} style={{
+                                                border: '1px solid #ccc',
+                                                minWidth: '100px',
+                                                background: (Math.floor(si / 4) % 2 !== 0 ? '#fff' : '#f9f9f9')
+                                            }}>
+                                                <input type="text" value={s} onChange={e => updateSlot(idx, si, e.target.value)}
+                                                    style={{ width: '100%', minWidth: '80px', textAlign: 'center', border: 'none', background: 'transparent', color: s ? 'black' : '#eee' }} />
+                                            </td>
+                                        ))}
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                        <tfoot>
+                            {/* Row showing Pranzo/Sera breakdown */}
+                            <tr style={{ background: '#fff3e0', fontWeight: 'bold', borderTop: '2px solid #333' }}>
+                                <td style={{ border: '1px solid #999', padding: '8px', position: 'sticky', left: 0, zIndex: 5, background: '#fff3e0' }}>
+                                    ORE PRANZO / SERA
+                                </td>
+                                <td style={{ border: '1px solid #999', padding: '8px', position: 'sticky', left: '180px', zIndex: 5, background: '#fff3e0' }}>
+                                    {/* Total Pranzo/Sera for week */}
+                                    {(() => {
+                                        let totalPranzo = 0;
+                                        let totalSera = 0;
+                                        data.body.forEach(row => {
+                                            for (let d = 1; d < 8; d++) {
+                                                // Turno 1 (Pranzo)
+                                                const s1 = row.slots[d * 4];
+                                                const e1 = row.slots[d * 4 + 1];
+                                                if (s1 && e1 && s1.includes(':') && e1.includes(':')) {
+                                                    const [sh, sm] = s1.split(':').map(Number);
+                                                    const [eh, em] = e1.split(':').map(Number);
+                                                    let diff = (eh + em / 60) - (sh + sm / 60);
+                                                    if (diff < 0) diff += 24;
+                                                    totalPranzo += diff;
+                                                }
+                                                // Turno 2 (Sera)
+                                                const s2 = row.slots[d * 4 + 2];
+                                                const e2 = row.slots[d * 4 + 3];
+                                                if (s2 && e2 && s2.includes(':') && e2.includes(':')) {
+                                                    const [sh, sm] = s2.split(':').map(Number);
+                                                    const [eh, em] = e2.split(':').map(Number);
+                                                    let diff = (eh + em / 60) - (sh + sm / 60);
+                                                    if (diff < 0) diff += 24;
+                                                    totalSera += diff;
+                                                }
+                                            }
+                                        });
+                                        return `P: ${totalPranzo.toFixed(1)} / S: ${totalSera.toFixed(1)}`;
+                                    })()}
+                                </td>
+                                {/* Calculate Pranzo/Sera totals for each day (skip Settimana, only Mon-Sun) */}
+                                {Array.from({ length: 7 }).map((_, i) => {
+                                    const dayIdx = i + 1; // Start from 1 (Lunedì) instead of 0 (Settimana)
+                                    let pranzoTotal = 0;
+                                    let seraTotal = 0;
+                                    data.body.forEach(row => {
+                                        // Turno 1 (Pranzo)
+                                        const s1 = row.slots[dayIdx * 4];
+                                        const e1 = row.slots[dayIdx * 4 + 1];
+                                        if (s1 && e1 && s1.includes(':') && e1.includes(':')) {
+                                            const [sh, sm] = s1.split(':').map(Number);
+                                            const [eh, em] = e1.split(':').map(Number);
+                                            let diff = (eh + em / 60) - (sh + sm / 60);
+                                            if (diff < 0) diff += 24;
+                                            pranzoTotal += diff;
+                                        }
+                                        // Turno 2 (Sera)
+                                        const s2 = row.slots[dayIdx * 4 + 2];
+                                        const e2 = row.slots[dayIdx * 4 + 3];
+                                        if (s2 && e2 && s2.includes(':') && e2.includes(':')) {
+                                            const [sh, sm] = s2.split(':').map(Number);
+                                            const [eh, em] = e2.split(':').map(Number);
+                                            let diff = (eh + em / 60) - (sh + sm / 60);
+                                            if (diff < 0) diff += 24;
+                                            seraTotal += diff;
+                                        }
+                                    });
+
+                                    return (
+                                        <td
+                                            key={dayIdx}
+                                            colSpan={4}
+                                            style={{
+                                                border: '1px solid #999',
+                                                padding: '8px',
+                                                textAlign: 'center',
+                                                fontSize: '0.9em',
+                                                color: '#e65100',
+                                                background: '#fff3e0'
+                                            }}
+                                        >
+                                            <div>P: {pranzoTotal.toFixed(1)}</div>
+                                            <div>S: {seraTotal.toFixed(1)}</div>
+                                        </td>
+                                    );
+                                })}
+                            </tr>
+                            {/* Row showing daily totals */}
+                            <tr style={{ background: '#e3f2fd', fontWeight: 'bold', borderTop: '2px solid #333' }}>
+                                <td style={{ border: '1px solid #999', padding: '8px', position: 'sticky', left: 0, zIndex: 5, background: '#e3f2fd' }}>
+                                    TOTALE ORE GIORNALIERE
+                                </td>
+                                <td style={{ border: '1px solid #999', padding: '8px', position: 'sticky', left: '180px', zIndex: 5, background: '#e3f2fd' }}>
+                                    {/* Total weekly hours */}
+                                    {(() => {
+                                        let grandTotal = 0;
+                                        data.body.forEach(row => {
                                             for (let d = 1; d < 8; d++) {
                                                 for (let t = 0; t < 2; t++) {
                                                     const s = row.slots[d * 4 + t * 2];
@@ -344,33 +541,52 @@ export default function CoveragePage() {
                                                         const [eh, em] = e.split(':').map(Number);
                                                         let diff = (eh + em / 60) - (sh + sm / 60);
                                                         if (diff < 0) diff += 24;
-                                                        total += diff;
+                                                        grandTotal += diff;
                                                     }
                                                 }
                                             }
-                                            return total.toFixed(1);
-                                        })()}
-                                    </td>
-                                    {row.slots && row.slots.map((s, si) => (
-                                        <td key={si} style={{
-                                            border: '1px solid #ccc',
-                                            minWidth: '100px',
-                                            background: (si < 4 ? '#fffde7' : (Math.floor(si / 4) % 2 !== 0 ? '#fff' : '#f9f9f9'))
-                                        }}>
-                                            <input type="text" value={s} onChange={e => updateSlot(idx, si, e.target.value)}
-                                                style={{ width: '100%', minWidth: '80px', textAlign: 'center', border: 'none', background: 'transparent', color: s ? 'black' : '#eee' }} />
-                                        </td>
-                                    ))}
+                                        });
+                                        return grandTotal.toFixed(1);
+                                    })()}
+                                </td>
+                                {/* Calculate daily totals for each day (skip Settimana, only Mon-Sun) */}
+                                {Array.from({ length: 7 }).map((_, i) => {
+                                    const dayIdx = i + 1; // Start from 1 (Lunedì) instead of 0 (Settimana)
+                                    // For each day, calculate total hours across all stations
+                                    let dayTotal = 0;
+                                    data.body.forEach(row => {
+                                        for (let t = 0; t < 2; t++) {
+                                            const s = row.slots[dayIdx * 4 + t * 2];
+                                            const e = row.slots[dayIdx * 4 + t * 2 + 1];
+                                            if (s && e && s.includes(':') && e.includes(':')) {
+                                                const [sh, sm] = s.split(':').map(Number);
+                                                const [eh, em] = e.split(':').map(Number);
+                                                let diff = (eh + em / 60) - (sh + sm / 60);
+                                                if (diff < 0) diff += 24;
+                                                dayTotal += diff;
+                                            }
+                                        }
+                                    });
 
-                                    {row.extra && row.extra.map((e, ei) => (
-                                        <td key={ei} style={{ border: '1px solid #ccc' }}>
-                                            <input type="text" value={e} onChange={e => updateExtra(idx, ei, e.target.value)}
-                                                style={{ width: '100%', border: 'none', color: '#666' }} />
+                                    return (
+                                        <td
+                                            key={dayIdx}
+                                            colSpan={4}
+                                            style={{
+                                                border: '1px solid #999',
+                                                padding: '8px',
+                                                textAlign: 'center',
+                                                fontSize: '1.1em',
+                                                color: '#1565c0',
+                                                background: '#e3f2fd'
+                                            }}
+                                        >
+                                            {dayTotal.toFixed(1)} h
                                         </td>
-                                    ))}
-                                </tr>
-                            ))}
-                        </tbody>
+                                    );
+                                })}
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             ) : (
