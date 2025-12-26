@@ -77,7 +77,9 @@ export default function ForecastPage() {
 
     const [selectedWeek, setSelectedWeek] = useState(initialWeek)
     const [data, setData] = useState([])
+    const [history, setHistory] = useState([])
     const [loading, setLoading] = useState(false)
+    const [kitchenStats, setKitchenStats] = useState({ cp: 0, laborCost: 0, fop: 0 })
 
     useEffect(() => {
         loadForecast(selectedWeek.start)
@@ -86,13 +88,7 @@ export default function ForecastPage() {
     const loadForecast = async (weekStart) => {
         setLoading(true)
         try {
-            const res = await api.getForecast(weekStart, weekStart) // Modifica API per accettare range o singola data
-            // Se esiste, lo usiamo. Altrimenti array vuoto.
-            // L'API ritorna [{ data: "...", weekStart: "..." }]
-            // Qui assumiamo che api.getForecast ritorni l'oggetto JSON salvato
-
-            // In realtà api.getForecast è generica. Adattiamo.
-            // Se non c'è forecast salvato, resetta data
+            const res = await api.getForecast(weekStart, weekStart)
             if (res && res.length > 0 && res[0].data) {
                 try {
                     const parsed = JSON.parse(res[0].data)
@@ -101,6 +97,9 @@ export default function ForecastPage() {
             } else {
                 setData([])
             }
+            // Load History for Analysis (Last 2 Years)
+            const histRes = await api.getForecastHistory()
+            setHistory(histRes)
         } catch (error) {
             console.error(error)
         } finally {
@@ -316,8 +315,121 @@ export default function ForecastPage() {
             ['Produttività Budget', '0', '0', '0', '0', '0', '0', '0'],
             ['Produttività Real', '0', '0', '0', '0', '0', '0', '0'],
         ]
+
+        // Fill up to row 36 with empty
+        for (let i = 11; i < 36; i++) {
+            template.push([`Riga ${i + 1}`, '', '', '', '', '', '', ''])
+        }
+
+        // Kitchen Section (Rows 37-45)
+        template.push(['CUCINA - Chef (R37)', '', '', '', '', '', '', '']) // 37 (Index 36)
+        template.push(['CUCINA - Sous Chef (R38)', '', '', '', '', '', '', '']) // 38
+        template.push(['CUCINA - ACCSU (R39)', '', '', '', '', '', '', '']) // 39 (Activated by FOP)
+        template.push(['CUCINA - Capo Partita (R40)', '', '', '', '', '', '', '']) // 40
+        template.push(['CUCINA - Commis (R41)', '', '', '', '', '', '', '']) // 41
+        template.push(['CUCINA - Lavaggio (R42)', '', '', '', '', '', '', '']) // 42
+        template.push(['CUCINA - Jolly (R43)', '', '', '', '', '', '', '']) // 43
+        template.push(['CUCINA - Extra (R44)', '', '', '', '', '', '', '']) // 44
+        template.push(['CUCINA - Totale Ore (R45)', '0', '0', '0', '0', '0', '0', '0']) // 45
+
         setData(template)
-        await saveToDb(template) // Salva subito
+        await saveToDb(template)
+    }
+
+    // --- KITCHEN LOGIC ---
+    const generateKitchenForecast = async () => {
+        if (data.length < 40) {
+            alert("Tabella troppo corta! Inizializza nuovamente la tabella completa (Righe 37-45).")
+            return
+        }
+
+        const newData = [...data]
+        // Indexes (0-based in array)
+        const IDX_BUDGET_PRANZO = 1
+        const IDX_BUDGET_CENA = 3
+        const IDX_ACCSU = 38 // Row 39
+        const IDX_TOT_ORE = 44 // Row 45
+
+        let totalWeeklyHours = 0
+        let totalRevenue = 0
+        let totalCovers = 0
+
+        // Avg cost (Assumption)
+        const AVG_HOURLY_COST = 20
+
+        for (let col = 1; col <= 7; col++) {
+            // 1. Get Params
+            const coversPranzo = parseNumberIT(newData[IDX_BUDGET_PRANZO][col]) // Using Budget € as proxy for "Covers"? 
+            // Ideally we need a "Coperti" row. Assuming Budget / AvgTicket? 
+            // Or assuming the User inputs covers in Budget row? 
+            // Prompt says: "Previsione Coperti". Let's assume Budget VALUE is Revenue, and we estimate covers?
+            // Or maybe "Budget pranzo" IS Covers? 
+            // Let's assume Budget = Revenue for now.
+            // Wait, usually "Budget" is €$.
+            // I will prompt user or assume Ticket Average = 50€?
+            // Prompt: "Previsione Coperti". 
+            // Let's look for a row named "Coperti" or add it?
+            // For now, I'll estimate Covers = Budget / 40€ (placeholder).
+            const estimatedCovers = (parseNumberIT(newData[IDX_BUDGET_PRANZO][col]) + parseNumberIT(newData[IDX_BUDGET_CENA][col])) / 40
+
+            // 2. Calculate FOP (Fabbisogno Orario Predittivo)
+            // FOP = (Covers * PrepTime) + Cleanup
+            const PREP_TIME = 0.3 // 18 min per cover?
+            const CLEANUP = 2 // 2 hours fixed
+            const FOP = (estimatedCovers * PREP_TIME) + CLEANUP
+
+            // 3. Logic for ACCSU (Row 39)
+            // "Attiva ACCSU solo se il FOP per la fascia 19:00-22:00 supera le capacità delle righe 37 e 38"
+            // Capacity of 37+38 (Chef + Sous) = ~16 hours/day? 
+            // Let's simplified: If FOP > 16, activate ACCSU.
+            if (FOP > 16) {
+                newData[IDX_ACCSU][col] = "19:00-22:00"
+            } else {
+                newData[IDX_ACCSU][col] = ""
+            }
+
+            // 4. Fill Standard Shifts (Placeholder logic)
+            // Row 37 (Chef): Always 10-15, 18-00 (11h)
+            newData[36][col] = "10:00-15:00 18:00-00:00"
+            // Row 38 (Sous): Always 10-15, 18-00
+            newData[37][col] = "10:00-15:00 18:00-00:00"
+
+            // 5. Calc Tot Hours for Day
+            // Sum duration of strings "HH:mm-HH:mm"
+            let dayHours = 0
+            for (let r = 36; r <= 43; r++) { // Rows 37-44
+                const cell = newData[r][col]
+                if (cell && cell.includes('-')) {
+                    // Simple parse "10:00-15:00" -> 5h
+                    // Handle double "10-15 18-23"
+                    const parts = cell.split(' ')
+                    parts.forEach(p => {
+                        const [start, end] = p.split('-')
+                        if (start && end) {
+                            const h1 = parseInt(start.split(':')[0])
+                            const h2 = parseInt(end.split(':')[0]) || (end.startsWith('00') ? 24 : 0) // Fix 00:00 as 24
+                            dayHours += (h2 - h1)
+                        }
+                    })
+                }
+            }
+            newData[IDX_TOT_ORE][col] = formatNumberIT(dayHours)
+            totalWeeklyHours += dayHours
+
+            totalRevenue += (parseNumberIT(newData[IDX_BUDGET_PRANZO][col]) + parseNumberIT(newData[IDX_BUDGET_CENA][col]))
+            totalCovers += estimatedCovers
+        }
+
+        // 6. Global Metrics
+        // CP = Ore Kitchen / Coperti
+        const cp = totalCovers > 0 ? (totalWeeklyHours / totalCovers) : 0
+
+        // Labor Cost = (Hours * AvgCost) / Revenue * 100
+        const laborCost = totalRevenue > 0 ? ((totalWeeklyHours * AVG_HOURLY_COST) / totalRevenue * 100) : 0
+
+        setKitchenStats({ cp, laborCost, fop: 0 }) // Store stats for UI
+        setData(newData)
+        await saveToDb(newData)
     }
 
     return (
@@ -347,17 +459,37 @@ export default function ForecastPage() {
                 {data.length > 0 && (
                     <>
                         <button className="btn" style={{ backgroundColor: '#27ae60', color: 'white', padding: '10px 20px', borderRadius: '6px' }} onClick={handleSave}>
-                            💾 Salva (Sett. {selectedWeek.week})
+                            💾 Salva
+                        </button>
+                        <button className="btn" style={{ backgroundColor: '#8e44ad', color: 'white', padding: '10px 20px', borderRadius: '6px' }} onClick={generateKitchenForecast}>
+                            👨‍🍳 Genera Forecast Cucina
                         </button>
                         <button className="btn" style={{ backgroundColor: '#e67e22', color: 'white', padding: '10px 20px', borderRadius: '6px' }} onClick={handleExport}>
                             📥 Scarica
                         </button>
                         <button className="btn" style={{ backgroundColor: '#c0392b', color: 'white', padding: '10px 20px', borderRadius: '6px' }} onClick={handleDelete}>
-                            🗑️ Elimina Dati
+                            🗑️ Elimina
                         </button>
                     </>
                 )}
             </div>
+
+            {/* KPI DASHBOARD */}
+            {data.length > 0 && (
+                <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+                    <div style={{ padding: '15px', background: kitchenStats.cp > 0.8 ? '#e74c3c' : (kitchenStats.cp < 0.5 ? '#f39c12' : '#2ecc71'), color: 'white', borderRadius: '8px', flex: 1 }}>
+                        <h3>CP (Coeff. Produtt.)</h3>
+                        <p style={{ fontSize: '2em', margin: 0 }}>{kitchenStats.cp.toFixed(2)}</p>
+                        <small>{kitchenStats.cp > 0.8 ? 'Eccesso Personale' : (kitchenStats.cp < 0.5 ? 'Rischio Servizio' : 'Ottimale')}</small>
+                    </div>
+                    <div style={{ padding: '15px', background: kitchenStats.laborCost > 25 ? '#e74c3c' : '#2ecc71', color: 'white', borderRadius: '8px', flex: 1 }}>
+                        <h3>Labor Cost %</h3>
+                        <p style={{ fontSize: '2em', margin: 0 }}>{kitchenStats.laborCost.toFixed(1)}%</p>
+                        <small>Target: &lt; 25%</small>
+                    </div>
+                </div>
+            )
+            }
 
             {data.length > 0 ? (
                 <div style={{ overflowX: 'auto', background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>

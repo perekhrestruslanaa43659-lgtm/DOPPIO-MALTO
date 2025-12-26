@@ -102,6 +102,7 @@ export default {
 
   // Forecast
   getForecast: () => call('/forecast', 'GET'),
+  getForecastHistory: () => call('/forecast/history', 'GET'),
   saveForecast: (rows) => call('/forecast', 'POST', { rows }),
 
   // Export

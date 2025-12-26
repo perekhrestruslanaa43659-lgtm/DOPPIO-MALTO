@@ -1082,18 +1082,48 @@ app.post('/api/forecast', async (req, res) => {
 
 
 
-// --- AI AGENT NLP (CLAUDE) ---
-const Anthropic = require('@anthropic-ai/sdk');
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+// --- AI AGENT NLP (GEMINI) ---
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+// Function for Gemini Tool Calling
+const toolsDef = {
+  set_fixed_shifts: {
+    name: "set_fixed_shifts",
+    description: "Imposta turni fissi per un membro dello staff in giorni specifici.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        staffName: { type: "STRING", description: "Nome o Cognome del dipendente (es. 'Mario', 'Rossi', 'Seck')" },
+        days: {
+          type: "ARRAY",
+          items: { type: "STRING", enum: ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"] },
+          description: "Lista dei giorni (Lun, Mar, ...)"
+        },
+        startTime: { type: "STRING", description: "Orario inizio (HH:MM)" },
+        endTime: { type: "STRING", description: "Orario fine (HH:MM)" }
+      },
+      required: ["staffName", "days", "startTime", "endTime"]
+    }
+  }
+};
 
 app.post('/api/agent/chat', async (req, res) => {
   const { message } = req.body;
   if (!message) return res.status(400).json({ response: "Messaggio vuoto." });
 
+  // Use API Key from Env
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return res.json({ response: "Errore: GEMINI_API_KEY non configurata nel server." });
+  }
+
   try {
-    // 1. Context / System Prompt
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      tools: [{ functionDeclarations: [toolsDef.set_fixed_shifts] }]
+    });
+
     const systemPrompt = `Sei un esperto assistente per la pianificazione dei turni. 
     Hai accesso a strumenti per modificare i turni fissi dello staff.
     
@@ -1107,55 +1137,38 @@ app.post('/api/agent/chat', async (req, res) => {
     
     Il tuo obiettivo è aiutare l'utente a configurare i turni fissi nel database.`;
 
-    // 2. Define Tools
-    const tools = [
-      {
-        name: "set_fixed_shifts",
-        description: "Imposta turni fissi per un membro dello staff in giorni specifici.",
-        input_schema: {
-          type: "object",
-          properties: {
-            staffName: { type: "string", description: "Nome o Cognome del dipendente (es. 'Mario', 'Rossi', 'Seck')" },
-            days: {
-              type: "array",
-              items: { type: "string", enum: ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"] },
-              description: "Lista dei giorni (Lun, Mar, ...)"
-            },
-            startTime: { type: "string", description: "Orario inizio (HH:MM)" },
-            endTime: { type: "string", description: "Orario fine (HH:MM)" }
-          },
-          required: ["staffName", "days", "startTime", "endTime"]
+    // Initialize chat
+    const chat = model.startChat({
+      history: [
+        {
+          role: "user",
+          parts: [{ text: systemPrompt }]
+        },
+        {
+          role: "model",
+          parts: [{ text: "Ho capito. Sono pronto ad aiutarti con i turni." }]
         }
-      }
-    ];
-
-    // 3. First Call to Claude
-    const response = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20241022",
-      max_tokens: 1024,
-      system: systemPrompt,
-      tools: tools,
-      messages: [{ role: "user", content: message }]
+      ]
     });
 
-    let finalResponseText = "";
+    const result = await chat.sendMessage(message);
+    const response = await result.response;
+    const call = response.functionCalls();
 
-    // 4. Handle Tool Calls
-    const toolUse = response.content.find(c => c.type === 'tool_use');
+    if (call && call.length > 0) {
+      const fc = call[0];
+      const fnName = fc.name;
+      const fnArgs = fc.args;
 
-    if (toolUse) {
-      const toolName = toolUse.name;
-      const toolInput = toolUse.input;
-      console.log(`[CLAUDE ACTION] ${toolName}`, toolInput);
+      console.log(`[GEMINI ACTION] ${fnName}`, fnArgs);
 
       let toolResult = "";
 
-      if (toolName === 'set_fixed_shifts') {
-        // EXECUTE UPDATE
-        const { staffName, days, startTime, endTime } = toolInput;
+      if (fnName === 'set_fixed_shifts') {
+        const { staffName, days, startTime, endTime } = fnArgs;
 
         // Find Staff
-        const allStaff = await prisma.staff.findMany(); // Cache could be better
+        const allStaff = await prisma.staff.findMany();
         let targetStaff = allStaff.find(s =>
           s.nome.toLowerCase().includes(staffName.toLowerCase()) ||
           (s.cognome && s.cognome.toLowerCase().includes(staffName.toLowerCase()))
@@ -1165,12 +1178,15 @@ app.post('/api/agent/chat', async (req, res) => {
           toolResult = `Errore: Nessun dipendente trovato con nome '${staffName}'. Chiedi all'utente di specificare meglio.`;
         } else {
           // Update DB
-          // Determine suffix P or S
           const startH = parseInt(startTime.split(':')[0]);
           const suffix = startH < 17 ? 'P' : 'S';
 
           const currentFixed = targetStaff.fixedShifts || {};
-          days.forEach(d => {
+
+          // Ensure dates is array
+          const daysArr = Array.isArray(days) ? days : [days];
+
+          daysArr.forEach(d => {
             const key = `${d}_${suffix}`;
             currentFixed[key] = `${startTime}-${endTime}`;
           });
@@ -1180,47 +1196,30 @@ app.post('/api/agent/chat', async (req, res) => {
             data: { fixedShifts: currentFixed }
           });
 
-          toolResult = `Successo: Impostati turni per ${targetStaff.nome} ${targetStaff.cognome} nei giorni ${days.join(', ')} dalle ${startTime} alle ${endTime}.`;
+          toolResult = `Successo: Impostati turni per ${targetStaff.nome} ${targetStaff.cognome} nei giorni ${daysArr.join(', ')} dalle ${startTime} alle ${endTime}.`;
         }
       }
 
-      // 5. Send Tool Result back to Claude
-      const followUp = await anthropic.messages.create({
-        model: "claude-3-5-sonnet-20241022",
-        max_tokens: 1024,
-        system: systemPrompt,
-        tools: tools,
-        messages: [
-          { role: "user", content: message },
-          { role: "assistant", content: response.content },
-          {
-            role: "user",
-            content: [
-              {
-                type: "tool_result",
-                tool_use_id: toolUse.id,
-                content: toolResult
-              }
-            ]
+      // Send result back to model
+      const resultPart = [
+        {
+          functionResponse: {
+            name: fnName,
+            response: { result: toolResult }
           }
-        ]
-      });
+        }
+      ];
 
-      const finalTextBlock = followUp.content.find(c => c.type === 'text');
-      finalResponseText = finalTextBlock ? finalTextBlock.text : "Fatto.";
-
-    } else {
-      // No tool used, just chat
-      const textBlock = response.content.find(c => c.type === 'text');
-      finalResponseText = textBlock ? textBlock.text : "Non ho capito.";
+      const followUp = await chat.sendMessage(resultPart);
+      const finalRes = await followUp.response;
+      return res.json({ response: finalRes.text() });
     }
 
-    res.json({ response: finalResponseText });
+    res.json({ response: response.text() });
 
   } catch (e) {
-    console.error("Claude API Error:", e);
-    // Fallback?
-    res.json({ response: "Errore API Claude: " + e.message });
+    console.error("Gemini API Error:", e);
+    res.json({ response: "Errore API Gemini: " + e.message });
   }
 });
 
@@ -1636,3 +1635,61 @@ if (process.env.VERCEL !== '1' && require.main === module) {
 }
 
 
+
+// --- FORECAST ---
+app.get('/api/forecast', async (req, res) => {
+  const { start, end } = req.query;
+  const where = {};
+  if (start && end) {
+    where.weekStart = { gte: start, lte: end };
+  }
+  const data = await prisma.forecastRow.findMany({ where });
+  res.json(data);
+});
+
+app.get('/api/forecast/history', async (req, res) => {
+  try {
+    // Fetch last 104 weeks (2 years)
+    const history = await prisma.forecastRow.findMany({
+      orderBy: { weekStart: 'desc' },
+      take: 104
+    });
+    res.json(history);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/forecast', async (req, res) => {
+  const { rows } = req.body; // [{ weekStart, data }]
+  if (!Array.isArray(rows)) return res.status(400).json({ error: "Expected array" });
+
+  try {
+    const results = [];
+    for (const r of rows) {
+      // Upsert logic manually with findFirst/create/update if SQLite doesn't support upsert cleanly on non-unique fields? 
+      // WeekStart IS NOT unique in schema? Let's check schema.
+      // Schema: model ForecastRow { id Int @id.., weekStart String, data String, createdAt... }
+      // weekStart is NOT @unique in schema.prisma showed earlier.
+      // BUT logic should treat it as unique per week.
+      // We will delete existing for that week and create new, OR findFirst and update.
+
+      const existing = await prisma.forecastRow.findFirst({ where: { weekStart: r.weekStart } });
+      if (existing) {
+        const updated = await prisma.forecastRow.update({
+          where: { id: existing.id },
+          data: { data: r.data }
+        });
+        results.push(updated);
+      } else {
+        const created = await prisma.forecastRow.create({
+          data: { weekStart: r.weekStart, data: r.data }
+        });
+        results.push(created);
+      }
+    }
+    res.json(results);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
