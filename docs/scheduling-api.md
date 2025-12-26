@@ -64,7 +64,9 @@ Gets a public URL for a file in the scheduling bucket.
 - `filePath` (string): Path to the file in the scheduling bucket
 
 **Returns:**
-- string: Public URL for the file
+- Object: `{ publicUrl: string | null, error: string | null }`
+  - `publicUrl`: The public URL for the file (or null if error)
+  - `error`: Error message if the operation failed (or null if successful)
 
 ## Setup
 
