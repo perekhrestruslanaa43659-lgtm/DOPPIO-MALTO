@@ -12,6 +12,7 @@ import UsersPage from './pages/UsersPage'
 import ProfilePage from './pages/ProfilePage'
 import FixedShiftsPage from './pages/FixedShiftsPage'
 import AssenzePage from './pages/AssenzePage'
+import ForecastPage from './pages/ForecastPage'
 
 import { AuthProvider, useAuth } from './context/AuthContext'
 import LoginPage from './pages/LoginPage'
@@ -96,7 +97,7 @@ const MainContent = () => {
             <button className={tab === 'indis' ? 'btn active' : 'btn'} onClick={() => setTab('indis')}>Inserimento</button>
             {isAdmin && <button className={tab === 'dispo' ? 'btn active' : 'btn'} onClick={() => setTab('dispo')}>Grid</button>}
             {isAdmin && <button className={tab === 'stats' ? 'btn active' : 'btn'} onClick={() => setTab('stats')}>Statistiche</button>}
-            {isAdmin && <button className={tab === 'budget' ? 'btn active' : 'btn'} style={{ background: '#fbc02d', color: '#000' }} onClick={() => setTab('budget')}>Forecast</button>}
+            {isAdmin && <button className={tab === 'forecast' ? 'btn active' : 'btn'} style={{ background: '#fbc02d', color: '#000' }} onClick={() => setTab('forecast')}>📊 Forecast</button>}
             {isAdmin && <button className={tab === 'coverage' ? 'btn active' : 'btn'} style={{ background: '#e91e63', color: '#fff' }} onClick={() => setTab('coverage')}>Fabbisogno</button>}
             {isAdmin && <button className={tab === 'users' ? 'btn active' : 'btn'} style={{ background: '#2d3748', color: '#fff' }} onClick={() => setTab('users')}>Utenti</button>}
             {isAdmin && <button className={tab === 'agent' ? 'btn active' : 'btn'} style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: '#fff', border: 'none' }} onClick={() => setTab('agent')}>✨ AI Agent</button>}
@@ -152,6 +153,7 @@ const MainContent = () => {
         {tab === 'dispo' && isAdmin && <AvailabilityPage />}
         {tab === 'stats' && isAdmin && <StatisticsPage />}
         {tab === 'budget' && isAdmin && <BudgetPage />}
+        {tab === 'forecast' && isAdmin && <ForecastPage />}
         {tab === 'coverage' && isAdmin && <CoveragePage />}
         {tab === 'users' && isAdmin && <UsersPage />}
         {tab === 'agent' && isAdmin && <AiAgentPage />}

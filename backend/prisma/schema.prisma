@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model Staff {
@@ -19,14 +19,16 @@ model Staff {
   oreMinime       Int      @default(0)
   oreMassime      Int      @default(40)
   costoOra        Float    @default(0)
-  postazioni      String[] @default([])
-  listIndex       Int      @default(999) 
+  postazioni      String   @default("")
+  moltiplicatore  Float    @default(1.0) // 1.0=normale, 0.5=L.68/99, 0=tirocinante
+  listIndex       Int 
   fixedShifts     String?  @default("{}") // JSON stringified (LEGACY? Keep for now)
   createdAt       DateTime @default(now())
   
   unavailabilities Unavailability[]
   assignments      Assignment[]
   recurringShifts  RecurringShift[]
+  permissionRequests PermissionRequest[]
 }
 
 model ShiftTemplate {
@@ -35,7 +37,7 @@ model ShiftTemplate {
   oraInizio    String 
   oraFine      String 
   ruoloRichiesto String 
-  giorniValidi Int[] @default([])
+  giorniValidi String @default("")
   
   assignments Assignment[]
   recurringShifts RecurringShift[]
@@ -91,6 +93,13 @@ model CoverageRow {
   extra     String   @default("{}") // JSON stringified
 }
 
+model ForecastRow {
+  id        Int      @id @default(autoincrement())
+  weekStart String
+  data      String   // JSON stringified forecast data
+  createdAt DateTime @default(now())
+}
+
 model User {
   id       Int    @id @default(autoincrement())
   email    String @unique
@@ -100,6 +109,29 @@ model User {
   dob      String?
   address  String?
   role     String @default("USER") // ADMIN, USER
+  
+  processedRequests PermissionRequest[] @relation("ProcessedBy")
+}
+
+model PermissionRequest {
+  id            Int       @id @default(autoincrement())
+  staffId       Int
+  staff         Staff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  
+  data          String    // Data richiesta (YYYY-MM-DD)
+  tipo          String    // PERMESSO, DISPONIBILITA, CAMBIO_TURNO
+  motivo        String?   // Motivazione
+  dettagli      String?   // JSON con dettagli extra
+  
+  status        String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  adminResponse String?   // Risposta admin
+  
+  processedAt   DateTime?
+  processedBy   Int?
+  processedByUser User?   @relation("ProcessedBy", fields: [processedBy], references: [id])
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model RecurringShift {

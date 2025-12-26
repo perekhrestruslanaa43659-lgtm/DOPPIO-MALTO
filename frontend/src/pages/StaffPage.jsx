@@ -12,7 +12,7 @@ export default function StaffPage() {
     oreMinime: 0,
     oreMassime: 40,
     costoOra: 0,
-    postazioni: []
+    postazioni: ''
   })
   const [editing, setEditing] = useState(null)
 
@@ -46,7 +46,7 @@ export default function StaffPage() {
         oreMinime: 0,
         oreMassime: 40,
         costoOra: 0,
-        postazioni: []
+        postazioni: ''
       })
     } catch (e) {
       alert("Errore salva/aggiorna: " + e.message)
@@ -63,7 +63,7 @@ export default function StaffPage() {
       oreMinime: s.oreMinime,
       oreMassime: s.oreMassime,
       costoOra: s.costoOra,
-      postazioni: s.postazioni || []
+      postazioni: s.postazioni || ''
     })
   }
 
@@ -144,7 +144,7 @@ export default function StaffPage() {
             oreMinime: idxMin > -1 ? (row[idxMin] || 0) : 0,
             oreMassime: idxMax > -1 ? (row[idxMax] || 40) : 40,
             costoOra: idxCosto > -1 ? (row[idxCosto] || 0) : 0,
-            postazioni: idxPost > -1 && row[idxPost] ? String(row[idxPost]).split(',').map(s => s.trim()) : []
+            postazioni: idxPost > -1 && row[idxPost] ? String(row[idxPost]).trim() : ''
           };
         }).filter(p => p !== null);
 
@@ -226,12 +226,13 @@ export default function StaffPage() {
               <label key={p} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.9rem', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
-                  checked={form.postazioni.includes(p)}
+                  checked={form.postazioni.split(',').filter(x => x).includes(p)}
                   onChange={() => {
-                    const newPostazioni = form.postazioni.includes(p)
-                      ? form.postazioni.filter(x => x !== p)
-                      : [...form.postazioni, p];
-                    setForm({ ...form, postazioni: newPostazioni });
+                    const current = form.postazioni.split(',').filter(x => x);
+                    const newPostazioni = current.includes(p)
+                      ? current.filter(x => x !== p)
+                      : [...current, p];
+                    setForm({ ...form, postazioni: newPostazioni.join(',') });
                   }}
                 />
                 {p}
@@ -246,7 +247,7 @@ export default function StaffPage() {
             setEditing(null);
             setForm({
               nome: '', cognome: '', email: '', ruolo: '',
-              oreMinime: 0, oreMassime: 40, costoOra: 0, postazioni: []
+              oreMinime: 0, oreMassime: 40, costoOra: 0, postazioni: ''
             });
           }}>Annulla Modifica</button>}
           <label className="btn" style={{ background: '#10b981', color: 'white', border: 'none' }}>
@@ -287,7 +288,7 @@ export default function StaffPage() {
                   <td>{s.oreMinime}</td>
                   <td>{s.oreMassime}</td>
                   <td>{s.costoOra}</td>
-                  <td>{s.postazioni ? s.postazioni.join(', ') : ''}</td>
+                  <td>{Array.isArray(s.postazioni) ? s.postazioni.join(', ') : (s.postazioni || '')}</td>
                   <td>
                     <div style={{ display: 'flex', gap: '5px' }}>
                       <button className="btn" onClick={() => startEdit(s)} style={{ padding: '5px 10px', fontSize: '0.8em' }}>Modifica</button>

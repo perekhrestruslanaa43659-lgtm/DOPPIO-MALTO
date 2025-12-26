@@ -49,6 +49,28 @@ function getRoleScore(role) {
 }
 
 /**
+ * Check if staff is BOH (Back of House - Cucina)
+ */
+function isBOHStaff(staff) {
+  const bohNames = [
+    'ABIR', 'HOSSAIN',
+    'IMRAN', 'MOLLA',
+    'SHOHEL', 'MATUBBER',
+    'JUBAIR',
+    'SAHIDUL', 'ISLAM',
+    'SHOAG',
+    'BABUL', 'MIAH',
+    'ADIL',
+    'JAHIDUR', 'RAHMAN',
+    'SUAB',
+    'RUMEL', 'HANNAN'
+  ];
+
+  const fullName = (staff.nome + ' ' + (staff.cognome || '')).toUpperCase().trim();
+  return bohNames.some(name => fullName.includes(name));
+}
+
+/**
  * Generate Schedule
  * @param {Date} startDate 
  * @param {Date} endDate 
@@ -198,7 +220,7 @@ function generateSchedule(startDate, endDate, allStaff, coverageRows, recurringS
       for (let i = 0; i < daySlots.length; i += 2) {
         const sTime = daySlots[i];
         const eTime = daySlots[i + 1];
-        if (!sTime || !eTime || !sTime.includes(':')) continue;
+        if (!sTime || !eTime || typeof sTime !== 'string' || typeof eTime !== 'string' || !sTime.includes(':')) continue;
 
         const startDec = parseTime(sTime);
         let endDec = parseTime(eTime);
@@ -268,7 +290,9 @@ function generateSchedule(startDate, endDate, allStaff, coverageRows, recurringS
         // If staff has specific postazioni defined, they must match the demand station.
         // If staff has NO postazioni or empty, assume they can do anything (or nothing? User said "vincoli: le postazioni")
         // Usually, if list is empty, maybe they are new or generic? Let's check if array exists and has length.
-        if (staff.postazioni && staff.postazioni.length > 0) {
+        // Convert postazioni from string to array (SQLite compatibility)
+        const postazioniArray = (staff.postazioni && staff.postazioni.trim()) ? staff.postazioni.split(',').map(p => p.trim()).filter(p => p) : [];
+        if (postazioniArray.length > 0) {
           // Normalize: remove spaces, lowercase
           const normalize = (s) => s.toUpperCase().replace(/\s/g, '');
           const demandStationNorm = normalize(demand.station);
@@ -279,7 +303,7 @@ function generateSchedule(startDate, endDate, allStaff, coverageRows, recurringS
           // We need a loose includes check or exact match?
           // Let's try exact matches on the normalized strings first, or partials.
 
-          const canWork = staff.postazioni.some(p => {
+          const canWork = postazioniArray.some(p => {
             const pNorm = normalize(p);
             return demandStationNorm.includes(pNorm) || pNorm.includes(demandStationNorm);
           });
@@ -381,7 +405,9 @@ function generateSchedule(startDate, endDate, allStaff, coverageRows, recurringS
 
         const dStationNorm = dStationRaw.split(/[_:]/)[0].trim();
 
-        const canDoStation = (staff.postazioni || []).some(p => {
+        // Convert postazioni from string to array (SQLite compatibility)
+        const postazioniArray2 = (staff.postazioni && staff.postazioni.trim()) ? staff.postazioni.split(',').map(p => p.trim()).filter(p => p) : [];
+        const canDoStation = postazioniArray2.some(p => {
           const pNorm = p.trim().toUpperCase();
           return pNorm === dStationNorm || pNorm === dStationRaw;
         });
@@ -392,27 +418,74 @@ function generateSchedule(startDate, endDate, allStaff, coverageRows, recurringS
         }
 
         // ASSIGN
-        assignments.push({
-          date: dateStr,
-          staffId: staff.id,
-          shiftTemplateId: null,
-          start_time: formatTime(finalStart),
-          end_time: formatTime(finalEnd),
-          postazione: demand.station,
-          status: false // BOZZA
-        });
+        // Check if staff is BOH (Cucina) - use split shifts
+        if (isBOHStaff(staff)) {
+          // BOH Staff gets split shifts: Lunch (10:30-16:00) + Dinner (19:00-00:00)
+          // Check if already assigned today
+          const alreadyAssignedToday = assignments.some(a =>
+            a.date === dateStr && a.staffId === staff.id
+          );
 
-        // Mark Busy
-        if (!busyMap[`${dateStr}-${staff.id}`]) busyMap[`${dateStr}-${staff.id}`] = [];
-        busyMap[`${dateStr}-${staff.id}`].push({ start: finalStart, end: finalEnd });
-        busyNamesMap[`${dateStr}-${staff.nome}`] = true;
+          if (!alreadyAssignedToday) {
+            // Turno Pranzo (Lunch)
+            assignments.push({
+              date: dateStr,
+              staffId: staff.id,
+              shiftTemplateId: null,
+              start_time: '10:30',
+              end_time: '16:00',
+              postazione: demand.station,
+              status: false // BOZZA
+            });
 
-        // Update Accumulated Hours
-        staffHoursMap[staff.id] = (staffHoursMap[staff.id] || 0) + (finalEnd - finalStart);
+            // Turno Sera (Dinner)
+            assignments.push({
+              date: dateStr,
+              staffId: staff.id,
+              shiftTemplateId: null,
+              start_time: '19:00',
+              end_time: '00:00',
+              postazione: demand.station,
+              status: false // BOZZA
+            });
 
-        console.log(`  [ASSIGNED] Demand ${dIdx} (${demand.station} ${formatTime(finalStart)}-${formatTime(finalEnd)}) assigned to ${staff.nome}`);
-        assigned = true;
-        break; // Next demand
+            // Mark Busy for both shifts
+            if (!busyMap[`${dateStr}-${staff.id}`]) busyMap[`${dateStr}-${staff.id}`] = [];
+            busyMap[`${dateStr}-${staff.id}`].push({ start: 10.5, end: 16 }); // Lunch
+            busyMap[`${dateStr}-${staff.id}`].push({ start: 19, end: 24 }); // Dinner
+            busyNamesMap[`${dateStr}-${staff.nome}`] = true;
+
+            // Update Accumulated Hours (5.5h lunch + 5h dinner = 10.5h total)
+            staffHoursMap[staff.id] = (staffHoursMap[staff.id] || 0) + 10.5;
+
+            console.log(`  [BOH SPLIT] ${staff.nome} assigned split shifts on ${dateStr}: 10:30-16:00 + 19:00-00:00`);
+            assigned = true;
+            break; // Next demand
+          }
+        } else {
+          // Regular FOH staff - single shift
+          assignments.push({
+            date: dateStr,
+            staffId: staff.id,
+            shiftTemplateId: null,
+            start_time: formatTime(finalStart),
+            end_time: formatTime(finalEnd),
+            postazione: demand.station,
+            status: false // BOZZA
+          });
+
+          // Mark Busy
+          if (!busyMap[`${dateStr}-${staff.id}`]) busyMap[`${dateStr}-${staff.id}`] = [];
+          busyMap[`${dateStr}-${staff.id}`].push({ start: finalStart, end: finalEnd });
+          busyNamesMap[`${dateStr}-${staff.nome}`] = true;
+
+          // Update Accumulated Hours
+          staffHoursMap[staff.id] = (staffHoursMap[staff.id] || 0) + (finalEnd - finalStart);
+
+          console.log(`  [ASSIGNED] Demand ${dIdx} (${demand.station} ${formatTime(finalStart)}-${formatTime(finalEnd)}) assigned to ${staff.nome}`);
+          assigned = true;
+          break; // Next demand
+        }
       }
 
       if (!assigned) {
@@ -424,7 +497,7 @@ function generateSchedule(startDate, endDate, allStaff, coverageRows, recurringS
     curr.setDate(curr.getDate() + 1);
   }
 
-  return { assignments };
+  return { assignments, logs: [], unassigned: [] };
 }
 
 module.exports = { generateSchedule };

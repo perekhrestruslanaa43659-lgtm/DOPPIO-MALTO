@@ -132,7 +132,14 @@ async function initAdmin() {
 async function getAllUsers(req, res) {
     try {
         const users = await prisma.user.findMany({
-            select: { id: true, email: true, name: true, role: true }
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                surname: true,
+                password: true, // Include for display (hashed)
+                role: true
+            }
         });
         res.json(users);
     } catch (e) {
@@ -185,4 +192,22 @@ async function updateProfile(req, res) {
     }
 }
 
-module.exports = { authenticateToken, login, register, initAdmin, getAllUsers, deleteUser, getProfile, updateProfile };
+async function logout(req, res) {
+    try {
+        // Logout successful - no database update needed
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+}
+
+async function heartbeat(req, res) {
+    try {
+        // Heartbeat received - no database update needed
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+}
+
+module.exports = { authenticateToken, login, register, initAdmin, getAllUsers, deleteUser, getProfile, updateProfile, logout, heartbeat };

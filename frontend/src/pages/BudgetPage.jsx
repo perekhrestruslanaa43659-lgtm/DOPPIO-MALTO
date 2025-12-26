@@ -103,7 +103,7 @@ export default function BudgetPage() {
                 let endDec = h2 + m2 / 60
                 if (endDec < startDec) endDec += 24 // Cross midnight
 
-                const CUTOFF = 17.0;
+                const CUTOFF = 16.0; // Pranzo < 16:00, Sera >= 16:00
 
                 // Lunch overlap
                 if (startDec < CUTOFF) {
@@ -119,6 +119,55 @@ export default function BudgetPage() {
             }
         });
         return { hl: parseFloat(hl.toFixed(2)), hd: parseFloat(hd.toFixed(2)) };
+    }
+
+    const calculateRealCosts = (date) => {
+        let costLunch = 0, costDinner = 0;
+
+        schedule.filter(a => a.data === date).forEach(a => {
+            const staffMember = staff.find(s => s.id === a.staffId);
+            if (!staffMember) return;
+
+            const userMult = staffMember.moltiplicatore !== undefined && staffMember.moltiplicatore !== null ? staffMember.moltiplicatore : 1.0;
+            const costoOra = (staffMember.costoOra || 0) * userMult;
+
+            let start = a.start_time;
+            let end = a.end_time;
+            if (!start && a.shiftTemplate) {
+                start = a.shiftTemplate.oraInizio;
+                end = a.shiftTemplate.oraFine;
+            }
+
+            if (start && end) {
+                const [h1, m1] = start.split(':').map(Number);
+                const [h2, m2] = end.split(':').map(Number);
+
+                let startDec = h1 + m1 / 60;
+                let endDec = h2 + m2 / 60;
+                if (endDec < startDec) endDec += 24;
+
+                const CUTOFF = 16.0;
+
+                // Lunch cost
+                if (startDec < CUTOFF) {
+                    const lEnd = Math.min(endDec, CUTOFF);
+                    const lunchHours = lEnd - startDec;
+                    costLunch += lunchHours * costoOra;
+                }
+
+                // Dinner cost
+                if (endDec > CUTOFF) {
+                    const dStart = Math.max(startDec, CUTOFF);
+                    const dinnerHours = endDec - dStart;
+                    costDinner += dinnerHours * costoOra;
+                }
+            }
+        });
+
+        return {
+            costLunch: parseFloat(costLunch.toFixed(2)),
+            costDinner: parseFloat(costDinner.toFixed(2))
+        };
     }
 
     const updateLocalState = (date, field, val) => {
@@ -320,6 +369,21 @@ export default function BudgetPage() {
                 <button className="btn" onClick={saveAll} style={{ background: '#2196f3', color: 'white' }}>💾 Salva Tutto</button>
                 <button className="btn" onClick={loadData} style={{ marginLeft: '10px' }}>🔄 Ricarica</button>
                 <button className="btn" onClick={exportToExcel} style={{ background: '#4caf50', color: 'white' }}>📥 Esporta Excel</button>
+            </div>
+
+            <div style={{
+                background: '#e3f2fd',
+                padding: '15px',
+                borderRadius: '8px',
+                marginBottom: '15px',
+                border: '1px solid #90caf9'
+            }}>
+                <strong style={{ color: '#1565c0' }}>ℹ️ Informazioni:</strong>
+                <ul style={{ margin: '10px 0 0 0', paddingLeft: '20px', color: '#333' }}>
+                    <li><strong>Ore Reali (P/S)</strong> e <strong>Produttività</strong> sono calcolate automaticamente dai turni assegnati</li>
+                    <li>Usa <strong>"Importa Forecast (CSV/XLS)"</strong> per caricare i dati Budget da file</li>
+                    <li><strong>Cutoff Pranzo/Sera:</strong> Pranzo &lt; 16:00, Sera ≥ 16:00</li>
+                </ul>
             </div>
 
             <table className="table" style={{ width: '100%', borderCollapse: 'collapse' }}>

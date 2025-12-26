@@ -109,13 +109,12 @@ export default function TurniPage({ readOnly }) {
 
   async function loadData() {
     try {
-      const [sch, stf, tmpl, unav, bdg] = await Promise.all([
+      const [sch, stf, tmpl, unav, forecastRes] = await Promise.all([
         api.getSchedule(range.start, range.end).then(s => s.filter(x => !readOnly || x.status === true)),
-
         api.getStaff(),
         api.getShiftTemplates(),
         api.getUnavailability(),
-        api.getBudget()
+        api.getForecast() // NUOVO FORECAST
       ])
       setSchedule(Array.isArray(sch) ? sch : [])
       setStaff(Array.isArray(stf) ? stf : [])
@@ -123,16 +122,48 @@ export default function TurniPage({ readOnly }) {
       setUnavailabilities(Array.isArray(unav) ? unav : [])
 
       const f = {}
-      if (Array.isArray(bdg)) {
-        bdg.forEach(b => {
-          f[b.data] = {
-            value: b.value,
-            hoursLunch: b.hoursLunch,
-            hoursDinner: b.hoursDinner,
-            revLunch: b.valueLunch,
-            revDinner: b.valueDinner
-          }
-        })
+
+      // LOGICA MAPPING FORECAST NUOVO
+      if (forecastRes && forecastRes.data && forecastRes.data.length > 0) {
+        // Trova forecast corrispondente alla settimana corrente
+        const match = forecastRes.data.find(x => x.weekStart === range.start) || forecastRes.data[forecastRes.data.length - 1]
+
+        if (match && match.data) {
+          try {
+            const rows = JSON.parse(match.data)
+
+            const rBudgetPranzo = rows.find(r => String(r[0]).toLowerCase().includes('budget pranzo'))
+            const rBudgetCena = rows.find(r => String(r[0]).toLowerCase().includes('budget cena'))
+            const rOreBudget = rows.find(r => String(r[0]).toLowerCase().includes('ore budget') || String(r[0]).toLowerCase().includes('ore previste'))
+
+            const rangeDates = getDatesInRange(range.start, range.end)
+            rangeDates.forEach((dateStr, idx) => {
+              const colIdx = idx + 1 // Colonna 1=Lun
+
+              const pVal = (row) => {
+                if (!row || !row[colIdx]) return 0
+                let val = String(row[colIdx]).replace(/€/g, '').replace(/\./g, '').replace(/,/g, '.')
+                return parseFloat(val) || 0
+              }
+              const pValHours = (row) => {
+                if (!row || !row[colIdx]) return 0
+                return parseFloat(String(row[colIdx]).replace(',', '.')) || 0
+              }
+
+              f[dateStr] = {
+                revLunch: rBudgetPranzo ? pVal(rBudgetPranzo) : 0,
+                revDinner: rBudgetCena ? pVal(rBudgetCena) : 0,
+                // Mappiamo ore totali su hoursLunch per retrocompatibilità visualizzazione o creiamo campo nuovo
+                // La tabella sotto usa hoursLunch e hoursDinner.
+                // Per ora mettiamo tutto su hoursLunch se non distinti, o dividiamo 50/50
+                // Meglio: usiamo hoursTotal custom
+                hoursTotal: rOreBudget ? pValHours(rOreBudget) : 0,
+                hoursLunch: rOreBudget ? (pValHours(rOreBudget) / 2) : 0, // Placeholder split
+                hoursDinner: rOreBudget ? (pValHours(rOreBudget) / 2) : 0 // Placeholder split
+              }
+            })
+          } catch (err) { console.error("Parse forecast error", err) }
+        }
       }
       setForecast(f)
 
@@ -159,8 +190,14 @@ export default function TurniPage({ readOnly }) {
 
   async function generate() {
     try {
-      if (!confirm("Generare i turni sovrascriverà eventuali bozze. Continuare?")) return;
+      console.log('[GENERATE] Starting generation...');
+      if (!confirm("Generare i turni sovrascriverà eventuali bozze. Continuare?")) {
+        console.log('[GENERATE] User cancelled');
+        return;
+      }
+      console.log('[GENERATE] Calling API with range:', range.start, range.end);
       const res = await api.generateSchedule(range.start, range.end)
+      console.log('[GENERATE] API response:', res);
       const logCount = (res.logs || []).length;
       let msg = `Generati ${res.generated} turni.`
 
@@ -175,6 +212,7 @@ export default function TurniPage({ readOnly }) {
 
       loadData()
     } catch (e) {
+      console.error('[GENERATE] Error:', e);
       alert("Errore generazione: " + e.message)
     }
   }
@@ -450,9 +488,10 @@ export default function TurniPage({ readOnly }) {
     let e = h2 + m2 / 60
     if (e < s) e += 24
 
+    // Pranzo < 16:00, Sera >= 16:00
     let l = 0, d = 0
-    if (s < 17) l = Math.min(e, 17) - s
-    if (e > 17) d = e - Math.max(s, 17)
+    if (s < 16) l = Math.min(e, 16) - s
+    if (e > 16) d = e - Math.max(s, 16)
 
     // Ensure 0.25 precision
     return {
@@ -494,7 +533,8 @@ export default function TurniPage({ readOnly }) {
         })
       })
       totalAssignedHours += staffHours;
-      totalCost += staffHours * (s.costoOra || 0);
+      const multiplier = s.moltiplicatore !== undefined && s.moltiplicatore !== null ? s.moltiplicatore : 1.0;
+      totalCost += staffHours * (s.costoOra || 0) * multiplier;
     });
 
     const productivity = totalAssignedHours > 0 ? (totalShifts / totalAssignedHours).toFixed(2) : '0.00';
@@ -630,12 +670,12 @@ export default function TurniPage({ readOnly }) {
 
         if (checkStart) {
           const h = parseInt(checkStart.split(':')[0]);
-          if (type.includes('Turno1') && h >= 17) {
-            alert("ERRORE: In questa colonna (Turno 1 / Pranzo) puoi inserire solo turni che iniziano prima delle 17:00.");
+          if (type.includes('Turno1') && h >= 16) {
+            alert("ERRORE: In questa colonna (Turno 1 / Pranzo) puoi inserire solo turni che iniziano prima delle 16:00.");
             return;
           }
-          if (type.includes('Turno2') && h < 17) {
-            alert("ERRORE: In questa colonna (Turno 2 / Sera) puoi inserire solo turni che iniziano dalle 17:00 in poi.");
+          if (type.includes('Turno2') && h < 16) {
+            alert("ERRORE: In questa colonna (Turno 2 / Sera) puoi inserire solo turni che iniziano dalle 16:00 in poi.");
             return;
           }
 
@@ -647,8 +687,8 @@ export default function TurniPage({ readOnly }) {
             if (u.tipo === 'TOTALE') { blocked = true; reason = 'TOTALE'; }
             else {
               const h = parseInt(checkStart.split(':')[0]);
-              if (u.tipo === 'PRANZO' && h < 17) { blocked = true; reason = 'PRANZO'; }
-              if (u.tipo === 'SERA' && h >= 17) { blocked = true; reason = 'SERA'; }
+              if (u.tipo === 'PRANZO' && h < 16) { blocked = true; reason = 'PRANZO'; }
+              if (u.tipo === 'SERA' && h >= 16) { blocked = true; reason = 'SERA'; }
             }
 
             if (blocked) {
@@ -665,12 +705,12 @@ export default function TurniPage({ readOnly }) {
         // Lunch < 17, Dinner >= 17
         if (checkStart) {
           const h = parseInt(checkStart.split(':')[0]);
-          const isLunch = h < 17;
+          const isLunch = h < 16;
           const opposing = (matrix[staffId] && matrix[staffId][date]) ? matrix[staffId][date].find(a => {
             if (a.id === (currentAsn && currentAsn.id)) return false; // same assignment
             if (!a.shiftTemplate) return false; // ignore manual if no template? or check time? manual time check is harder.
             const th = parseInt(a.shiftTemplate.oraInizio.split(':')[0]);
-            const tIsLunch = th < 17;
+            const tIsLunch = th < 16;
             return isLunch !== tIsLunch; // Opposing
           }) : null;
 
@@ -1046,8 +1086,8 @@ export default function TurniPage({ readOnly }) {
 
                     total += (end - start);
 
-                    // Split calculation
-                    const CUTOFF = 17.0;
+                    // Split calculation - Pranzo < 16:00, Sera >= 16:00
+                    const CUTOFF = 16.0;
                     if (start < CUTOFF) {
                       lunchH += (Math.min(end, CUTOFF) - start);
                     }
@@ -1183,15 +1223,28 @@ export default function TurniPage({ readOnly }) {
 
                       const fmt = (t) => {
                         if (!t) return '-';
-                        const [h, m] = t.split(':').map(Number);
+                        // Handle both HH:MM and H:MM formats
+                        const parts = String(t).split(':');
+                        if (parts.length !== 2) return '-';
+                        const [h, m] = parts.map(Number);
+                        if (isNaN(h) || isNaN(m)) return '-';
                         const h24 = h % 24;
                         return `${String(h24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
                       }
 
                       if (asn) {
-                        contentStart = fmt(asn.start_time || asn.shiftTemplate?.oraInizio);
-                        contentEnd = fmt(asn.end_time || asn.shiftTemplate?.oraFine);
+                        // Prioritize custom times over template times
+                        const startTime = asn.start_time || asn.shiftTemplate?.oraInizio;
+                        const endTime = asn.end_time || asn.shiftTemplate?.oraFine;
+
+                        contentStart = fmt(startTime);
+                        contentEnd = fmt(endTime);
                         contentPost = asn.postazione || '';
+
+                        // Debug log for troubleshooting
+                        if (!endTime) {
+                          console.warn('⚠️ Missing end time for assignment:', asn.id, 'Staff:', s.nome, 'Date:', d);
+                        }
 
                         // Yellow for Draft (status === false)
                         if (asn.status === false) {
@@ -1203,13 +1256,37 @@ export default function TurniPage({ readOnly }) {
 
                       return (
                         <React.Fragment>
-                          <td onClick={() => clickH('In')} style={{ background: cellBg, textAlign: 'center', cursor: isBlocked ? 'not-allowed' : 'pointer', fontSize: '0.9em' }}>
+                          <td onClick={() => clickH('In')} style={{
+                            background: cellBg,
+                            textAlign: 'center',
+                            cursor: isBlocked ? 'not-allowed' : 'pointer',
+                            fontSize: '0.95em',
+                            fontWeight: asn ? '600' : 'normal',
+                            padding: '8px 4px',
+                            borderLeft: typePrefix === 'Pranzo' ? '2px solid #4caf50' : '2px solid #2196f3'
+                          }}>
                             {contentStart}
                           </td>
-                          <td onClick={() => clickH('Out')} style={{ background: cellBg, textAlign: 'center', cursor: isBlocked ? 'not-allowed' : 'pointer', fontSize: '0.9em' }}>
-                            {asn ? contentEnd : (isBlocked ? '' : '-')}
+                          <td onClick={() => clickH('Out')} style={{
+                            background: cellBg,
+                            textAlign: 'center',
+                            cursor: isBlocked ? 'not-allowed' : 'pointer',
+                            fontSize: '0.95em',
+                            fontWeight: asn ? '600' : 'normal',
+                            padding: '8px 4px'
+                          }}>
+                            {contentEnd}
                           </td>
-                          <td onClick={() => clickH('Post')} style={{ background: cellBg, textAlign: 'center', cursor: isBlocked ? 'not-allowed' : 'pointer', borderRight: typePrefix === 'Sera' ? '2px solid #aaa' : '1px solid #ddd' }}>
+                          <td onClick={() => clickH('Post')} style={{
+                            background: cellBg,
+                            textAlign: 'center',
+                            cursor: isBlocked ? 'not-allowed' : 'pointer',
+                            fontSize: '0.85em',
+                            padding: '8px 4px',
+                            borderRight: typePrefix === 'Sera' ? '3px solid #333' : '1px solid #ddd',
+                            fontWeight: contentPost && contentPost !== 'DA RIVEDERE' ? '500' : 'normal',
+                            color: contentPost === 'DA RIVEDERE' ? '#ff6f00' : 'inherit'
+                          }}>
                             {contentPost}
                           </td>
                         </React.Fragment>

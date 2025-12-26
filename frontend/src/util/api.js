@@ -100,6 +100,10 @@ export default {
   saveAvailability: (payload) => call('/availability', 'POST', payload),
   publishAssignments: (payload) => call('/assignments/publish', 'POST', payload),
 
+  // Forecast
+  getForecast: () => call('/forecast', 'GET'),
+  saveForecast: (rows) => call('/forecast', 'POST', { rows }),
+
   // Export
   exportCsvWeek3: (startDate, endDate) => call('/export-week3', 'POST', { startDate, endDate }),
 
@@ -110,4 +114,18 @@ export default {
 
   // AI Agent
   chat: (message) => call('/agent/chat', 'POST', { message }),
+
+  // Permission Requests
+  createPermissionRequest: (data) => call('/permission-requests', 'POST', data),
+  getPermissionRequests: (params) => {
+    const p = new URLSearchParams(params || {});
+    return call(`/permission-requests?${p.toString()}`, 'GET');
+  },
+  getPendingRequestsCount: () => call('/permission-requests/pending-count', 'GET'),
+  approveRequest: (id, response) => call(`/permission-requests/${id}/approve`, 'PUT', { adminResponse: response }),
+  rejectRequest: (id, response) => call(`/permission-requests/${id}/reject`, 'PUT', { adminResponse: response }),
+
+  // Auth
+  logout: () => call('/logout', 'POST'),
+  heartbeat: () => call('/heartbeat', 'POST'),
 }

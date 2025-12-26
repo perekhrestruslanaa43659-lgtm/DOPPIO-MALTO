@@ -101,6 +101,72 @@ const DayPicker = ({ value, onChange }) => {
 export default function CoveragePage() {
     const [data, setData] = useState({ headers: {}, body: [] })
     const [loading, setLoading] = useState(false)
+    const [forecast, setForecast] = useState(null) // Stato per dati forecast
+
+    // Load forecast when week changes
+    useEffect(() => {
+        const loadForecast = async () => {
+            try {
+                // Assumiamo weekStart in formato ISO YYYY-MM-DD
+                const ws = currentWeekStart ? new Date(currentWeekStart.getTime() - (currentWeekStart.getDay() === 0 ? 6 : currentWeekStart.getDay() - 1) * 86400000).toISOString().split('T')[0] : '2025-10-13' // Default fallback
+
+                // Chiamata API generica o specifica se implementata
+                // Qui usiamo l'endpoint generico getForecast
+                const res = await api.getForecast()
+                // Filtra per settimana corrente se necessario, per ora prendiamo il primo o simuliamo
+                // In produzione: api.getForecast(ws)
+                if (res.data && res.data.length > 0) {
+                    // Cerca forecast corrispondente o prendi ultimo
+                    const match = res.data.find(f => f.weekStart === ws) || res.data[res.data.length - 1]
+                    if (match && match.data) {
+                        setForecast(JSON.parse(match.data))
+                    }
+                }
+            } catch (err) {
+                console.error("Error loading forecast", err)
+            }
+        }
+        loadForecast()
+    }, [currentWeekStart])
+
+    // Calcolo Ore Fabbisogno Totali (Senza filtri giorni)
+    const calculateTotalCoverageHours = () => {
+        let total = 0
+        data.body.filter(r => r.enabled !== false).forEach(row => {
+            for (let i = 0; i < 28; i += 2) { // 14 slots * 2 (In/Out)
+                const s = row.slots[i]; const e = row.slots[i + 1];
+                if (s && e && s.includes(':') && e.includes(':')) {
+                    const [sh, sm] = s.split(':').map(Number);
+                    const [eh, em] = e.split(':').map(Number);
+                    let diff = (eh + em / 60) - (sh + sm / 60);
+                    if (diff < 0) diff += 24;
+                    total += diff;
+                }
+            }
+        })
+        return total
+    }
+
+    // Estrai Ore Budget dal Forecast
+    const getBudgetHours = () => {
+        if (!forecast) return 0
+        // Cerca riga "Ore Budget" o simile
+        const row = forecast.find(r => String(r[0]).toLowerCase().includes('ore budget') || String(r[0]).toLowerCase().includes('ore previste'))
+        if (!row) return 0
+
+        // Somma colonne 1-7 (giorni)
+        let sum = 0
+        // colonne 1 a 7 sono i gironi
+        for (let i = 1; i <= 7; i++) {
+            const val = parseFloat(String(row[i]).replace(',', '.')) || 0
+            sum += val
+        }
+        return sum
+    }
+
+    const totalBudgetHours = getBudgetHours()
+    const totalCoverageHours = calculateTotalCoverageHours()
+    const diffHours = totalBudgetHours - totalCoverageHours
 
     useEffect(() => {
         loadData()
@@ -298,7 +364,7 @@ export default function CoveragePage() {
         setData({ ...data, body: newBody })
     }
 
-    const days = ['Settimana', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica']
+    const days = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica']
 
     const handleClear = async () => {
         if (confirm("ATTENZIONE: Stai per cancellare DEFINITIVAMENTE la tabella dei fabbisogni dal database.\n\nQuesta azione NON è reversibile. Vuoi procedere?")) {
@@ -338,36 +404,76 @@ export default function CoveragePage() {
                 <button className="btn" onClick={loadData}>Ricarica</button>
             </div>
 
+            {/* SEZIONE STATISTICHE BUDGET VS FABBISOGNO */}
+            {forecast && (
+                <div style={{
+                    marginBottom: '20px', padding: '15px', borderRadius: '8px',
+                    backgroundColor: 'white', border: '1px solid #e2e8f0', boxShadow: '0 2px 5px rgba(0,0,0,0.05)',
+                    display: 'flex', gap: '30px', alignItems: 'center', flexWrap: 'wrap'
+                }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '0.85em', color: '#666', fontWeight: '600' }}>ORE BUDGET (Forecast)</span>
+                        <span style={{ fontSize: '1.5em', fontWeight: 'bold', color: '#2c3e50' }}>
+                            {totalBudgetHours.toFixed(1)}
+                        </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '0.85em', color: '#666', fontWeight: '600' }}>ORE FABBISOGNO (Pianificate)</span>
+                        <span style={{ fontSize: '1.5em', fontWeight: 'bold', color: '#ea580c' }}>
+                            {totalCoverageHours.toFixed(1)}
+                        </span>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '0.85em', color: '#666', fontWeight: '600' }}>DIFFERENZA</span>
+                        <span style={{
+                            fontSize: '1.5em', fontWeight: 'bold',
+                            color: diffHours >= 0 ? '#16a34a' : '#dc2626'
+                        }}>
+                            {diffHours > 0 ? '+' : ''}{diffHours.toFixed(1)}
+                        </span>
+                        <span style={{ fontSize: '0.75em', color: diffHours >= 0 ? '#16a34a' : '#dc2626' }}>
+                            {diffHours >= 0 ? 'Ore disponibili' : 'Fuori budget!'}
+                        </span>
+                    </div>
+
+                    <div style={{ marginLeft: 'auto', fontSize: '0.9em', color: '#555', fontStyle: 'italic' }}>
+                        <span style={{ marginRight: '10px' }}>
+                            Dati Forecast sincronizzati
+                        </span>
+                    </div>
+                </div>
+            )}
+
             {data.body.length > 0 ? (
                 <div style={{ overflowX: 'auto', border: '1px solid #ccc', width: '100%' }}>
                     <table className="table" style={{ fontSize: '1em', borderCollapse: 'collapse', textAlign: 'center', width: '100%', minWidth: '1500px' }}>
                         <thead>
                             <tr style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-                                <th rowSpan={3} style={{ border: '1px solid #999', background: '#fff', minWidth: '180px', position: 'sticky', left: 0, zIndex: 12 }}>Postazione</th>
-                                <th rowSpan={3} style={{ border: '1px solid #999', background: '#fff', minWidth: '80px', position: 'sticky', left: '180px', zIndex: 12 }}>Ore Sett.</th>
+                                <th rowSpan={2} style={{ border: '1px solid #999', background: '#e3f2fd', minWidth: '180px', position: 'sticky', left: 0, zIndex: 12, fontWeight: 'bold' }}>Postazione</th>
+                                <th rowSpan={2} style={{ border: '1px solid #999', background: '#e3f2fd', minWidth: '80px', position: 'sticky', left: '180px', zIndex: 12, fontWeight: 'bold' }}>Ore Sett.</th>
                                 {days.map((d, di) => (
-                                    <th key={d} colSpan={4} style={{ border: '1px solid #999', background: di === 0 ? '#fff9c4' : '#e3f2fd' }}>{d}</th>
-                                ))}
-                            </tr>
-                            <tr style={{ position: 'sticky', top: 30, zIndex: 10 }}>
-                                {/* Empty cells for sticky columns */}
-                                <th style={{ border: 'none', background: '#fff', position: 'sticky', left: 0, zIndex: 12 }}></th>
-                                <th style={{ border: 'none', background: '#fff', position: 'sticky', left: '180px', zIndex: 12 }}></th>
-                                {days.map((_, i) => (
-                                    <React.Fragment key={i}>
-                                        <th colSpan={2} style={{ border: '1px solid #ccc', background: '#fce4ec' }}>Turno 1</th>
-                                        <th colSpan={2} style={{ border: '1px solid #ccc', background: '#f3e5f5' }}>Turno 2</th>
+                                    <React.Fragment key={d}>
+                                        <th colSpan={2} style={{ border: '1px solid #999', background: '#fce4ec', fontWeight: 'bold' }}>
+                                            {d} - Turno 1
+                                        </th>
+                                        <th colSpan={2} style={{ border: '1px solid #999', background: '#f3e5f5', fontWeight: 'bold' }}>
+                                            {d} - Turno 2
+                                        </th>
                                     </React.Fragment>
                                 ))}
                             </tr>
-                            <tr style={{ position: 'sticky', top: 60, zIndex: 10 }}>
+                            <tr style={{ position: 'sticky', top: 40, zIndex: 10 }}>
                                 {/* Empty cells for sticky columns */}
-                                <th style={{ border: 'none', background: '#fff', position: 'sticky', left: 0, zIndex: 12 }}></th>
-                                <th style={{ border: 'none', background: '#fff', position: 'sticky', left: '180px', zIndex: 12 }}></th>
-                                {Array.from({ length: 16 }).map((_, i) => (
-                                    <React.Fragment key={i}>
-                                        <th style={{ border: '1px solid #ccc', minWidth: '100px', background: '#fafafa' }}>In</th>
-                                        <th style={{ border: '1px solid #ccc', minWidth: '100px', background: '#fafafa' }}>Out</th>
+                                <th style={{ border: '1px solid #ccc', background: '#e3f2fd', position: 'sticky', left: 0, zIndex: 12 }}></th>
+                                <th style={{ border: '1px solid #ccc', background: '#e3f2fd', position: 'sticky', left: '180px', zIndex: 12 }}></th>
+                                {days.map((_, di) => (
+                                    <React.Fragment key={di}>
+                                        <th style={{ border: '1px solid #ccc', minWidth: '70px', background: '#fce4ec', fontWeight: 'bold' }}>In</th>
+                                        <th style={{ border: '1px solid #ccc', minWidth: '70px', background: '#fce4ec', fontWeight: 'bold' }}>Out</th>
+                                        <th style={{ border: '1px solid #ccc', minWidth: '70px', background: '#f3e5f5', fontWeight: 'bold' }}>In</th>
+                                        <th style={{ border: '1px solid #ccc', minWidth: '70px', background: '#f3e5f5', fontWeight: 'bold' }}>Out</th>
                                     </React.Fragment>
                                 ))}
                             </tr>
@@ -406,12 +512,12 @@ export default function CoveragePage() {
                                         <td style={{ border: '1px solid #ccc', background: '#fff', fontWeight: 'bold', position: 'sticky', left: '180px', zIndex: 5 }}>
                                             {(() => {
                                                 let total = 0;
-                                                // Calculation skip Settimana (index 0), only sum days 1-7
-                                                for (let d = 1; d < 8; d++) {
+                                                // Sum all days (0-6 = Lun-Dom)
+                                                for (let d = 0; d < 7; d++) {
                                                     for (let t = 0; t < 2; t++) {
                                                         const s = row.slots[d * 4 + t * 2];
                                                         const e = row.slots[d * 4 + t * 2 + 1];
-                                                        if (s && e && s.includes(':') && e.includes(':')) {
+                                                        if (s && e && typeof s === 'string' && typeof e === 'string' && s.includes(':') && e.includes(':')) {
                                                             const [sh, sm] = s.split(':').map(Number);
                                                             const [eh, em] = e.split(':').map(Number);
                                                             let diff = (eh + em / 60) - (sh + sm / 60);
@@ -423,14 +529,14 @@ export default function CoveragePage() {
                                                 return total.toFixed(1);
                                             })()}
                                         </td>
-                                        {row.slots && row.slots.map((s, si) => (
+                                        {row.slots && row.slots.slice(0, 28).map((s, si) => (
                                             <td key={si} style={{
                                                 border: '1px solid #ccc',
-                                                minWidth: '100px',
+                                                minWidth: '70px',
                                                 background: (Math.floor(si / 4) % 2 !== 0 ? '#fff' : '#f9f9f9')
                                             }}>
                                                 <input type="text" value={s} onChange={e => updateSlot(idx, si, e.target.value)}
-                                                    style={{ width: '100%', minWidth: '80px', textAlign: 'center', border: 'none', background: 'transparent', color: s ? 'black' : '#eee' }} />
+                                                    style={{ width: '100%', minWidth: '60px', textAlign: 'center', border: 'none', background: 'transparent', color: s ? 'black' : '#eee' }} />
                                             </td>
                                         ))}
                                     </tr>
@@ -453,7 +559,7 @@ export default function CoveragePage() {
                                                 // Turno 1 (Pranzo)
                                                 const s1 = row.slots[d * 4];
                                                 const e1 = row.slots[d * 4 + 1];
-                                                if (s1 && e1 && s1.includes(':') && e1.includes(':')) {
+                                                if (s1 && e1 && typeof s1 === 'string' && typeof e1 === 'string' && s1.includes(':') && e1.includes(':')) {
                                                     const [sh, sm] = s1.split(':').map(Number);
                                                     const [eh, em] = e1.split(':').map(Number);
                                                     let diff = (eh + em / 60) - (sh + sm / 60);
@@ -463,7 +569,7 @@ export default function CoveragePage() {
                                                 // Turno 2 (Sera)
                                                 const s2 = row.slots[d * 4 + 2];
                                                 const e2 = row.slots[d * 4 + 3];
-                                                if (s2 && e2 && s2.includes(':') && e2.includes(':')) {
+                                                if (s2 && e2 && typeof s2 === 'string' && typeof e2 === 'string' && s2.includes(':') && e2.includes(':')) {
                                                     const [sh, sm] = s2.split(':').map(Number);
                                                     const [eh, em] = e2.split(':').map(Number);
                                                     let diff = (eh + em / 60) - (sh + sm / 60);
@@ -484,7 +590,7 @@ export default function CoveragePage() {
                                         // Turno 1 (Pranzo)
                                         const s1 = row.slots[dayIdx * 4];
                                         const e1 = row.slots[dayIdx * 4 + 1];
-                                        if (s1 && e1 && s1.includes(':') && e1.includes(':')) {
+                                        if (s1 && e1 && typeof s1 === 'string' && typeof e1 === 'string' && s1.includes(':') && e1.includes(':')) {
                                             const [sh, sm] = s1.split(':').map(Number);
                                             const [eh, em] = e1.split(':').map(Number);
                                             let diff = (eh + em / 60) - (sh + sm / 60);
@@ -494,7 +600,7 @@ export default function CoveragePage() {
                                         // Turno 2 (Sera)
                                         const s2 = row.slots[dayIdx * 4 + 2];
                                         const e2 = row.slots[dayIdx * 4 + 3];
-                                        if (s2 && e2 && s2.includes(':') && e2.includes(':')) {
+                                        if (s2 && e2 && typeof s2 === 'string' && typeof e2 === 'string' && s2.includes(':') && e2.includes(':')) {
                                             const [sh, sm] = s2.split(':').map(Number);
                                             const [eh, em] = e2.split(':').map(Number);
                                             let diff = (eh + em / 60) - (sh + sm / 60);
@@ -536,7 +642,7 @@ export default function CoveragePage() {
                                                 for (let t = 0; t < 2; t++) {
                                                     const s = row.slots[d * 4 + t * 2];
                                                     const e = row.slots[d * 4 + t * 2 + 1];
-                                                    if (s && e && s.includes(':') && e.includes(':')) {
+                                                    if (s && e && typeof s === 'string' && typeof e === 'string' && s.includes(':') && e.includes(':')) {
                                                         const [sh, sm] = s.split(':').map(Number);
                                                         const [eh, em] = e.split(':').map(Number);
                                                         let diff = (eh + em / 60) - (sh + sm / 60);
@@ -558,7 +664,7 @@ export default function CoveragePage() {
                                         for (let t = 0; t < 2; t++) {
                                             const s = row.slots[dayIdx * 4 + t * 2];
                                             const e = row.slots[dayIdx * 4 + t * 2 + 1];
-                                            if (s && e && s.includes(':') && e.includes(':')) {
+                                            if (s && e && typeof s === 'string' && typeof e === 'string' && s.includes(':') && e.includes(':')) {
                                                 const [sh, sm] = s.split(':').map(Number);
                                                 const [eh, em] = e.split(':').map(Number);
                                                 let diff = (eh + em / 60) - (sh + sm / 60);

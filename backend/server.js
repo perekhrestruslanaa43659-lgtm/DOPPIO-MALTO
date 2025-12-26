@@ -72,7 +72,7 @@ async function syncStaffHours() {
         // Update staff by Name (Case insensitive match would be better but exact is safer for now)
         // We'll use findFirst to handle slight differences or just loose matching
         const staff = await prisma.staff.findFirst({
-          where: { nome: { equals: nome, mode: 'insensitive' } }
+          where: { nome: { equals: nome } }
         });
 
         if (staff) {
@@ -100,8 +100,8 @@ async function ensureSeckCodouConstraints() {
     const s = await prisma.staff.findFirst({
       where: {
         OR: [
-          { nome: { contains: 'SECK', mode: 'insensitive' } },
-          { cognome: { contains: 'SECK', mode: 'insensitive' } }
+          { nome: { contains: 'SECK' } },
+          { cognome: { contains: 'SECK' } }
         ]
       }
     });
@@ -132,8 +132,10 @@ app.get('/api/staff', async (req, res) => {
   // Convert fixedShifts string -> object for frontend
   const clean = staff.map(s => ({
     ...s,
-    // postazioni is now native array
-    postazioni: s.postazioni || [],
+    // Convert postazioni from string to array (SQLite compatibility)
+    postazioni: (s.postazioni && typeof s.postazioni === 'string' && s.postazioni.trim())
+      ? s.postazioni.split(',').map(p => p.trim()).filter(p => p)
+      : [],
     fixedShifts: s.fixedShifts && typeof s.fixedShifts === 'string' ? JSON.parse(s.fixedShifts) : (s.fixedShifts || {})
   }));
   res.json(clean);
@@ -384,7 +386,7 @@ app.post('/api/generate-schedule', async (req, res) => {
     const allStaff = rawStaff.map(s => ({
       ...s,
       fixedShifts: s.fixedShifts && typeof s.fixedShifts === 'string' ? JSON.parse(s.fixedShifts) : (s.fixedShifts || {}),
-      postazioni: s.postazioni || []
+      postazioni: s.postazioni || '' // SQLite: postazioni is a comma-separated string, not array
     }));
 
     const coverageRows = await prisma.coverageRow.findMany(); // Fetch all rules
@@ -397,7 +399,12 @@ app.post('/api/generate-schedule', async (req, res) => {
     }));
 
     // 2. Run Algorithm
-    const start = new Date(startDate);
+    // Adjust start date to Monday of the week
+    let start = new Date(startDate);
+    const dayOfWeek = start.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // If Sunday, go back 6 days; otherwise go back (dayOfWeek - 1) days
+    start.setDate(start.getDate() - daysToMonday); // Set to Monday
+
     const end = new Date(endDate);
 
     const recurringShifts = await prisma.recurringShift.findMany({ include: { shiftTemplate: true } });
@@ -1000,23 +1007,79 @@ app.post('/api/coverage', async (req, res) => {
   if (!Array.isArray(rows)) return res.status(400).json({ error: "Rows must be array" });
 
   try {
+    console.log('[COVERAGE] Received rows:', rows.length);
+    console.log('[COVERAGE] Sample row:', rows[0]);
+
     await prisma.coverageRow.deleteMany({});
 
-    const created = await prisma.coverageRow.createMany({
-      data: rows.map(r => ({
-        weekStart: r.weekStart || "2025-10-13",
-        station: r.station,
-        frequency: r.frequency,
-        slots: JSON.stringify(r.slots), // Stringify for SQLite
-        extra: JSON.stringify(r.extra)  // Stringify for SQLite
-      }))
-    });
-    res.json({ count: created.count });
+    // SQLite doesn't support createMany, use loop instead
+    let count = 0;
+    for (const r of rows) {
+      await prisma.coverageRow.create({
+        data: {
+          weekStart: r.weekStart || "2025-10-13",
+          station: r.station || 'Unknown',
+          frequency: r.frequency || r.freq || 'Tutti',
+          slots: JSON.stringify(r.slots || []),
+          extra: JSON.stringify(r.extra || [])
+        }
+      });
+      count++;
+    }
+    console.log('[COVERAGE] Saved successfully:', count);
+    res.json({ count });
   } catch (e) {
-    console.error(e);
+    console.error('[COVERAGE] Error:', e);
     res.status(500).json({ error: e.message });
   }
 });
+
+// --- FORECAST ---
+app.get('/api/forecast', async (req, res) => {
+  try {
+    const rows = await prisma.forecastRow.findMany();
+    const parsed = rows.map(r => ({
+      ...r,
+      data: typeof r.data === 'string' ? JSON.parse(r.data) : r.data
+    }));
+    res.json(parsed);
+  } catch (e) {
+    console.error('[FORECAST] GET Error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/forecast', async (req, res) => {
+  try {
+    const { rows } = req.body;
+    if (!rows || !Array.isArray(rows)) {
+      return res.status(400).json({ error: 'Invalid rows data' });
+    }
+
+    // Clear existing forecast
+    await prisma.forecastRow.deleteMany();
+    console.log('[FORECAST] Cleared existing forecast');
+
+    // Insert new forecast
+    let count = 0;
+    for (const row of rows) {
+      await prisma.forecastRow.create({
+        data: {
+          weekStart: row.weekStart || '2025-10-13',
+          data: typeof row.data === 'string' ? row.data : JSON.stringify(row.data || {})
+        }
+      });
+      count++;
+    }
+
+    console.log(`[FORECAST] Saved ${count} forecast rows`);
+    res.json({ saved: count });
+  } catch (e) {
+    console.error('[FORECAST] POST Error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 
 
 // --- AI AGENT NLP (CLAUDE) ---
@@ -1312,7 +1375,7 @@ app.post('/api/verify-schedule', async (req, res) => {
         for (let i = 0; i < daySlots.length; i += 2) {
           const sTime = daySlots[i];
           const eTime = daySlots[i + 1];
-          if (!sTime || !eTime || !sTime.includes(':')) continue;
+          if (!sTime || !eTime || typeof sTime !== 'string' || typeof eTime !== 'string' || !sTime.includes(':')) continue;
 
           const startDec = parseTime(sTime);
           let endDec = parseTime(eTime);
@@ -1571,3 +1634,5 @@ if (process.env.VERCEL !== '1' && require.main === module) {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }
+
+

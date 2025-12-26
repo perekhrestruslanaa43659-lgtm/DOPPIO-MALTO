@@ -25,19 +25,19 @@ export default function AssenzePage() {
     }
 
     async function markAbsent(asn) {
-        if (!confirm(`Segnare ${asn.staff?.nome} come assente per questo turno?`)) return;
+        if (!confirm(`Segnare ${asn.staff?.nome} come indisponibile per questo turno?`)) return;
         try {
             // 1. Create Unavailability
             await api.upsertUnavailability({
                 staffId: asn.staffId,
                 data: date,
                 tipo: parseInt(asn.start_time.split(':')[0]) < 17 ? 'PRANZO' : 'SERA',
-                reason: 'ASSENZA GIUSTIFICATA'
+                reason: 'INDISPONIBILITÀ'
             });
             // 2. Delete Assignment
             await api.deleteAssignment(asn.id);
 
-            alert("Assenza registrata. Ora cerchiamo un sostituto.");
+            alert("Indisponibilità registrata. Ora cerchiamo un sostituto.");
 
             // 3. Propose replacement logic
             findReplacement(asn);
@@ -80,7 +80,7 @@ export default function AssenzePage() {
     return (
         <div className="panel">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <h2>🚑 Gestione Assenze & Sostituzioni</h2>
+                <h2>📅 Gestione Indisponibilità & Sostituzioni</h2>
                 <input type="date" className="input" value={date} onChange={e => setDate(e.target.value)} />
             </div>
 
@@ -107,7 +107,7 @@ export default function AssenzePage() {
                                     <td>{s.postazione}</td>
                                     <td>
                                         <button className="btn" style={{ background: '#f44336', color: 'white' }} onClick={() => markAbsent(s)}>
-                                            ❓ Assente
+                                            ⛔ Indisponibile
                                         </button>
                                         <button className="btn" style={{ marginLeft: '10px' }} onClick={() => findReplacement(s)}>
                                             🔍 Sostituisci
