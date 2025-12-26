@@ -8,3 +8,7 @@ node_modules
 .vscode
 dist
 build
+
+google-credentials.json
+test_log.txt
+.DS_Store
