@@ -12,3 +12,17 @@ build
 google-credentials.json
 test_log.txt
 .DS_Store
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+
+# IDE settings
+.idea/
+
+# Build output
+out/
+out_*.txt
