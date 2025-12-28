@@ -36,3 +36,29 @@ pids
 # Build output
 out/
 out_*.txt
+
+# Environment files
+.env*
+
+# Dependency directories
+bower_components/
+jspm_packages/
+web_modules/
+
+# Coverage directories
+coverage/
+.nyc_output/
+
+# Build directories
+.next/
+.vite/
+
+# Temporary files
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# System files
+Thumbs.db
+Desktop.ini
