@@ -344,7 +344,7 @@ export default function ForecastPage() {
         }
 
         const newData = [...data]
-        // Indexes (0-based in array)
+        // Indexes (0-based in array) - Row 1 is header
         const IDX_BUDGET_PRANZO = 1
         const IDX_BUDGET_CENA = 3
         const IDX_ACCSU = 38 // Row 39
@@ -356,59 +356,77 @@ export default function ForecastPage() {
 
         // Avg cost (Assumption)
         const AVG_HOURLY_COST = 20
+        const PREP_TIME = 0.3 // 18 min per cover
+        const CLEANUP = 2 // 2 hours fixed
+
+        // Search for "Coperti" row if exists, otherwise estimate
+        const idxCoperti = newData.findIndex(r => String(r[0]).toLowerCase().includes('coperti'))
 
         for (let col = 1; col <= 7; col++) {
             // 1. Get Params
-            const coversPranzo = parseNumberIT(newData[IDX_BUDGET_PRANZO][col]) // Using Budget € as proxy for "Covers"? 
-            // Ideally we need a "Coperti" row. Assuming Budget / AvgTicket? 
-            // Or assuming the User inputs covers in Budget row? 
-            // Prompt says: "Previsione Coperti". Let's assume Budget VALUE is Revenue, and we estimate covers?
-            // Or maybe "Budget pranzo" IS Covers? 
-            // Let's assume Budget = Revenue for now.
-            // Wait, usually "Budget" is €$.
-            // I will prompt user or assume Ticket Average = 50€?
-            // Prompt: "Previsione Coperti". 
-            // Let's look for a row named "Coperti" or add it?
-            // For now, I'll estimate Covers = Budget / 40€ (placeholder).
-            const estimatedCovers = (parseNumberIT(newData[IDX_BUDGET_PRANZO][col]) + parseNumberIT(newData[IDX_BUDGET_CENA][col])) / 40
+            let dailyCovers = 0
+
+            if (idxCoperti !== -1) {
+                dailyCovers = parseNumberIT(newData[idxCoperti][col])
+            } else {
+                // Estimate from Revenue: Budget / 40€
+                const revP = parseNumberIT(newData[IDX_BUDGET_PRANZO][col])
+                const revC = parseNumberIT(newData[IDX_BUDGET_CENA][col])
+                dailyCovers = (revP + revC) / 40
+            }
 
             // 2. Calculate FOP (Fabbisogno Orario Predittivo)
-            // FOP = (Covers * PrepTime) + Cleanup
-            const PREP_TIME = 0.3 // 18 min per cover?
-            const CLEANUP = 2 // 2 hours fixed
-            const FOP = (estimatedCovers * PREP_TIME) + CLEANUP
+            const FOP = (dailyCovers * PREP_TIME) + CLEANUP
 
-            // 3. Logic for ACCSU (Row 39)
-            // "Attiva ACCSU solo se il FOP per la fascia 19:00-22:00 supera le capacità delle righe 37 e 38"
-            // Capacity of 37+38 (Chef + Sous) = ~16 hours/day? 
-            // Let's simplified: If FOP > 16, activate ACCSU.
+            // 3. Logic for ACCSU (Row 39) - Activate based on FOP
+            // If FOP implies high load (e.g., > 16h total needed), activate support
             if (FOP > 16) {
                 newData[IDX_ACCSU][col] = "19:00-22:00"
             } else {
                 newData[IDX_ACCSU][col] = ""
             }
 
-            // 4. Fill Standard Shifts (Placeholder logic)
-            // Row 37 (Chef): Always 10-15, 18-00 (11h)
-            newData[36][col] = "10:00-15:00 18:00-00:00"
-            // Row 38 (Sous): Always 10-15, 18-00
-            newData[37][col] = "10:00-15:00 18:00-00:00"
+            // 4. Fill Standard Shifts based on FOP
+            // Row 37 (Chef) & 38 (Sous): Base coverage
+            if (dailyCovers > 0) {
+                newData[36][col] = "10:00-15:00 18:00-00:00" // Chef
+                newData[37][col] = "10:00-15:00 18:00-00:00" // Sous
+
+                // Example Logic: Add Commis (Row 41) if FOP > 20
+                if (FOP > 20) {
+                    newData[40][col] = "10:30-15:00 18:30-23:00" // Commis
+                } else {
+                    newData[40][col] = ""
+                }
+
+                // Lavaggio (Row 42)
+                if (dailyCovers > 20) {
+                    newData[41][col] = "11:00-16:00 19:00-01:00"
+                } else {
+                    newData[41][col] = ""
+                }
+            } else {
+                // Closed?
+                newData[36][col] = ""
+                newData[37][col] = ""
+            }
 
             // 5. Calc Tot Hours for Day
-            // Sum duration of strings "HH:mm-HH:mm"
             let dayHours = 0
             for (let r = 36; r <= 43; r++) { // Rows 37-44
                 const cell = newData[r][col]
                 if (cell && cell.includes('-')) {
-                    // Simple parse "10:00-15:00" -> 5h
-                    // Handle double "10-15 18-23"
-                    const parts = cell.split(' ')
+                    // Normalize space/newlines
+                    const parts = cell.replace(/\n/g, ' ').split(' ')
                     parts.forEach(p => {
-                        const [start, end] = p.split('-')
-                        if (start && end) {
-                            const h1 = parseInt(start.split(':')[0])
-                            const h2 = parseInt(end.split(':')[0]) || (end.startsWith('00') ? 24 : 0) // Fix 00:00 as 24
-                            dayHours += (h2 - h1)
+                        if (p.includes('-')) {
+                            const [start, end] = p.split('-')
+                            if (start && end) {
+                                let h1 = parseFloat(start.replace(':', '.'))
+                                let h2 = parseFloat(end.replace(':', '.'))
+                                if (h2 < h1) h2 += 24 // Handle post-midnight
+                                dayHours += (h2 - h1)
+                            }
                         }
                     })
                 }
@@ -417,19 +435,17 @@ export default function ForecastPage() {
             totalWeeklyHours += dayHours
 
             totalRevenue += (parseNumberIT(newData[IDX_BUDGET_PRANZO][col]) + parseNumberIT(newData[IDX_BUDGET_CENA][col]))
-            totalCovers += estimatedCovers
+            totalCovers += dailyCovers
         }
 
         // 6. Global Metrics
-        // CP = Ore Kitchen / Coperti
         const cp = totalCovers > 0 ? (totalWeeklyHours / totalCovers) : 0
-
-        // Labor Cost = (Hours * AvgCost) / Revenue * 100
         const laborCost = totalRevenue > 0 ? ((totalWeeklyHours * AVG_HOURLY_COST) / totalRevenue * 100) : 0
 
-        setKitchenStats({ cp, laborCost, fop: 0 }) // Store stats for UI
+        setKitchenStats({ cp, laborCost, fop: 0 })
         setData(newData)
         await saveToDb(newData)
+        alert(`✅ Forecast Cucina Generato!\nCP: ${cp.toFixed(2)}\nLabor Cost: ${laborCost.toFixed(1)}%`)
     }
 
     return (
@@ -500,44 +516,69 @@ export default function ForecastPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {data.slice(1).map((row, rIdx) => (
-                                <tr key={rIdx} style={{ background: rIdx % 2 ? '#f8f9fa' : 'white' }}>
-                                    {row.map((cell, cIdx) => {
-                                        // Editabili: colonne 1-7, righe Budget/Real/Ore
-                                        const l = String(row[0] || '').toLowerCase()
-                                        const isEdit = (cIdx >= 1 && cIdx <= 7) && (l.includes('budget') || l.includes('real') || l.includes('ore') || l.includes('day'))
+                            {data.slice(1).map((row, rIdx) => {
+                                const isKitchenStart = rIdx === 35; // Row 37 is Index 36 in slice? No. 
+                                // Slice(1) starts at index 1 of data. So rIdx 0 is data[1].
+                                // Row 37 (Chef) is data[36]. 
+                                // So in slice map: data[36] is at index 35. 
+                                return (
+                                    <React.Fragment key={rIdx}>
+                                        {rIdx === 35 && (
+                                            <tr style={{ background: '#dcedc8', fontWeight: 'bold' }}>
+                                                <td style={{ padding: '10px' }}>Turno 1 / 2</td>
+                                                <td style={{ textAlign: 'center' }}>In - Out</td>
+                                                <td style={{ textAlign: 'center' }}>In - Out</td>
+                                                <td style={{ textAlign: 'center' }}>In - Out</td>
+                                                <td style={{ textAlign: 'center' }}>In - Out</td>
+                                                <td style={{ textAlign: 'center' }}>In - Out</td>
+                                                <td style={{ textAlign: 'center' }}>In - Out</td>
+                                                <td style={{ textAlign: 'center' }}>In - Out</td>
+                                            </tr>
+                                        )}
+                                        <tr style={{ background: rIdx % 2 ? '#f8f9fa' : 'white' }}>
+                                            {row.map((cell, cIdx) => {
+                                                // HEADER KITCHEN VISUAL FIX
+                                                // Se siamo alla riga 37 (Index 36), mostriamo un sub-header PRIMA?
+                                                // React non permette easily di injectare una TR nel map.
+                                                // Possiamo usare un trick CSS o modificare data.
 
-                                        if (isEdit) {
-                                            return (
-                                                <td key={cIdx} style={{ padding: 0, border: '1px solid #eee', height: '100%' }}>
-                                                    <input
-                                                        type="text"
-                                                        value={cell}
-                                                        onChange={(e) => handleUpdate(rIdx + 1, cIdx, e.target.value)}
-                                                        style={{
-                                                            width: '100%', height: '100%',
-                                                            minHeight: '40px',
-                                                            padding: '0 10px',
-                                                            border: '2px solid transparent',
-                                                            textAlign: 'right',
-                                                            background: 'transparent',
-                                                            color: '#2980b9',
-                                                            fontWeight: 'bold',
-                                                            fontSize: '1em',
-                                                            outline: 'none',
-                                                            fontFamily: 'inherit',
-                                                            boxSizing: 'border-box'
-                                                        }}
-                                                        onFocus={e => { e.target.style.borderBottom = '2px solid #3498db'; e.target.style.background = '#e3f2fd'; }}
-                                                        onBlur={e => { e.target.style.borderBottom = '2px solid transparent'; e.target.style.background = 'transparent'; }}
-                                                    />
-                                                </td>
-                                            )
-                                        }
-                                        return <td key={cIdx} style={{ padding: '10px', textAlign: 'right', border: '1px solid #eee' }}>{cell}</td>
-                                    })}
-                                </tr>
-                            ))}
+                                                // Editabili: colonne 1-7, righe Budget/Real/Ore
+                                                const l = String(row[0] || '').toLowerCase()
+                                                const isEdit = (cIdx >= 1 && cIdx <= 7) && (l.includes('budget') || l.includes('real') || l.includes('ore') || l.includes('day'))
+
+                                                if (isEdit) {
+                                                    return (
+                                                        <td key={cIdx} style={{ padding: 0, border: '1px solid #eee', height: '100%' }}>
+                                                            <input
+                                                                type="text"
+                                                                value={cell}
+                                                                onChange={(e) => handleUpdate(rIdx + 1, cIdx, e.target.value)}
+                                                                style={{
+                                                                    width: '100%', height: '100%',
+                                                                    minHeight: '40px',
+                                                                    padding: '0 10px',
+                                                                    border: '2px solid transparent',
+                                                                    textAlign: 'right',
+                                                                    background: 'transparent',
+                                                                    color: '#2980b9',
+                                                                    fontWeight: 'bold',
+                                                                    fontSize: '1em',
+                                                                    outline: 'none',
+                                                                    fontFamily: 'inherit',
+                                                                    boxSizing: 'border-box'
+                                                                }}
+                                                                onFocus={e => { e.target.style.borderBottom = '2px solid #3498db'; e.target.style.background = '#e3f2fd'; }}
+                                                                onBlur={e => { e.target.style.borderBottom = '2px solid transparent'; e.target.style.background = 'transparent'; }}
+                                                            />
+                                                        </td>
+                                                    )
+                                                }
+                                                return <td key={cIdx} style={{ padding: '10px', textAlign: 'right', border: '1px solid #eee' }}>{cell}</td>
+                                            })}
+                                        </tr>
+                                    </React.Fragment>
+                                )
+                            })}
                         </tbody>
                     </table>
                 </div>
