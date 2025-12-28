@@ -16,22 +16,15 @@
     "routes": [
         {
             "src": "/api/(.*)",
-            "dest": "/api/index.js"
+            "dest": "/backend/server.js"
         },
         {
             "src": "/(.*)",
-            "dest": "/frontend/$1",
-            "continue": true
-        },
-        {
-            "handle": "filesystem"
-        },
-        {
-            "src": "/(.*)",
-            "dest": "/frontend/index.html"
+            "dest": "frontend/dist/$1"
         }
     ],
     "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "NEXT_PUBLIC_BASE_URL": "https://www.scheduling.my"
     }
 }
