@@ -19,13 +19,13 @@
             "dest": "/backend/server.js"
         },
         {
-            "src": "/assets/(.*)",
-            "dest": "/frontend/dist/assets/$1"
-        },
-        {
-            "src": "/(.*)",
-            "dest": "/frontend/dist/index.html"
-        }
+    "src": "/assets/(.*)",
+    "dest": "/assets/$1"
+},
+{
+    "src": "/(.*)",
+    "dest": "/index.html"
+}
     ],
     "env": {
         "NODE_ENV": "production",
