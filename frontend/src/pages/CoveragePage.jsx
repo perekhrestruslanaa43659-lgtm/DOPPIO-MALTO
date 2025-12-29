@@ -102,24 +102,31 @@ export default function CoveragePage() {
     const [data, setData] = useState({ headers: {}, body: [] })
     const [loading, setLoading] = useState(false)
     const [forecast, setForecast] = useState(null) // Stato per dati forecast
+    const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+        // Calculate current week start (Monday)
+        const today = new Date()
+        const dayOfWeek = today.getDay() === 0 ? 6 : today.getDay() - 1 // 0=Mon, 6=Sun
+        const monday = new Date(today)
+        monday.setDate(today.getDate() - dayOfWeek)
+        return monday
+    })
 
     // Load forecast when week changes
     useEffect(() => {
         const loadForecast = async () => {
             try {
-                // Assumiamo weekStart in formato ISO YYYY-MM-DD
-                const ws = currentWeekStart ? new Date(currentWeekStart.getTime() - (currentWeekStart.getDay() === 0 ? 6 : currentWeekStart.getDay() - 1) * 86400000).toISOString().split('T')[0] : '2025-10-13' // Default fallback
+                // Convert currentWeekStart to ISO format YYYY-MM-DD
+                const ws = currentWeekStart.toISOString().split('T')[0]
 
-                // Chiamata API generica o specifica se implementata
-                // Qui usiamo l'endpoint generico getForecast
-                const res = await api.getForecast()
-                // Filtra per settimana corrente se necessario, per ora prendiamo il primo o simuliamo
-                // In produzione: api.getForecast(ws)
-                if (res.data && res.data.length > 0) {
-                    // Cerca forecast corrispondente o prendi ultimo
-                    const match = res.data.find(f => f.weekStart === ws) || res.data[res.data.length - 1]
+                // Call API with week start parameter
+                const res = await api.getForecast(ws, ws)
+                // Backend returns { data: [...] }
+                const forecastData = res.data || res
+                if (forecastData && forecastData.length > 0) {
+                    const match = forecastData.find(f => f.weekStart === ws) || forecastData[0]
                     if (match && match.data) {
-                        setForecast(JSON.parse(match.data))
+                        const parsed = typeof match.data === 'string' ? JSON.parse(match.data) : match.data
+                        setForecast(parsed)
                     }
                 }
             } catch (err) {
@@ -259,6 +266,31 @@ export default function CoveragePage() {
                         enabled: true
                     });
                 }
+
+                // Add kitchen stations if they don't exist
+                const kitchenStations = ['CUCINA', 'ACCSU'];
+                kitchenStations.forEach(stationName => {
+                    const hasStation = processed.some(row => row.station === stationName);
+                    if (!hasStation) {
+                        const kitchenSlots = Array(32).fill('');
+
+                        // Default kitchen hours: 10:00-15:00, 18:00-23:00 for all days
+                        for (let d = 1; d <= 7; d++) {
+                            kitchenSlots[d * 4] = '10:00';      // Turno 1 In
+                            kitchenSlots[d * 4 + 1] = '15:00';  // Turno 1 Out
+                            kitchenSlots[d * 4 + 2] = '18:00';  // Turno 2 In
+                            kitchenSlots[d * 4 + 3] = '23:00';  // Turno 2 Out
+                        }
+
+                        processed.push({
+                            station: stationName,
+                            freq: 'Tutti',
+                            slots: kitchenSlots,
+                            extra: [],
+                            enabled: true
+                        });
+                    }
+                });
 
                 setData({
                     headers: null,

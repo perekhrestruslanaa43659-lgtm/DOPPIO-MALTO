@@ -101,7 +101,13 @@ export default {
   publishAssignments: (payload) => call('/assignments/publish', 'POST', payload),
 
   // Forecast
-  getForecast: () => call('/forecast', 'GET'),
+  getForecast: (start, end) => {
+    let url = '/forecast';
+    if (start && end) {
+      url += `?start=${start}&end=${end}`;
+    }
+    return call(url, 'GET');
+  },
   getForecastHistory: () => call('/forecast/history', 'GET'),
   saveForecast: (rows) => call('/forecast', 'POST', { rows }),
 

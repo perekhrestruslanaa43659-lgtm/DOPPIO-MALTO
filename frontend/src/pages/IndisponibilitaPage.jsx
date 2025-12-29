@@ -163,7 +163,7 @@ export default function IndisponibilitaPage() {
   async function addUnavail() {
     const f = unavailForm;
     if (!f.staffId) return alert("Seleziona staff");
-    if (!f.reason) return alert("Errore: Il motivo dell'assenza è obbligatorio.");
+    if (!f.reason) return alert("Errore: Il motivo è obbligatorio.");
 
     // Prepare Data Loop similar to Availability
     // But upsertUnavailability endpoint takes (staffId, data, tipo)
@@ -230,7 +230,7 @@ export default function IndisponibilitaPage() {
     loadData();
     // Reset partial
     setUnavailForm({ ...unavailForm, date: '', startDate: '', endDate: '', reason: '' });
-    alert(`Inserite ${datesToProcess.length} assenze.`);
+    alert(`Inserite ${datesToProcess.length} indisponibilità.`);
   }
 
   // --- AVAIL LOGIC ---
@@ -318,7 +318,7 @@ export default function IndisponibilitaPage() {
           }}
           onClick={() => setActiveTab('UNAVAIL')}
         >
-          ⛔ Indisponibilità (Assenze)
+          ⛔ Indisponibilità (NO)
         </button>
         <button
           className="btn"
@@ -331,13 +331,13 @@ export default function IndisponibilitaPage() {
           }}
           onClick={() => setActiveTab('AVAIL')}
         >
-          ✅ Disponibilità (Turni)
+          ✅ Disponibilità (SI)
         </button>
       </div>
 
       {activeTab === 'UNAVAIL' && (
         <div className="card" style={{ padding: '20px', background: '#fff' }}>
-          <h3>Inserisci Assenza / Indisponibilità</h3>
+          <h3>Inserisci Indisponibilità (NO)</h3>
           <div className="form-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', alignItems: 'flex-end' }}>
 
             <div>
@@ -445,7 +445,7 @@ export default function IndisponibilitaPage() {
             )}
 
             <div style={{ gridColumn: '1 / -1' }}>
-              <label style={{ display: 'block', fontWeight: 'bold', color: '#d32f2f', marginBottom: '5px' }}>4. Motivo dell'assenza (Obbligatorio)</label>
+              <label style={{ display: 'block', fontWeight: 'bold', color: '#d32f2f', marginBottom: '5px' }}>4. Motivo (Obbligatorio)</label>
               <input type="text" className="input" name="reason" value={unavailForm.reason} onChange={handleUnavailChange} style={{ width: '100%' }} placeholder="Es. Ferie, Malattia, Permesso Personale..." />
             </div>
 
@@ -497,7 +497,7 @@ export default function IndisponibilitaPage() {
                           fontWeight: 'bold',
                           marginRight: '8px'
                         }}>
-                          {it.activityType === 'UNAVAIL' ? 'ASSENZA' : 'TURNO'}
+                          {it.activityType === 'UNAVAIL' ? 'NO' : 'SI'}
                         </span>
                         {it.tipo.replace('|', ' - ')}
                         {it.reason && <span style={{ marginLeft: '10px', color: '#666', fontStyle: 'italic' }}>({it.reason})</span>}
@@ -507,7 +507,7 @@ export default function IndisponibilitaPage() {
                       </td>
                     </tr>
                   ))}
-                  {items.length === 0 && <tr><td colSpan="3" style={{ textAlign: 'center', color: '#999' }}>Nessuna assenza registrata.</td></tr>}
+                  {items.length === 0 && <tr><td colSpan="3" style={{ textAlign: 'center', color: '#999' }}>Nessuna indisponibilità registrata.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -517,7 +517,7 @@ export default function IndisponibilitaPage() {
 
       {activeTab === 'AVAIL' && (
         <div className="card" style={{ padding: '20px', background: '#fff' }}>
-          <h3>Inserisci Turno / Disponibilità</h3>
+          <h3>Inserisci Disponibilità (SI)</h3>
           <div className="form-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', alignItems: 'flex-end' }}>
 
             <div>

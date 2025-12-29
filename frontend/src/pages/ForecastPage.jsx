@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import api from '../util/api'
 
@@ -69,17 +69,151 @@ const formatNumberIT = (val) => {
     return val.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// Historical Turni Analysis Component
+function HistoricalSuggestions() {
+    const [stats, setStats] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        analyzeHistoricalTurni();
+    }, []);
+
+    const analyzeHistoricalTurni = async () => {
+        try {
+            // Target weeks: 38, 41, 47, 48 (anno 2024)
+            const targetWeeks = [
+                { week: 38, start: '2024-09-16', end: '2024-09-22' },
+                { week: 41, start: '2024-10-07', end: '2024-10-13' },
+                { week: 47, start: '2024-11-18', end: '2024-11-24' },
+                { week: 48, start: '2024-11-25', end: '2024-12-01' }
+            ];
+
+            let allTurni = [];
+            for (const { start, end } of targetWeeks) {
+                try {
+                    const turni = await api.getSchedule(start, end);
+                    allTurni = allTurni.concat(turni);
+                } catch (e) {
+                    console.warn(`Could not load turni for ${start}:`, e.message);
+                }
+            }
+
+            if (allTurni.length === 0) {
+                setStats(null);
+                setLoading(false);
+                return;
+            }
+
+            // Calculate statistics
+            let totalHours = 0;
+            const roleStats = {};
+
+            allTurni.forEach(turno => {
+                // Calculate hours
+                const start = turno.oraInizio || '';
+                const end = turno.oraFine || '';
+                if (start && end) {
+                    const [startH, startM] = start.split(':').map(Number);
+                    const [endH, endM] = end.split(':').map(Number);
+                    let hours = (endH + endM / 60) - (startH + startM / 60);
+                    if (hours < 0) hours += 24; // Handle overnight shifts
+
+                    totalHours += hours;
+
+                    // Group by role
+                    const role = turno.staff?.ruolo || 'Unknown';
+                    if (!roleStats[role]) {
+                        roleStats[role] = { hours: 0, count: 0 };
+                    }
+                    roleStats[role].hours += hours;
+                    roleStats[role].count++;
+                }
+            });
+
+            const avgHoursPerShift = allTurni.length > 0 ? totalHours / allTurni.length : 0;
+            const avgHoursByRole = Object.entries(roleStats).map(([role, data]) => ({
+                role,
+                avgHours: data.hours / data.count,
+                totalHours: data.hours
+            })).sort((a, b) => b.totalHours - a.totalHours);
+
+            setStats({
+                totalShifts: allTurni.length,
+                totalHours,
+                avgHoursPerShift,
+                avgHoursByRole
+            });
+        } catch (e) {
+            console.error('Error analyzing historical turni:', e);
+            setStats(null);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading) return null;
+    if (!stats) return null;
+
+    return (
+        <div style={{
+            padding: '15px',
+            background: '#e8f5e9',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            border: '1px solid #4caf50'
+        }}>
+            <h4 style={{ margin: '0 0 10px 0', color: '#2e7d32' }}>
+                📊 Dati Storici (Settimane 38, 41, 47, 48 - 2024)
+            </h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '10px' }}>
+                <div>
+                    <strong>Turni Totali:</strong> {stats.totalShifts}
+                </div>
+                <div>
+                    <strong>Ore Totali:</strong> {stats.totalHours.toFixed(1)}h
+                </div>
+                <div>
+                    <strong>Media per Turno:</strong> {stats.avgHoursPerShift.toFixed(1)}h
+                </div>
+            </div>
+            <details style={{ marginTop: '10px' }}>
+                <summary style={{ cursor: 'pointer', fontWeight: 'bold', color: '#1b5e20' }}>
+                    Dettagli per Ruolo
+                </summary>
+                <ul style={{ marginTop: '10px', paddingLeft: '20px' }}>
+                    {stats.avgHoursByRole.map(({ role, avgHours, totalHours }) => (
+                        <li key={role}>
+                            <strong>{role}:</strong> {avgHours.toFixed(1)}h media ({totalHours.toFixed(1)}h totali)
+                        </li>
+                    ))}
+                </ul>
+            </details>
+        </div>
+    );
+}
+
 export default function ForecastPage() {
     const [weeks] = useState(getWeeksList())
-    // Trova settimana corrente di default
-    const todayWeek = getWeekRange(new Date())
-    const initialWeek = weeks.find(w => w.start === todayWeek.start) || weeks[weeks.length - 1] || weeks[0]
 
-    const [selectedWeek, setSelectedWeek] = useState(initialWeek)
+    // Trova settimana da usare: 1) localStorage, 2) settimana corrente, 3) ultima della lista
+    const todayWeek = getWeekRange(new Date())
+    const getInitialWeek = () => {
+        // Prova a recuperare l'ultima settimana selezionata
+        const savedWeekStart = localStorage.getItem('forecast_selected_week')
+        if (savedWeekStart) {
+            const savedWeek = weeks.find(w => w.start === savedWeekStart)
+            if (savedWeek) return savedWeek
+        }
+        // Altrimenti usa settimana corrente o ultima
+        return weeks.find(w => w.start === todayWeek.start) || weeks[weeks.length - 1] || weeks[0]
+    }
+
+    const [selectedWeek, setSelectedWeek] = useState(getInitialWeek())
     const [data, setData] = useState([])
     const [history, setHistory] = useState([])
     const [loading, setLoading] = useState(false)
     const [kitchenStats, setKitchenStats] = useState({ cp: 0, laborCost: 0, fop: 0 })
+    const [saveTimeout, setSaveTimeout] = useState(null)
 
     useEffect(() => {
         loadForecast(selectedWeek.start)
@@ -89,9 +223,11 @@ export default function ForecastPage() {
         setLoading(true)
         try {
             const res = await api.getForecast(weekStart, weekStart)
-            if (res && res.length > 0 && res[0].data) {
+            // Backend returns { data: [...] }
+            const forecastData = res.data || res // Handle both formats
+            if (forecastData && forecastData.length > 0 && forecastData[0].data) {
                 try {
-                    const parsed = JSON.parse(res[0].data)
+                    const parsed = JSON.parse(forecastData[0].data)
                     setData(parsed)
                 } catch (e) { setData([]) }
             } else {
@@ -154,12 +290,30 @@ export default function ForecastPage() {
             const fBD = get(idxBudD), fRD = get(idxRealD)
             const hB = get(idxOreBud), hR = get(idxOreReal)
 
+            // Debug logging (rimuovi dopo il fix)
+            if (col === 1) { // Solo per lunedì, evita spam
+                console.log('Produttività calc:', {
+                    idxProdReal,
+                    idxRealD,
+                    idxOreReal,
+                    fRD,
+                    hR,
+                    hB
+                })
+            }
+
             // Prod Budget = Budget Day / Ore Budget
             if (idxProdBud !== -1 && hB > 0 && fBD > 0) set(idxProdBud, fBD / hB)
 
             // Prod Real = Real Day / (Ore Reali o Ore Budget)
             const div = hR > 0 ? hR : hB
-            if (idxProdReal !== -1 && div > 0 && fRD > 0) set(idxProdReal, fRD / div)
+            if (idxProdReal !== -1 && div > 0 && fRD > 0) {
+                const prodReal = fRD / div
+                set(idxProdReal, prodReal)
+                if (col === 1) console.log('✅ Produttività Real calcolata:', prodReal)
+            } else if (col === 1) {
+                console.log('❌ Produttività Real NON calcolata:', { idxProdReal, div, fRD })
+            }
         }
         return newGrid
     }
@@ -269,9 +423,18 @@ export default function ForecastPage() {
     const handleUpdate = (r, c, val) => {
         const d = [...data]
         d[r][c] = val
-        setData(applyFormulas(d))
-        // Opzionale: Auto-save anche su edit? Meglio di no per performance, o debounce.
-        // Lasciamo manuale per edit piccoli.
+        const calculated = applyFormulas(d)
+        setData(calculated)
+
+        // AUTO-SAVE con debounce (2 secondi dopo ultima modifica)
+        if (saveTimeout) clearTimeout(saveTimeout)
+        const timeout = setTimeout(async () => {
+            const saved = await saveToDb(calculated)
+            if (saved) {
+                console.log('✅ Forecast auto-saved')
+            }
+        }, 2000)
+        setSaveTimeout(timeout)
     }
 
     const handleSave = async () => {
@@ -457,7 +620,12 @@ export default function ForecastPage() {
                     <span style={{ fontWeight: 'bold' }}>Settimana:</span>
                     <select
                         value={selectedWeek.start}
-                        onChange={(e) => setSelectedWeek(weeks.find(w => w.start === e.target.value))}
+                        onChange={(e) => {
+                            const newWeek = weeks.find(w => w.start === e.target.value)
+                            setSelectedWeek(newWeek)
+                            // Salva in localStorage per ricordare la selezione
+                            localStorage.setItem('forecast_selected_week', newWeek.start)
+                        }}
                         style={{ padding: '8px', borderRadius: '5px', border: '1px solid #ccc' }}
                     >
                         {weeks.map(w => (
@@ -467,19 +635,16 @@ export default function ForecastPage() {
                 </div>
             </div>
 
+            {/* Historical Turni Analysis */}
+            <HistoricalSuggestions />
+
             <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
-                <label className="btn" style={{ backgroundColor: '#3498db', color: 'white', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer' }}>
-                    📁 Importa CSV
-                    <input type="file" style={{ display: 'none' }} onChange={handleImport} onClick={(e) => e.target.value = null} accept=".csv, .xlsx" />
-                </label>
                 {data.length > 0 && (
                     <>
                         <button className="btn" style={{ backgroundColor: '#27ae60', color: 'white', padding: '10px 20px', borderRadius: '6px' }} onClick={handleSave}>
                             💾 Salva
                         </button>
-                        <button className="btn" style={{ backgroundColor: '#8e44ad', color: 'white', padding: '10px 20px', borderRadius: '6px' }} onClick={generateKitchenForecast}>
-                            👨‍🍳 Genera Forecast Cucina
-                        </button>
+
                         <button className="btn" style={{ backgroundColor: '#e67e22', color: 'white', padding: '10px 20px', borderRadius: '6px' }} onClick={handleExport}>
                             📥 Scarica
                         </button>
@@ -544,8 +709,41 @@ export default function ForecastPage() {
 
                                                 // Editabili: colonne 1-7, righe Budget/Real/Ore
                                                 const l = String(row[0] || '').toLowerCase()
-                                                const isEdit = (cIdx >= 1 && cIdx <= 7) && (l.includes('budget') || l.includes('real') || l.includes('ore') || l.includes('day'))
 
+                                                // Celle CALCOLATE automaticamente (read-only)
+                                                const isCalculated = (cIdx >= 1 && cIdx <= 7) && (
+                                                    l.includes('produttività') ||  // Produttività Budget/Real
+                                                    (l.includes('budget') && l.includes('cena')) || // Budget Sera (calcolato da Budget Day - Budget Pranzo)
+                                                    (l.includes('real') && l.includes('cena'))      // Real Sera (calcolato da Real Day - Real Pranzo)
+                                                )
+
+                                                // Celle EDITABILI manualmente
+                                                const isEdit = (cIdx >= 1 && cIdx <= 7) && !isCalculated && (
+                                                    l.includes('budget pranzo') ||
+                                                    l.includes('real pranzo') ||
+                                                    l.includes('budget day') ||
+                                                    l.includes('real day') ||
+                                                    l.includes('ore')
+                                                )
+
+                                                // Render celle CALCOLATE (read-only con sfondo giallo)
+                                                if (isCalculated) {
+                                                    return (
+                                                        <td key={cIdx} style={{
+                                                            padding: '10px',
+                                                            textAlign: 'right',
+                                                            border: '1px solid #eee',
+                                                            background: '#fffbea', // Giallo chiaro per indicare calcolo automatico
+                                                            color: '#856404',
+                                                            fontWeight: 'bold',
+                                                            fontStyle: 'italic'
+                                                        }}>
+                                                            {cell}
+                                                        </td>
+                                                    )
+                                                }
+
+                                                // Render celle EDITABILI
                                                 if (isEdit) {
                                                     return (
                                                         <td key={cIdx} style={{ padding: 0, border: '1px solid #eee', height: '100%' }}>
@@ -573,6 +771,8 @@ export default function ForecastPage() {
                                                         </td>
                                                     )
                                                 }
+
+                                                // Render celle NORMALI (non editabili, es. header colonna)
                                                 return <td key={cIdx} style={{ padding: '10px', textAlign: 'right', border: '1px solid #eee' }}>{cell}</td>
                                             })}
                                         </tr>
@@ -586,13 +786,13 @@ export default function ForecastPage() {
                 <div style={{ textAlign: 'center', padding: '50px', background: 'white', borderRadius: '10px' }}>
                     <p style={{ marginBottom: '20px', color: '#7f8c8d' }}>Nessun dato per la settimana {selectedWeek.week}.</p>
                     <div style={{ display: 'flex', gap: '20px', justifyContent: 'center' }}>
-                        <button
+                        <label
                             className="btn"
-                            style={{ backgroundColor: '#9b59b6', color: 'white', padding: '15px 30px', borderRadius: '8px', fontSize: '1.1em', cursor: 'pointer' }}
-                            onClick={handleManualInit}
+                            style={{ backgroundColor: '#3498db', color: 'white', padding: '15px 30px', borderRadius: '8px', fontSize: '1.1em', cursor: 'pointer' }}
                         >
-                            ➕ Crea Tabella Vuota
-                        </button>
+                            📁 Importa CSV
+                            <input type="file" style={{ display: 'none' }} onChange={handleImport} onClick={(e) => e.target.value = null} accept=".csv, .xlsx" />
+                        </label>
                     </div>
                 </div>
             )}

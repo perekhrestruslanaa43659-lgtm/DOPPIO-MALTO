@@ -95,7 +95,7 @@ const MainContent = () => {
             <button className={tab === 'turni' ? 'btn active' : 'btn'} onClick={() => setTab('turni')}>Turni</button>
             <button className={tab === 'assenze' ? 'btn active' : 'btn'} style={{ background: '#f44336', color: '#fff' }} onClick={() => setTab('assenze')}>🚑 Assenze</button>
             <button className={tab === 'indis' ? 'btn active' : 'btn'} onClick={() => setTab('indis')}>Inserimento</button>
-            {isAdmin && <button className={tab === 'dispo' ? 'btn active' : 'btn'} onClick={() => setTab('dispo')}>Grid</button>}
+
             {isAdmin && <button className={tab === 'stats' ? 'btn active' : 'btn'} onClick={() => setTab('stats')}>Statistiche</button>}
             {isAdmin && <button className={tab === 'forecast' ? 'btn active' : 'btn'} style={{ background: '#fbc02d', color: '#000' }} onClick={() => setTab('forecast')}>📊 Forecast</button>}
             {isAdmin && <button className={tab === 'coverage' ? 'btn active' : 'btn'} style={{ background: '#e91e63', color: '#fff' }} onClick={() => setTab('coverage')}>Fabbisogno</button>}
@@ -150,7 +150,7 @@ const MainContent = () => {
         {tab === 'turni' && <TurniPage readOnly={!isAdmin} />}
         {tab === 'assenze' && <AssenzePage />}
         {tab === 'indis' && <IndisponibilitaPage />}
-        {tab === 'dispo' && isAdmin && <AvailabilityPage />}
+
         {tab === 'stats' && isAdmin && <StatisticsPage />}
         {tab === 'budget' && isAdmin && <BudgetPage />}
         {tab === 'forecast' && isAdmin && <ForecastPage />}

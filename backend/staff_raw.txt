@@ -1,0 +1,36 @@
+Nome	Cognome	Email	Ruolo	OreMin	OreMax	Costo	Postazioni
+LUCA	GNECCO	lucagnecco@gmail.com	RM	40	40	15	
+GIULIA	BONZI	Giulia.bonzi@gmail.com	VRM	40	40	14	
+MARIAM	HANY	mariam@gmail.com	JM	40	40	12	
+PAOLO	PALINI	paolo@gmail.com	JM	40	40	10	
+RUSLANA	PEREKHREST	rusliperekhrest@gmail.com	in formazione	30	30	9	CDR, ACC
+BANCE	MOUSSA	bance@gmail.com	OPERATORE	40	40	8	PASS
+ERMANNO	BERTAZZONI	ermanno@gmail.com	L. 68/99	30	30	6	B/S
+ELENA	CAVALLO	elena@gmail.com	OPERATORE	40	40	8	BARGIU, B/S, BARSU, CDR
+AHMED	SALEM	ahmed@gmail.com	OPERATORE	40	40	8	BARGIU, PASS, B/S, CDR
+ELIAS	KARAM	elias@gmail.com	OPERATORE	24	24	8	B/S, BARGIU, PASS, CDR, BARSU
+DAVID	VERMIGLIO	david@gmail.com	OPERATORE	40	40	8	B/S, BARSU, CDR
+MERAN	MOHAMED	meran@gmail.com	OPERATORE	18	18	8	BARGIU. CDR, B/S, BARSU
+CHIERICO	CHIARA	chiara@gmail.com	OPERATORE	24	24	8	BARGIU, ACCSU, CDR, ACCSU, PASS
+MATTEO	MONTELATICI	matteo@gmail.com	CHIAMATA	0	0	8	BARGIU, B/S, CDR
+CELESTE	MATHIEU	celeste@gmail.com	ACC/OPS	24	24	8	ACCGIU
+REBECCA	GAZZOLA	rebecca@gmail.com	CHIAMATA	0	0	10	BARSU, CDR
+FRANCESCA	TACCOLINI	francesca@gmail.com	OPERATORE	15	15	8	BARSU
+SECK	CODOU	seck@gmail.com	OPERATORE	25	25	8	BARSU, B/S
+JENNIFER	GAMARRA	jennifer@gmail.com	TIROCINANTE	20	20	6	SCARICO, B/S
+MAMADOU	DIALLO	mamadou@gmail.com	TIROCINANTE	40	40	6	B/S, PASS
+STEVENS	CARZANIGA	stevens@gmail.com	TIROCINANTE	30	30	6	CDR, BARGIU, B/S
+NETTRA	NIRMANI	netra@gmail.com	CHIAMATA	0	0	10	CDR, BARGIU, B/S
+WALID	LARJANI	walid@gmail.com	OPERATORE	30	30	6	CDR, B/S
+LUCA	CORDONATTO	luca@gmail.com	CHIAMATA	0	0	10	B/S
+ABIR	HOSSAIN			40	40	12	
+IMRAN	MOLLA			40	40	9	Pira, Burger, Fritti, Preparazione
+SHOHEL	MATUBBER			40	40	9	Pira, Burger, Fritti, Preparazione
+JUBAIR	AHMED			40	40	7	Lavaggio, Fritti, Dolci/Ins
+SAHIDUL	ISLAM			40	40	7	Burger, Preparazione
+SHOAG	AHMED			40	40	7	Burger, Preparazione, Lavaggio, Fritti, Dolci/Ins
+BABUL	MIAH MD			40	40	7	Burger, Preparazione, Fritti, Dolci/Ins, Lavaggio
+ADIL	AHMED			40	40		Pizza, Fritti, Dolci/Ins, Preparazione, Lavaggio
+JAHIDUR	RAHMAN			40	40	7	Pizza, Fritti, Dolci/Ins, Preparazione, Lavaggio
+SUAB	AHMED			40	40	7	Burger, Preparazione, Fritti, Dolci/Ins
+RUMEL	HANNAN			40	40	7	Fritti, Dolci/Ins, Lavaggio, Preparazione

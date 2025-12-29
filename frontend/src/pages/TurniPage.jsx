@@ -114,7 +114,10 @@ export default function TurniPage({ readOnly }) {
         api.getStaff(),
         api.getShiftTemplates(),
         api.getUnavailability(),
-        api.getForecast() // NUOVO FORECAST
+        api.getForecast().catch(err => {
+          console.warn("Forecast API error (non-blocking):", err.message);
+          return { data: [] }; // Return empty forecast data on error
+        })
       ])
       setSchedule(Array.isArray(sch) ? sch : [])
       setStaff(Array.isArray(stf) ? stf : [])
@@ -876,21 +879,24 @@ export default function TurniPage({ readOnly }) {
         <button
           className="btn"
           style={{
-            backgroundColor: panarelloActive ? '#FFEB3B' : '#f0f0f0',
-            fontSize: '1.5em',
-            padding: '5px 15px',
-            borderRadius: '10px',
-            border: panarelloActive ? '3px solid #FBC02D' : '1px solid #ccc',
-            boxShadow: panarelloActive ? '0 0 15px rgba(255, 235, 59, 0.7)' : 'none',
+            backgroundColor: panarelloActive ? '#9c27b0' : '#f0f0f0',
+            color: panarelloActive ? 'white' : '#333',
+            fontSize: '1.2em',
+            padding: '8px 20px',
+            borderRadius: '8px',
+            border: panarelloActive ? '3px solid #7b1fa2' : '1px solid #ccc',
+            boxShadow: panarelloActive ? '0 0 15px rgba(156, 39, 176, 0.5)' : 'none',
             display: 'flex',
             alignItems: 'center',
+            gap: '8px',
             justifyContent: 'center',
-            transition: 'all 0.3s ease'
+            transition: 'all 0.3s ease',
+            fontWeight: 'bold'
           }}
           onClick={() => setPanarelloActive(!panarelloActive)}
-          title="Usa l'evidenziatore per colorare/togliere il giallo (DA RIVEDERE)"
+          title="Evidenzia turni cucina in viola"
         >
-          🖌️
+          {panarelloActive ? '🟣 Panarello ON' : '⚪ Panarello OFF'}
         </button>
 
         {unassignedShifts.length > 0 && (
@@ -1165,7 +1171,7 @@ export default function TurniPage({ readOnly }) {
                       const bindKey = `${dayN}_${suffix}`;
                       const constraint = (s.fixedShifts || {})[bindKey];
 
-                      const cursorStyle = panarelloActive ? 'url("https://img.icons8.com/color/24/000000/marker.png") 0 24, crosshair' : 'pointer';
+                      const cursorStyle = panarelloActive ? 'pointer' : 'pointer';
 
                       // Determine Content and Style
                       let cellBg = bgColor;
@@ -1175,6 +1181,9 @@ export default function TurniPage({ readOnly }) {
                       let isBlocked = false;
 
                       const unavail = findUnavail(typePrefix);
+
+                      // Check if this is a kitchen shift for Panarello highlighting
+                      const isKitchenShift = asn && (s.ruolo === 'CUCINA' || asn.postazione === 'CUCINA' || asn.postazione === 'ACCSU');
 
                       if (unavail) {
                         cellBg = '#ffebee'; // Red background for Unavailability
@@ -1246,14 +1255,17 @@ export default function TurniPage({ readOnly }) {
                           console.warn('⚠️ Missing end time for assignment:', asn.id, 'Staff:', s.nome, 'Date:', d);
                         }
 
+                        // PANARELLO: Purple for kitchen shifts when active
+                        if (panarelloActive && isKitchenShift) {
+                          cellBg = '#ce93d8'; // Light purple
+                        }
                         // Yellow for Draft (status === false)
-                        if (asn.status === false) {
+                        else if (asn.status === false) {
                           cellBg = '#fff9c4'; // Modern Yellow
                           // Optionally add 'DA RIVEDERE'
                           if (!contentPost) contentPost = 'DA RIVEDERE';
                         }
                       }
-
                       return (
                         <React.Fragment>
                           <td onClick={() => clickH('In')} style={{

@@ -63,7 +63,8 @@ export default function StaffPage() {
       oreMinime: s.oreMinime,
       oreMassime: s.oreMassime,
       costoOra: s.costoOra,
-      postazioni: s.postazioni || ''
+      // Ensure it's a string for the form input/checkbox logic
+      postazioni: Array.isArray(s.postazioni) ? s.postazioni.join(',') : (s.postazioni || '')
     })
   }
 
@@ -222,7 +223,7 @@ export default function StaffPage() {
         <div style={{ marginBottom: '1rem' }}>
           <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#4b5563', marginBottom: '0.35rem' }}>Postazioni Abilitate:</label>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-            {['BAR SU', "BAR GIU'", 'B/S', 'PASS', 'CDR', 'ACC', 'CUCINA'].map(p => (
+            {['BAR SU', "BAR GIU'", 'B/S', 'PASS', 'CDR', 'ACC', 'BURGER', 'PREPARAZIONE', 'FRITTI', 'DOLCI/INS', 'LAVAGGIO', 'PIZZA', 'PIRA', 'ACCGIU', 'SCARICO'].map(p => (
               <label key={p} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.9rem', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
