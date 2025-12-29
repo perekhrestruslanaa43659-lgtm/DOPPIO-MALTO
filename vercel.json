@@ -9,21 +9,26 @@
             }
         },
         {
-            "src": "api/index.js",
+            "src": "backend/server.js",
             "use": "@vercel/node"
         }
     ],
     "routes": [
         {
             "src": "/api/(.*)",
-            "dest": "/api/index.js"
+            "dest": "/backend/server.js"
+        },
+        {
+            "src": "/assets/(.*)",
+            "dest": "/frontend/dist/assets/$1"
         },
         {
             "src": "/(.*)",
-            "dest": "frontend/dist/$1"
+            "dest": "/frontend/dist/index.html"
         }
     ],
     "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "NEXT_PUBLIC_BASE_URL": "https://www.scheduling.my"
     }
 }
