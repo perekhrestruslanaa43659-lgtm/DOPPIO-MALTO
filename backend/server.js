@@ -9,10 +9,9 @@ const { login, register, initAdmin, authenticateToken, getAllUsers, deleteUser, 
 const prisma = new PrismaClient();
 const app = express();
 const allowedOrigins = [
-  'http://localhost:5173',
+  'https://www.scheduling.my',
   'http://localhost:3000',
-  'https://scheduling.my',
-  'https://www.scheduling.my'
+  'https://scheduling.my'
 ];
 
 app.use(cors({
