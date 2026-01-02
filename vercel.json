@@ -18,13 +18,13 @@
             "src": "/api/(.*)",
             "dest": "/backend/server.js"
         },
-     {
-    "src": "/assets/(.*)",
-   "dest": "/frontend/dist/assets/$1" → "dest": "/frontend/assets/$1"
-},
-{
-    "src": "/(.*)",
-    "dest": "/frontend/dist/index.html" → "dest": "/frontend/index.html"
+      {
+            "src": "/assets/(.*)",
+            "dest": "/frontend/assets/$1"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/frontend/index.html"
 }
     ],
     "env": {
