@@ -21,8 +21,30 @@ app.use((req, res, next) => {
 initAdmin();
 
 // Auth Routes
-app.post('/api/login', login);
-app.post('/api/register', register); // Public registration
+// Health Check Endpoint
+app.get('/api/health', async (req, res) => {
+  try {
+    // Test database connection
+    await prisma.$queryRaw`SELECT 1`;
+    
+    res.json({
+      status: 'ok',
+      database: 'connected',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development',
+      version: '1.0.0'
+    });
+  } catch (e) {
+    console.error('Health check failed:', e);
+    res.status(500).json({
+      status: 'error',
+      database: 'disconnected',
+      error: e.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+// Public registration
 // Original register was public? No, user management page uses it. 
 // Ideally registration should be restricted or separate public signup provided. 
 // For now, I'll leave register as public for simplicity or check if I protected it before?
