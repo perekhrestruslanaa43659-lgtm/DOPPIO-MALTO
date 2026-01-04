@@ -12,6 +12,6 @@ start "ScheduFlow Frontend" cmd /k "cd frontend && npm run dev"
 echo.
 echo ==========================================
 echo   APP AVVIATA IN LOCALE!
-echo   Apri il browser su: http://localhost:5173
+echo   Apri il browser su: https://www.scheduling.my
 echo ==========================================
 pause

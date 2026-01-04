@@ -214,6 +214,7 @@ export default function ForecastPage() {
     const [loading, setLoading] = useState(false)
     const [kitchenStats, setKitchenStats] = useState({ cp: 0, laborCost: 0, fop: 0 })
     const [saveTimeout, setSaveTimeout] = useState(null)
+    const [toggleKitchen, setToggleKitchen] = useState(true) // Stato per il toggle della sezione cucina
 
     useEffect(() => {
         loadForecast(selectedWeek.start)
@@ -323,7 +324,7 @@ export default function ForecastPage() {
         let v = String(cell).trim()
         // Fix caratteri
         v = v.replace(/â[^\s\d\w]*/g, '').replace(/[€¬ÐÂ]/g, '')
-        const fix = { 'Ã¬': 'ì', 'Ã ': 'à', 'Ã¨': 'è', 'Ã¹': 'ù', 'Ã²': 'ò', 'LunedÃ': 'Lunedì', 'MartedÃ': 'Martedì', 'MercoledÃ': 'Mercoledì', 'GiovedÃ': 'Giovedì', 'VenerdÃ': 'Venerdì', 'ProduttivitÃ': 'Produttività' }
+        const fix = { 'Ã¬': 'ì', 'Ã ': 'à', 'Ã¨': 'è', 'Ã¹': 'ù', 'Ã²': 'ò', 'LunedÃ': 'Lunedì', 'MartedÃ': 'Martedì', 'MercoledÃ': 'Mercoledì', 'GiovedÃ': 'Giovedì', 'VenerdÃ': 'Venerdì', 'ProduttivitàÃ': 'Produttività' }
         for (let k in fix) if (v.includes(k)) v = v.replaceAll(k, fix[k])
 
         // NON TOCCHIAMO TROPPO I NUMERI QUI, lasciamo il formato "sporco" (es. 2.700) 
@@ -485,15 +486,17 @@ export default function ForecastPage() {
         }
 
         // Kitchen Section (Rows 37-45)
-        template.push(['CUCINA - Chef (R37)', '', '', '', '', '', '', '']) // 37 (Index 36)
-        template.push(['CUCINA - Sous Chef (R38)', '', '', '', '', '', '', '']) // 38
-        template.push(['CUCINA - ACCSU (R39)', '', '', '', '', '', '', '']) // 39 (Activated by FOP)
-        template.push(['CUCINA - Capo Partita (R40)', '', '', '', '', '', '', '']) // 40
-        template.push(['CUCINA - Commis (R41)', '', '', '', '', '', '', '']) // 41
-        template.push(['CUCINA - Lavaggio (R42)', '', '', '', '', '', '', '']) // 42
-        template.push(['CUCINA - Jolly (R43)', '', '', '', '', '', '', '']) // 43
-        template.push(['CUCINA - Extra (R44)', '', '', '', '', '', '', '']) // 44
-        template.push(['CUCINA - Totale Ore (R45)', '0', '0', '0', '0', '0', '0', '0']) // 45
+        if (toggleKitchen) {
+            template.push(['CUCINA - Chef (R37)', '', '', '', '', '', '', '']) // 37 (Index 36)
+            template.push(['CUCINA - Sous Chef (R38)', '', '', '', '', '', '', '']) // 38
+            template.push(['CUCINA - ACCSU (R39)', '', '', '', '', '', '', '']) // 39 (Activated by FOP)
+            template.push(['CUCINA - Capo Partita (R40)', '', '', '', '', '', '', '']) // 40
+            template.push(['CUCINA - Commis (R41)', '', '', '', '', '', '', '']) // 41
+            template.push(['CUCINA - Lavaggio (R42)', '', '', '', '', '', '', '']) // 42
+            template.push(['CUCINA - Jolly (R43)', '', '', '', '', '', '', '']) // 43
+            template.push(['CUCINA - Extra (R44)', '', '', '', '', '', '', '']) // 44
+            template.push(['CUCINA - Totale Ore (R45)', '0', '0', '0', '0', '0', '0', '0']) // 45
+        }
 
         setData(template)
         await saveToDb(template)
