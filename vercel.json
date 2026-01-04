@@ -1,34 +1,34 @@
 {
     "version": 2,
-  "builds": [
-    {
-        "src": "frontend/package.json",
-        "use": "@vercel/static-build",
-        "config": {
-            "distDir": "dist"
+    "builds": [
+        {
+            "src": "frontend/package.json",
+            "use": "@vercel/static-build",
+            "config": {
+                "distDir": "dist"
+            }
+        },
+        {
+            "src": "backend/package.json",
+            "use": "@vercel/node",
+            "config": {
+                "includeFiles": ["prisma/**"]
+            }
         }
-    },
-    {
-        "src": "backend/package.json",
-        "use": "@vercel/node",
-        "config": {
-            "includeFiles": ["prisma/**"]
-        }
-    }
-],
+    ],
     "routes": [
         {
             "src": "/api/(.*)",
             "dest": "/backend/server.js"
         },
-      {
+        {
             "src": "/assets/(.*)",
             "dest": "/frontend/assets/$1"
         },
         {
             "src": "/(.*)",
             "dest": "/frontend/index.html"
-}
+        }
     ],
     "env": {
         "NODE_ENV": "production",
