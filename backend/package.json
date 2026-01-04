@@ -2,11 +2,12 @@
   "name": "scheduling-mock-backend",
   "version": "0.1.0",
   "private": true,
-"scripts": {
+  "scripts": {
     "start": "node server.js",
     "postinstall": "prisma generate",
+    "vercel-build": "prisma generate && prisma db push --accept-data-loss",
     "dev": "nodemon server.js"
-},
+  },
   "dependencies": {
     "@google/generative-ai": "^0.1.0",
     "@prisma/client": "5.10.0",
