@@ -113,8 +113,8 @@ async function syncStaffHours() {
 }
 
 // Run Sync on Startup
-syncStaffHours();
-ensureSeckCodouConstraints();
+//syncStaffHours();
+//ensureSeckCodouConstraints();
 
 // One-off fix for Seck Codou
 async function ensureSeckCodouConstraints() {
