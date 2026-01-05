@@ -18,7 +18,7 @@ app.use((req, res, next) => {
 });
 
 // Init Admin
-initAdmin();
+//initAdmin();
 
 // Auth Routes
 // Health Check Endpoint
