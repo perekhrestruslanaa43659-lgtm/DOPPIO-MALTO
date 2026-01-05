@@ -10,7 +10,6 @@ const prisma = new PrismaClient();
 const app = express();
 const allowedOrigins = [
   'https://www.scheduling.my',
-  'http://localhost:3000',
   'https://scheduling.my'
 ];
 
