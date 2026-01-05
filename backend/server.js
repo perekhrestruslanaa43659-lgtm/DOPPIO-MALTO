@@ -35,7 +35,8 @@ app.use((req, res, next) => {
 });
 
 // Init Admin
-initAdmin();
+// initAdmin(); // Commented out - causes SQLite error on Vercel because runs before DATABASE_URL loaded
+
 
 // Auth Routes
 app.post('/api/login', login);
