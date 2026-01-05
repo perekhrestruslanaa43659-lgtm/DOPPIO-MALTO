@@ -9,11 +9,8 @@
             }
         },
         {
-            "src": "backend/package.json",
-            "use": "@vercel/node",
-            "config": {
-                "includeFiles": ["prisma/**"]
-            }
+            "src": "backend/server.js",
+            "use": "@vercel/node"
         }
     ],
     "routes": [
