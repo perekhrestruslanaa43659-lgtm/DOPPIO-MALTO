@@ -5,7 +5,8 @@
 "scripts": {
     "start": "node server.js",
     "postinstall": "prisma generate",
-    "vercel-build": "prisma generate",
+   "prebuild": "rm -rf node_modules/.prisma && rm -rf node_modules/@prisma/client",
+"vercel-build": "npm run prebuild && prisma generate",
     "dev": "nodemon server.js"
 },
   "dependencies": {
