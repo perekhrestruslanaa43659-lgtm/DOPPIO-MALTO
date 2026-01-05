@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node server.js",
     "postinstall": "prisma generate",
-    "vercel-build": "prisma generate && prisma db push --accept-data-loss",
+    "vercel-build": "prisma generate",
     "dev": "nodemon server.js"
   },
   "dependencies": {
