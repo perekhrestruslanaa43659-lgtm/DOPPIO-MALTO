@@ -8,9 +8,13 @@
     "start": "next start"
   },
   "dependencies": {
+    "@supabase/supabase-js": "latest",
     "next": "latest",
     "react": "latest",
-    "react-dom": "latest",
-    "@supabase/supabase-js": "latest"
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "@prisma/client": "^6.1.0",
+    "prisma": "^6.1.0"
   }
 }
