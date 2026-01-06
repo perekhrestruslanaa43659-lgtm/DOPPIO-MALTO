@@ -1,148 +1,128 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
 model Staff {
-  id              Int      @id @default(autoincrement())
-  nome            String
-  cognome         String   @default("")
-  ruolo           String
-  email           String?  @unique
-  oreMinime       Int      @default(0)
-  oreMassime      Int      @default(40)
-  costoOra        Float    @default(0)
-  postazioni      String[] @default([])
-  // moltiplicatore Removed to fix local sync issue
-  listIndex       Int 
-  fixedShifts     String?  @default("{}") // JSON stringified (LEGACY? Keep for now)
-  createdAt       DateTime @default(now())
-  
-  unavailabilities Unavailability[]
+  id               Int              @id @default(autoincrement())
+  nome             String
+  ruolo            String
+  email            String?          @unique
+  createdAt        DateTime         @default(now())
+  cognome          String           @default("")
+  costoOra         Float            @default(0)
+  oreMassime       Int              @default(40)
+  oreMinime        Int              @default(0)
+  postazioni       String[]
+  listIndex        Int              @default(999)
+  fixedShifts      Json?
   assignments      Assignment[]
   recurringShifts  RecurringShift[]
-  permissionRequests PermissionRequest[]
+  unavailabilities Unavailability[]
 }
 
 model ShiftTemplate {
-  id           Int    @id @default(autoincrement())
-  nome         String 
-  oraInizio    String 
-  oraFine      String 
-  ruoloRichiesto String 
-  giorniValidi Int[]  @default([])
-  
-  assignments Assignment[]
+  id              Int              @id @default(autoincrement())
+  nome            String
+  oraInizio       String
+  oraFine         String
+  ruoloRichiesto  String
+  giorniValidi    Int[]
+  assignments     Assignment[]
   recurringShifts RecurringShift[]
 }
 
 model Unavailability {
-  id        Int      @id @default(autoincrement())
-  staffId   Int
-  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  data      String   // "2025-12-25"
-  tipo      String   // "TOTALE", "PARZIALE", "PRANZO", "SERA"
-  reason    String?  // Motivo dell'assenza
-  start_time String? // "10:30"
-  end_time   String? // "15:30"
+  id         Int     @id @default(autoincrement())
+  staffId    Int
+  data       String
+  tipo       String
+  reason     String?
+  start_time String?
+  end_time   String?
+  staff      Staff   @relation(fields: [staffId], references: [id], onDelete: Cascade)
 }
 
 model Constraint {
-  id        Int    @id @default(autoincrement())
-  tipo      String // "RIPOSO_MINIMO", "MAX_ORE_GIORNO"
-  valore    String
+  id     Int    @id @default(autoincrement())
+  tipo   String
+  valore String
 }
 
 model Assignment {
-  id              Int           @id @default(autoincrement())
-  data            String        // "2025-12-25"
+  id              Int            @id @default(autoincrement())
+  data            String
   staffId         Int
-  staff           Staff         @relation(fields: [staffId], references: [id], onDelete: Cascade)
   shiftTemplateId Int?
-  shiftTemplate   ShiftTemplate? @relation(fields: [shiftTemplateId], references: [id])
-  start_time      String?       // "11:30"
-  end_time        String?       // "18:30"
-  status          Boolean       @default(false) // false=BOZZA, true=PUBBLICATO
+  stato           String         @default("BOZZA")
   postazione      String?
+  customEnd       String?
+  customStart     String?
+  start_time      String?
+  end_time        String?
+  status          Boolean?       @default(false)
+  shiftTemplate   ShiftTemplate? @relation(fields: [shiftTemplateId], references: [id])
+  staff           Staff          @relation(fields: [staffId], references: [id], onDelete: Cascade)
 }
 
-
 model Budget {
-  id          Int    @id @default(autoincrement())
-  data        String @unique
-  value       Float  @default(0) // Euro Total (Row 15)
-  hoursLunch  Float  @default(0) // Hours Lunch (Row 8)
-  hoursDinner Float  @default(0) // Hours Dinner (Row 11)
-  valueLunch  Float  @default(0) 
-  valueDinner Float  @default(0)
+  id          Int       @id @default(autoincrement())
+  data        String    @unique
+  valueDinner Float     @default(0)
+  valueLunch  Float     @default(0)
+  hoursDinner Float     @default(0)
+  hoursLunch  Float     @default(0)
+  value       Float     @default(0)
+  owner_id    String?   @db.Uuid
+  created_by  String?   @db.Uuid
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([data])
+  @@index([owner_id], map: "idx_budget_owner_id")
 }
 
 model CoverageRow {
   id        Int    @id @default(autoincrement())
-  weekStart String // Identifier for the week, e.g., "2025-10-13"
+  weekStart String
   station   String
   frequency String
-  slots     String   @default("{}") // JSON stringified
-  extra     String   @default("{}") // JSON stringified
+  slots     Json
+  extra     Json
 }
 
 model ForecastRow {
-  id        Int      @id @default(autoincrement())
+  id        Int       @id @default(autoincrement())
   weekStart String
-  data      String   // JSON stringified forecast data
-  createdAt DateTime @default(now())
+  data      String
+  createdAt DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([weekStart])
 }
 
 model User {
-  id       Int    @id @default(autoincrement())
-  email    String @unique
+  id       Int     @id @default(autoincrement())
+  email    String  @unique
   password String
   name     String?
+  role     String  @default("USER")
   surname  String?
   dob      String?
   address  String?
-  role     String @default("USER") // ADMIN, USER
-  
-  processedRequests PermissionRequest[] @relation("ProcessedBy")
-}
-
-model PermissionRequest {
-  id            Int       @id @default(autoincrement())
-  staffId       Int
-  staff         Staff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  
-  data          String    // Data richiesta (YYYY-MM-DD)
-  tipo          String    // PERMESSO, DISPONIBILITA, CAMBIO_TURNO
-  motivo        String?   // Motivazione
-  dettagli      String?   // JSON con dettagli extra
-  
-  status        String    @default("PENDING") // PENDING, APPROVED, REJECTED
-  adminResponse String?   // Risposta admin
-  
-  processedAt   DateTime?
-  processedBy   Int?
-  processedByUser User?   @relation("ProcessedBy", fields: [processedBy], references: [id])
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
 }
 
 model RecurringShift {
-  id              Int      @id @default(autoincrement())
+  id              Int            @id @default(autoincrement())
   staffId         Int
-  staff           Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  dayOfWeek       Int      // 0=Sunday, 1=Monday, ..., 6=Saturday
+  dayOfWeek       Int
   start_time      String?
   end_time        String?
   shiftTemplateId Int?
-  shiftTemplate   ShiftTemplate? @relation(fields: [shiftTemplateId], references: [id])
   postazione      String?
+  shiftTemplate   ShiftTemplate? @relation(fields: [shiftTemplateId], references: [id], onUpdate: NoAction)
+  staff           Staff          @relation(fields: [staffId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
