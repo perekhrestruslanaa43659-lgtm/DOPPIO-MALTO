@@ -1,19 +1,9 @@
 {
-    "routes": [
+    "buildCommand": "cd backend && npm install && npx prisma generate",
+    "rewrites": [
         {
-            "src": "/api/(.*)",
-            "dest": "/backend/server.js"
-        },
-        {
-            "src": "/assets/(.*)",
-            "dest": "/frontend/assets/$1"
-        },
-        {
-            "src": "/(.*)",
-            "dest": "/frontend/index.html"
+            "source": "/api/:path*",
+            "destination": "/api/:path*"
         }
-    ],
-    "env": {
-        "NODE_ENV": "production"
-    }
+    ]
 }

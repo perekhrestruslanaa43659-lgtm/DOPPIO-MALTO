@@ -1,0 +1,34 @@
+// CORREZIONE PER SQLITE - Sostituire righe 1008-1016 in server.js
+
+// VECCHIO CODICE (NON FUNZIONA CON SQLITE):
+/*
+    const created = await prisma.coverageRow.createMany({
+      data: rows.map(r => ({
+        weekStart: r.weekStart || "2025-10-13",
+        station: r.station || 'Unknown',
+        frequency: r.frequency || r.freq || 'Tutti',
+        slots: JSON.stringify(r.slots || []),
+        extra: JSON.stringify(r.extra || [])
+      }))
+    });
+    console.log('[COVERAGE] Saved successfully:', created.count);
+    res.json({ count: created.count });
+*/
+
+// NUOVO CODICE (FUNZIONA CON SQLITE):
+    // SQLite doesn't support createMany, use loop instead
+    let count = 0;
+    for (const r of rows) {
+      await prisma.coverageRow.create({
+        data: {
+          weekStart: r.weekStart || "2025-10-13",
+          station: r.station || 'Unknown',
+          frequency: r.frequency || r.freq || 'Tutti',
+          slots: JSON.stringify(r.slots || []),
+          extra: JSON.stringify(r.extra || [])
+        }
+      });
+      count++;
+    }
+    console.log('[COVERAGE] Saved successfully:', count);
+    res.json({ count });
