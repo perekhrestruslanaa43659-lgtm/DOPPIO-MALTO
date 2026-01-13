@@ -1,9 +1,5 @@
 {
-    "buildCommand": "cd backend && npm install && npx prisma generate",
-    "rewrites": [
-        {
-            "source": "/api/:path*",
-            "destination": "/api/:path*"
-        }
-    ]
+    "framework": "nextjs",
+    "buildCommand": "npm run build",
+    "installCommand": "npm install"
 }

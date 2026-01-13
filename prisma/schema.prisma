@@ -1,0 +1,169 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Staff {
+  id                Int                 @id @default(autoincrement())
+  nome              String
+  cognome           String              @default("")
+  ruolo             String
+  email             String?
+  oreMinime         Int                 @default(0)
+  oreMassime        Int                 @default(40)
+  costoOra          Float               @default(0)
+  listIndex         Int
+  fixedShifts       String?             @default("{}")
+  createdAt         DateTime            @default(now())
+  moltiplicatore    Float               @default(1.0)
+  postazioni        String[]            @default([])
+  tenantKey         String              @default("default-tenant")
+  assignments       Assignment[]
+  PermissionRequest PermissionRequest[]
+  recurringShifts   RecurringShift[]
+  unavailabilities  Unavailability[]
+
+  @@unique([email, tenantKey])
+  @@index([tenantKey])
+}
+
+model ShiftTemplate {
+  id              Int              @id @default(autoincrement())
+  nome            String
+  oraInizio       String
+  oraFine         String
+  ruoloRichiesto  String
+  giorniValidi    String           @default("")
+  tenantKey       String           @default("default-tenant")
+  assignments     Assignment[]
+  recurringShifts RecurringShift[]
+
+  @@index([tenantKey])
+}
+
+model Unavailability {
+  id         Int     @id @default(autoincrement())
+  staffId    Int
+  data       String
+  tipo       String
+  reason     String?
+  start_time String?
+  end_time   String?
+  tenantKey  String  @default("default-tenant")
+  staff      Staff   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([tenantKey])
+}
+
+model Constraint {
+  id        Int    @id @default(autoincrement())
+  tipo      String
+  valore    String
+  tenantKey String @default("default-tenant")
+
+  @@index([tenantKey])
+}
+
+model Assignment {
+  id              Int            @id @default(autoincrement())
+  data            String
+  staffId         Int
+  shiftTemplateId Int?
+  start_time      String?
+  end_time        String?
+  status          Boolean        @default(false)
+  postazione      String?
+  tenantKey       String         @default("default-tenant")
+  shiftTemplate   ShiftTemplate? @relation(fields: [shiftTemplateId], references: [id])
+  staff           Staff          @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([tenantKey])
+}
+
+model Budget {
+  id          Int    @id @default(autoincrement())
+  data        String
+  value       Float  @default(0)
+  hoursLunch  Float  @default(0)
+  hoursDinner Float  @default(0)
+  valueLunch  Float  @default(0)
+  valueDinner Float  @default(0)
+  tenantKey   String @default("default-tenant")
+
+  @@unique([data, tenantKey])
+  @@index([tenantKey])
+}
+
+model CoverageRow {
+  id        Int    @id @default(autoincrement())
+  weekStart String
+  station   String
+  frequency String
+  slots     String @default("{}")
+  extra     String @default("{}")
+  tenantKey String @default("default-tenant")
+
+  @@index([tenantKey])
+}
+
+model ForecastRow {
+  id        Int      @id @default(autoincrement())
+  weekStart String
+  data      String
+  createdAt DateTime @default(now())
+  tenantKey String   @default("default-tenant")
+
+  @@index([tenantKey])
+}
+
+model User {
+  id                Int                 @id @default(autoincrement())
+  email             String              @unique
+  password          String
+  name              String?
+  surname           String?
+  dob               String?
+  address           String?
+  role              String              @default("OWNER")
+  tenantKey         String              @default("default-tenant")
+  companyName       String?
+  PermissionRequest PermissionRequest[]
+
+  @@index([tenantKey])
+}
+
+model RecurringShift {
+  id              Int            @id @default(autoincrement())
+  staffId         Int
+  dayOfWeek       Int
+  start_time      String?
+  end_time        String?
+  shiftTemplateId Int?
+  postazione      String?
+  tenantKey       String         @default("default-tenant")
+  shiftTemplate   ShiftTemplate? @relation(fields: [shiftTemplateId], references: [id])
+  staff           Staff          @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([tenantKey])
+}
+
+model PermissionRequest {
+  id            Int       @id @default(autoincrement())
+  staffId       Int
+  data          String
+  tipo          String
+  motivo        String?
+  dettagli      String?
+  status        String    @default("PENDING")
+  adminResponse String?
+  processedAt   DateTime?
+  processedBy   Int?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime
+  User          User?     @relation(fields: [processedBy], references: [id])
+  Staff         Staff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+}
