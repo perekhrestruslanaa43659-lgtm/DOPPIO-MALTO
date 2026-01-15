@@ -36,6 +36,7 @@ app.use((req, res, next) => {
 });
 
 // Init Admin
+<<<<<<< HEAD
 // initAdmin(); // Commented out - causes SQLite error on Vercel because runs before DATABASE_URL loaded
 
 
@@ -43,12 +44,21 @@ app.use((req, res, next) => {
 app.post('/api/login', login);
 app.post('/api/register', register); // Public registration
 
+=======
+//initAdmin();
+
+// Auth Routes
+>>>>>>> 687bb2814cf4672555eb35e12a837bf64ddb8814
 // Health Check Endpoint
 app.get('/api/health', async (req, res) => {
   try {
     // Test database connection
     await prisma.$queryRaw`SELECT 1`;
+<<<<<<< HEAD
 
+=======
+    
+>>>>>>> 687bb2814cf4672555eb35e12a837bf64ddb8814
     res.json({
       status: 'ok',
       database: 'connected',
@@ -66,7 +76,11 @@ app.get('/api/health', async (req, res) => {
     });
   }
 });
+<<<<<<< HEAD
 
+=======
+// Public registration
+>>>>>>> 687bb2814cf4672555eb35e12a837bf64ddb8814
 // Original register was public? No, user management page uses it. 
 // Ideally registration should be restricted or separate public signup provided. 
 // For now, I'll leave register as public for simplicity or check if I protected it before?
@@ -135,8 +149,8 @@ async function syncStaffHours() {
 }
 
 // Run Sync on Startup
-syncStaffHours();
-ensureSeckCodouConstraints();
+//syncStaffHours();
+//ensureSeckCodouConstraints();
 
 // One-off fix for Seck Codou
 async function ensureSeckCodouConstraints() {

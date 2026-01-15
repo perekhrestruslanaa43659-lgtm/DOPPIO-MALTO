@@ -5,11 +5,18 @@
   "scripts": {
     "start": "node server.js",
     "postinstall": "prisma generate",
+<<<<<<< HEAD
     "prebuild": "rm -rf node_modules/.prisma && rm -rf node_modules/@prisma/client",
     "vercel-build": "npm run prebuild && prisma generate",
     "dev": "nodemon server.js",
     "build": "prisma generate && prisma migrate deploy && vite build"
   },
+=======
+   "prebuild": "rm -rf node_modules/.prisma && rm -rf node_modules/@prisma/client",
+"vercel-build": "npm run prebuild && prisma generate",
+    "dev": "nodemon server.js"
+},
+>>>>>>> 687bb2814cf4672555eb35e12a837bf64ddb8814
   "dependencies": {
     "@google/generative-ai": "^0.1.0",
     "@prisma/client": "5.10.0",
