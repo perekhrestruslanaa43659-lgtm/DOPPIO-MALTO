@@ -1,41 +1,5 @@
 {
-<<<<<<< HEAD
     "framework": "nextjs",
     "buildCommand": "npm run build",
     "installCommand": "npm install"
 }
-=======
-    "version": 2,
-    "builds": [
-        {
-            "src": "frontend/package.json",
-            "use": "@vercel/static-build",
-            "config": {
-                "distDir": "dist"
-            }
-        },
-        {
-            "src": "backend/server.js",
-            "use": "@vercel/node"
-        }
-    ],
-    "routes": [
-        {
-            "src": "/api/(.*)",
-            "dest": "/backend/server.js"
-        },
-        {
-            "src": "/assets/(.*)",
-            "dest": "/frontend/assets/$1"
-        },
-        {
-            "src": "/(.*)",
-            "dest": "/frontend/index.html"
-        }
-    ],
-    "env": {
-        "NODE_ENV": "production",
-        "NEXT_PUBLIC_BASE_URL": "https://www.scheduling.my"
-    }
-}
->>>>>>> 687bb2814cf4672555eb35e12a837bf64ddb8814
