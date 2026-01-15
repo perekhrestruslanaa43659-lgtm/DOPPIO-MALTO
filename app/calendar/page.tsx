@@ -76,7 +76,7 @@ export default function CalendarPage() {
     const [unavailabilities, setUnavailabilities] = useState<any[]>([]);
 
     const [currentYear, setCurrentYear] = useState(2025);
-    const [selectedWeek, setSelectedWeek] = useState(42); // Default to current week logic ideally
+    const [selectedWeek, setSelectedWeek] = useState(42);
     const [range, setRange] = useState(getWeekRange(42, 2025));
 
     const [panarelloActive, setPanarelloActive] = useState(false);
@@ -84,11 +84,22 @@ export default function CalendarPage() {
     const [customTimes, setCustomTimes] = useState({ start: '', end: '' });
     const [loading, setLoading] = useState(false);
 
-    // --- Initial Load & Week Change ---
+    // --- Persistence & Calculation ---
     useEffect(() => {
-        // Determine current week if not set? For now hardcode or use simple logic
-        const today = new Date();
-        // Simplified default week set logic could go here
+        // Restore from LocalStorage
+        const savedWeek = localStorage.getItem('calendar_week');
+        const savedYear = localStorage.getItem('calendar_year');
+
+        let w = savedWeek ? parseInt(savedWeek) : 42; // Default fallback can be improved
+        let y = savedYear ? parseInt(savedYear) : 2025;
+
+        // Verify validity roughly
+        if (isNaN(w) || w < 1 || w > 53) w = 42;
+        if (isNaN(y)) y = 2025;
+
+        setSelectedWeek(w);
+        setCurrentYear(y);
+        setRange(getWeekRange(w, y));
     }, []);
 
     useEffect(() => {
@@ -96,6 +107,10 @@ export default function CalendarPage() {
     }, [range]);
 
     const changeWeek = (w: number, y: number = currentYear) => {
+        // Save to LocalStorage
+        localStorage.setItem('calendar_week', w.toString());
+        localStorage.setItem('calendar_year', y.toString());
+
         const r = getWeekRange(w, y);
         setRange(r);
         setSelectedWeek(w);
@@ -117,7 +132,7 @@ export default function CalendarPage() {
 
             const safeStf = Array.isArray(stf) ? stf : [];
             // Sort staff by listIndex
-            safeStf.sort((a: any, b: any) => (a.listIndex || 999) - (b.listIndex || 999));
+            safeStf.sort((a: any, b: any) => (a.listIndex ?? 999) - (b.listIndex ?? 999));
 
             // Attach unavailabilities to staff for easier rendering check
             safeStf.forEach((s: any) => {
@@ -401,7 +416,7 @@ export default function CalendarPage() {
 
                             return (
                                 <tr key={s.id} className="hover:bg-gray-50 border-b border-gray-100 group">
-                                    <td className="sticky left-0 bg-white border-r p-2 text-center text-gray-400 group-hover:bg-gray-50 z-10">{s.listIndex}</td>
+                                    <td className="sticky left-0 bg-white border-r p-2 text-center text-gray-400 group-hover:bg-gray-50 z-10">{idx + 1}</td>
                                     <td className="sticky left-[40px] bg-white border-r p-2 font-medium text-gray-800 text-left group-hover:bg-gray-50 z-10 truncate max-w-[150px]">{s.nome} {s.cognome}</td>
                                     <td className="sticky left-[190px] bg-white border-r p-2 text-center text-gray-500 group-hover:bg-gray-50 z-10">{s.oreMassime}</td>
                                     <td className={`sticky left-[240px] bg-white border-r p-2 text-center font-bold z-10 ${budgetColor} group-hover:bg-gray-50`}>{totalHours.toFixed(1)}</td>

@@ -83,84 +83,99 @@ export default function Dashboard() {
     }
 
     return (
-        <div className="p-8 max-w-7xl mx-auto min-h-screen bg-gray-50">
-            <header className="mb-10">
-                <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                    <Coffee className="text-amber-700" size={32} />
-                    Dashboard
-                </h1>
-                <p className="text-gray-500 mt-2 text-lg">
-                    Benvenuto, <span className="font-semibold text-gray-800">{user?.name}</span>!
-                </p>
+        <div className="p-8 max-w-7xl mx-auto min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50">
+            <header className="mb-12 animate-fade-in-down">
+                <div className="flex justify-between items-end">
+                    <div>
+                        <h1 className="text-4xl font-extrabold text-slate-900 flex items-center gap-3 tracking-tight">
+                            <Coffee className="text-indigo-600" size={40} />
+                            ScheduFlow
+                        </h1>
+                        <p className="text-slate-500 mt-2 text-lg font-light">
+                            Benvenuto, <span className="font-semibold text-indigo-600">{user?.name}</span>!
+                        </p>
+                    </div>
+                </div>
             </header>
 
-            {/* Quick Stats or Highlights could go here */}
-
             {/* Navigation Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {cards.map((card) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                {cards.map((card, idx) => (
                     <Link
                         key={card.href}
                         href={card.href}
-                        className="group block p-6 bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md hover:border-blue-200 transition-all duration-200"
+                        className="group relative block p-8 bg-white/80 backdrop-blur-md rounded-2xl shadow-xl shadow-indigo-100/50 border border-white/50 hover:shadow-2xl hover:shadow-indigo-200/50 hover:-translate-y-1 transition-all duration-300 ring-1 ring-slate-900/5"
                     >
-                        <div className={`w-12 h-12 rounded-lg ${card.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                        <div className={`w-14 h-14 rounded-2xl ${card.color} flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
                             {card.icon}
                         </div>
                         <div className="flex justify-between items-start">
                             <div>
-                                <h3 className="font-bold text-gray-900 text-lg mb-1 group-hover:text-blue-700 transition-colors">
+                                <h3 className="font-bold text-slate-800 text-xl mb-2 group-hover:text-indigo-600 transition-colors">
                                     {card.title}
                                 </h3>
-                                <p className="text-sm text-gray-500 leading-relaxed">
+                                <p className="text-sm text-slate-500 leading-relaxed font-medium">
                                     {card.desc}
                                 </p>
                             </div>
                             {card.badge && (
-                                <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+                                <span className="bg-rose-100 text-rose-600 text-xs font-bold px-3 py-1 rounded-full animate-pulse shadow-sm">
                                     {card.badge}
                                 </span>
                             )}
                         </div>
-                        <div className="mt-4 flex items-center text-sm font-medium text-gray-400 group-hover:text-blue-600 transition-colors">
-                            Vai alla sezione <ArrowRight size={16} className="ml-1" />
+                        <div className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-x-2 group-hover:translate-x-0">
+                            <ArrowRight size={20} className="text-indigo-400" />
                         </div>
                     </Link>
                 ))}
             </div>
 
             {/* Recent Activity or Info Section */}
-            <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                    <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <ShieldCheck size={20} className="text-gray-400" />
+            <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-lg border border-slate-100">
+                    <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-3 text-lg">
+                        <ShieldCheck size={24} className="text-emerald-500" />
                         Stato Sistema
                     </h3>
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <span className="text-sm text-gray-600">Ruolo Utente</span>
-                            <span className="font-mono text-xs font-bold bg-gray-200 px-2 py-1 rounded">{user?.role}</span>
+                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                            <span className="text-sm font-medium text-slate-600">Ruolo Utente</span>
+                            <span className="font-mono text-xs font-bold bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full">{user?.role}</span>
                         </div>
-                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <span className="text-sm text-gray-600">Tenant ID</span>
-                            <span className="font-mono text-xs font-bold bg-gray-200 px-2 py-1 rounded truncate max-w-[150px]">{user?.tenantKey || 'N/A'}</span>
+                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                            <span className="text-sm font-medium text-slate-600">Tenant ID</span>
+                            <span className="font-mono text-xs font-bold bg-slate-200 text-slate-600 px-3 py-1 rounded-full truncate max-w-[150px]">{user?.tenantKey || 'N/A'}</span>
                         </div>
-                        <div className="text-xs text-center text-gray-400 mt-4">
-                            Versione App v2.0.0 (Next.js Migration)
+                        <div className="text-xs text-center text-slate-400 mt-6 font-medium uppercase tracking-widest">
+                            v2.2.0 • ScheduFlow
                         </div>
                     </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-xl shadow-md text-white">
-                    <h3 className="font-bold text-lg mb-2">AI Assistant 🤖</h3>
-                    <p className="text-indigo-100 text-sm mb-6">
-                        Hai bisogno di aiuto con la pianificazione? Chiedi al nostro assistente intelligente.
-                    </p>
-                    <Link href="/ai" className="inline-flex items-center gap-2 bg-white text-indigo-600 px-4 py-2 rounded-lg font-bold hover:bg-indigo-50 transition">
-                        Avvia Chat <ArrowRight size={16} />
-                    </Link>
+                <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 to-violet-700 p-8 rounded-3xl shadow-2xl text-white">
+                    <div className="relative z-10">
+                        <h3 className="font-bold text-2xl mb-2 flex items-center gap-2">AI Assistant <BotIcon /></h3>
+                        <p className="text-indigo-100 text-base mb-8 max-w-sm leading-relaxed">
+                            Il tuo assistente virtuale è pronto. Chiedi analisi, suggerimenti sui turni o ottimizzazioni.
+                        </p>
+                        <Link href="/ai" className="inline-flex items-center gap-2 bg-white text-indigo-600 px-6 py-3 rounded-xl font-bold hover:bg-indigo-50 transition shadow-lg hover:shadow-xl active:scale-95 transform duration-200">
+                            Avvia Chat <ArrowRight size={18} />
+                        </Link>
+                    </div>
+                    {/* Decorative Blob */}
+                    <div className="absolute top-0 right-0 -mt-10 -mr-10 w-64 h-64 bg-white/10 rounded-full blur-3xl"></div>
+                    <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-40 h-40 bg-purple-500/30 rounded-full blur-2xl"></div>
                 </div>
             </div>
         </div>
+    );
+}
+
+function BotIcon() {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
     );
 }

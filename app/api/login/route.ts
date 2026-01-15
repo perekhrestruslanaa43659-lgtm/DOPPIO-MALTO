@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Create JWT token
-        const token = signToken({
+        const token = await signToken({
             userId: user.id,
             email: user.email,
             role: user.role,
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
         console.error('Login error:', error);
         return NextResponse.json(
-            { error: 'Errore interno del server' },
+            { error: `Errore: ${error instanceof Error ? error.message : String(error)}` },
             { status: 500 }
         );
     }

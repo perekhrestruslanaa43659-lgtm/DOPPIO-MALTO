@@ -8,10 +8,10 @@ const publicRoutes = ['/login', '/register'];
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
-    // Skip middleware for API routes
-    if (pathname.startsWith('/api/')) {
-        return NextResponse.next();
-    }
+    // Skip middleware for API routes - REMOVED to allow header injection
+    // if (pathname.startsWith('/api/')) {
+    //    return NextResponse.next();
+    // }
 
     // Allow public routes
     if (publicRoutes.some(route => pathname.startsWith(route))) {
@@ -29,7 +29,7 @@ export async function middleware(request: NextRequest) {
     if (token) {
         try {
             // Verify token
-            const decoded = verifyToken(token);
+            const decoded = await verifyToken(token);
 
             // Add user info to headers for API routes
             const requestHeaders = new Headers(request.headers);

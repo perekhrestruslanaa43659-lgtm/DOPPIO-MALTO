@@ -1,7 +1,9 @@
-import jwt from 'jsonwebtoken';
+
+import { SignJWT, jwtVerify } from 'jose';
 import bcrypt from 'bcryptjs';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
+const encodedKey = new TextEncoder().encode(JWT_SECRET);
 
 // Warn if using fallback secret in production
 if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
@@ -14,6 +16,7 @@ export interface JWTPayload {
     role: string;
     tenantKey: string;
     companyName?: string;
+    [key: string]: any; // Allow extra claims for jose compatibility
 }
 
 /**
@@ -36,16 +39,21 @@ export async function verifyPassword(
 /**
  * Sign a JWT token with user data
  */
-export function signToken(payload: JWTPayload): string {
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+export async function signToken(payload: JWTPayload): Promise<string> {
+    return new SignJWT(payload)
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('7d')
+        .sign(encodedKey);
 }
 
 /**
  * Verify and decode a JWT token
  */
-export function verifyToken(token: string): JWTPayload {
+export async function verifyToken(token: string): Promise<JWTPayload> {
     try {
-        return jwt.verify(token, JWT_SECRET) as JWTPayload;
+        const { payload } = await jwtVerify(token, encodedKey);
+        return payload as unknown as JWTPayload;
     } catch (error) {
         throw new Error('Invalid or expired token');
     }

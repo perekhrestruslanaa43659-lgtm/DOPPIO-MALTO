@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
     try {
         const tenantKey = request.headers.get('x-user-tenant-key');
@@ -13,7 +15,7 @@ export async function GET(request: NextRequest) {
 
         const staff = await prisma.staff.findMany({
             where: { tenantKey },
-            orderBy: { nome: 'asc' }, // Order by name by default
+            orderBy: { listIndex: 'asc' }, // Respect custom order (e.g. import order)
         });
 
         // Convert ListIndex if needed (or rely on frontend to specific sort)
@@ -57,8 +59,11 @@ export async function POST(request: NextRequest) {
                 costoOra: parseFloat(body.costoOra) || 0,
                 moltiplicatore: parseFloat(body.moltiplicatore) || 1.0,
                 postazioni: postazioni,
+                postazioni: postazioni,
                 listIndex: 0, // Default to 0, or calculate max
                 tenantKey: tenantKey,
+                skillLevel: body.skillLevel || 'MEDIUM',
+                incompatibilityId: body.incompatibilityId || null,
             },
         });
 

@@ -3,7 +3,7 @@ import "./globals.css";
 import Navigation from "@/components/Navigation";
 
 export const metadata: Metadata = {
-    title: "Scheduling App - Gestione Turni",
+    title: "ScheduFlow - Gestione Turni",
     description: "Sistema di gestione turni per ristoranti",
 };
 

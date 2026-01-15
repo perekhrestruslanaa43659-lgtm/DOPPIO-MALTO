@@ -54,6 +54,8 @@ export async function PUT(
                 costoOra: parseFloat(body.costoOra) || 0,
                 moltiplicatore: parseFloat(body.moltiplicatore) || 1.0,
                 postazioni: postazioni,
+                skillLevel: body.skillLevel || 'MEDIUM',
+                incompatibilityId: body.incompatibilityId || null,
             },
         });
 

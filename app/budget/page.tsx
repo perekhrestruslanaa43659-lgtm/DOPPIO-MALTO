@@ -36,8 +36,9 @@ function getDatesInRange(startDate: string, endDate: string) {
 }
 
 export default function BudgetPage() {
+    const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
     const [week, setWeek] = useState(getWeekNumber(new Date()));
-    const [range, setRange] = useState(getWeekRange(getWeekNumber(new Date())));
+    const [range, setRange] = useState(getWeekRange(getWeekNumber(new Date()), new Date().getFullYear()));
     const [schedule, setSchedule] = useState<any[]>([]);
     const [staff, setStaff] = useState<any[]>([]);
     const [budgetMap, setBudgetMap] = useState<Record<string, any>>({});
@@ -52,7 +53,7 @@ export default function BudgetPage() {
 
     const changeWeek = (w: number) => {
         setWeek(w);
-        setRange(getWeekRange(w));
+        setRange(getWeekRange(w, currentYear));
     };
 
     const days = getDatesInRange(range.start, range.end);
@@ -64,10 +65,11 @@ export default function BudgetPage() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [sch, stf, bdg] = await Promise.all([
+            const [sch, stf, bdg, fcasts] = await Promise.all([
                 api.getSchedule(range.start, range.end),
                 api.getStaff(),
-                api.getBudget(range.start, range.end)
+                api.getBudget(range.start, range.end),
+                api.getForecast(range.start, range.end)
             ]);
             setSchedule(sch as any[]);
             setStaff(stf as any[]);
@@ -82,6 +84,68 @@ export default function BudgetPage() {
                     value: b.value || 0
                 };
             });
+
+            // Integrate Forecast Data if available and budget is empty-ish?
+            // Or just allow manual sync. Let's process it for potential usage.
+            if (fcasts && (fcasts as any[]).length > 0) {
+                const f = (fcasts as any[])[0];
+                try {
+                    const grid = JSON.parse(f.data);
+                    // Find rows
+                    let idxBP = -1, idxBC = -1, idxHB = -1;
+                    grid.forEach((row: any[], i: number) => {
+                        const l = String(row[0]).toLowerCase();
+                        if (l.includes('budget') && l.includes('pranzo')) idxBP = i;
+                        if (l.includes('budget') && l.includes('cena')) idxBC = i;
+                        if (l.includes('ore') && l.includes('budget')) idxHB = i;
+                    });
+
+                    const days = getDatesInRange(range.start, range.end); // Mon-Sun
+                    days.forEach((date, i) => {
+                        const col = i + 1; // 1-based index in forecast grid (0 is header)
+                        if (col > 7) return;
+
+                        // Get existing or default
+                        const exist = bMap[date] || { valueLunch: 0, valueDinner: 0, hoursLunch: 0, hoursDinner: 0, value: 0 };
+
+                        // Parse Forecast Values
+                        const parse = (r: number) => {
+                            if (r === -1 || !grid[r] || !grid[r][col]) return 0;
+                            let s = String(grid[r][col]).replace(/[^0-9.,-]/g, '');
+                            if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+                            return parseFloat(s) || 0;
+                        };
+
+                        const valL = parse(idxBP);
+                        const valD = parse(idxBC);
+                        const hoursTot = parse(idxHB);
+
+                        // Only overwrite if existing is 0 (to avoid overwriting manual edits on reload)
+                        // OR if we want to force sync, we might need a button.
+                        // User said "must be connected", implying auto-flow. 
+                        // Let's autofill logic: if explicit budget is missing, use forecast.
+
+                        if (exist.valueLunch === 0) exist.valueLunch = valL;
+                        if (exist.valueDinner === 0) exist.valueDinner = valD;
+                        exist.value = exist.valueLunch + exist.valueDinner;
+
+                        if (exist.hoursLunch === 0 && exist.hoursDinner === 0 && hoursTot > 0) {
+                            // Split hours by revenue
+                            if (exist.value > 0) {
+                                exist.hoursLunch = parseFloat(((exist.valueLunch / exist.value) * hoursTot).toFixed(2));
+                                exist.hoursDinner = parseFloat(((exist.valueDinner / exist.value) * hoursTot).toFixed(2));
+                            } else {
+                                exist.hoursLunch = parseFloat((hoursTot / 2).toFixed(2));
+                                exist.hoursDinner = parseFloat((hoursTot / 2).toFixed(2));
+                            }
+                        }
+
+                        bMap[date] = exist;
+                    });
+
+                } catch (e) { console.error("Forecast parse error", e); }
+            }
+
             setBudgetMap(bMap);
         } catch (e: any) {
             alert("Errore caricamento: " + e.message);
@@ -220,6 +284,19 @@ export default function BudgetPage() {
                 </div>
                 <div className="flex gap-4 items-center">
                     <div className="flex items-center gap-2">
+                        <div className="flex flex-col px-2 bg-gray-50 rounded">
+                            <span className="text-[10px] uppercase text-gray-500 font-bold">Anno</span>
+                            <input
+                                type="number"
+                                className="bg-transparent font-bold w-16 text-sm outline-none"
+                                value={currentYear}
+                                onChange={async (e) => {
+                                    const y = parseInt(e.target.value) || 2025;
+                                    setCurrentYear(y);
+                                    setRange(getWeekRange(week, y));
+                                }}
+                            />
+                        </div>
                         <span className="font-bold text-gray-700">Settimana:</span>
                         <select className="p-2 border rounded-lg bg-gray-50 font-medium" value={week} onChange={e => changeWeek(Number(e.target.value))}>
                             {Array.from({ length: 53 }, (_, i) => i + 1).map(w => (

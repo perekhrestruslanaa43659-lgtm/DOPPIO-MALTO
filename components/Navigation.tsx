@@ -46,6 +46,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
         { label: 'Assenze', href: '/absences', icon: <BanIcon size={20} /> },
         { label: 'Richieste', href: '/requests', icon: <FileText size={20} /> },
         { label: 'Forecast', href: '/forecast', icon: <BarChart2 size={20} /> },
+        { label: 'Fabbisogno', href: '/requirements', icon: <Briefcase size={20} /> },
         { label: 'Budget', href: '/budget', icon: <DollarSign size={20} /> },
         { label: 'Statistiche', href: '/stats', icon: <PieChartIcon size={20} /> },
         { label: 'AI Assistant', href: '/ai', icon: <Bot size={20} /> },
@@ -69,7 +70,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
                 <div className="p-6 flex justify-between items-center border-b border-gray-100 h-16">
                     <div className="font-bold text-xl text-gray-800 flex items-center gap-2">
                         <Briefcase className="text-blue-600" />
-                        Scheduling
+                        ScheduFlow
                     </div>
                     <button onClick={() => setIsOpen(false)} className="md:hidden text-gray-500">
                         <X size={24} />
@@ -122,7 +123,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
                     <button onClick={() => setIsOpen(true)} className="text-gray-600">
                         <Menu size={24} />
                     </button>
-                    <span className="font-bold text-gray-800">Scheduling App</span>
+                    <span className="font-bold text-gray-800">ScheduFlow</span>
                     <div className="w-6" /> {/* Spacer */}
                 </header>
 

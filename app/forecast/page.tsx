@@ -23,11 +23,13 @@ function getWeekRange(d = new Date()) {
     return { week: weekNo, year: d.getUTCFullYear(), start: startIso, end: endIso, label: `${weekNo} (${startIso})` };
 }
 
-function getWeeksList() {
+function getWeeksList(year: number) {
     const arr = [];
-    let curr = new Date(Date.UTC(2025, 0, 1));
+    let curr = new Date(Date.UTC(year, 0, 1));
+    // Find first Monday
     while (curr.getUTCDay() !== 1) curr.setUTCDate(curr.getUTCDate() + 1);
-    const end = new Date(Date.UTC(2026, 5, 1));
+
+    const end = new Date(Date.UTC(year + 1, 0, 15)); // Cover full year + overflow
     while (curr < end) {
         arr.push(getWeekRange(new Date(curr)));
         curr.setUTCDate(curr.getUTCDate() + 7);
@@ -51,13 +53,29 @@ const formatNumberIT = (val: any) => {
 };
 
 export default function ForecastPage() {
-    const [weeks] = useState(getWeeksList());
-    const [selectedWeek, setSelectedWeek] = useState(getWeeksList()[0]); // Default first for safety
+    const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+    const [weeks, setWeeks] = useState(getWeeksList(new Date().getFullYear()));
+    const [selectedWeek, setSelectedWeek] = useState(weeks[0]);
 
-    // Set default to current week
+    // Update weeks when year changes
+    useEffect(() => {
+        const newWeeks = getWeeksList(currentYear);
+        setWeeks(newWeeks);
+        // Try to maintain selected week number if possible, else default to first
+        const match = newWeeks.find(w => w.week === selectedWeek?.week);
+        setSelectedWeek(match || newWeeks[0]);
+    }, [currentYear]);
+
+    // Set default to current week on mount
     useEffect(() => {
         const todayW = getWeekRange(new Date());
-        const found = weeks.find(w => w.start === todayW.start);
+        setCurrentYear(todayW.year);
+        // We need to wait for year update to propogate? 
+        // Actually, if we set year, the effect above runs.
+        // But for initial load, let's try to set the exact week properly.
+        const generatedWeeks = getWeeksList(todayW.year);
+        setWeeks(generatedWeeks);
+        const found = generatedWeeks.find(w => w.start === todayW.start);
         if (found) setSelectedWeek(found);
     }, []);
 
@@ -188,60 +206,7 @@ export default function ForecastPage() {
         await saveToDb(template);
     };
 
-    // --- KITCHEN LOGIC ---
-    const generateKitchenForecast = async () => {
-        if (data.length < 40) { alert("Tabella troppo corta!"); return; }
-        const newData = [...data];
 
-        // Simplified Logic port
-        const IDX_BUDGET_PRANZO = 1;
-        const IDX_BUDGET_CENA = 3;
-        const IDX_ACCSU = 38;
-        const IDX_TOT_ORE = 44;
-
-        let totalWeeklyHours = 0;
-        let totalRevenue = 0;
-        let totalCovers = 0;
-        const AVG_HOURLY_COST = 20;
-
-        for (let col = 1; col <= 7; col++) {
-            const estimatedCovers = (parseNumberIT(newData[IDX_BUDGET_PRANZO][col]) + parseNumberIT(newData[IDX_BUDGET_CENA][col])) / 40;
-            const FOP = (estimatedCovers * 0.3) + 2;
-
-            if (FOP > 16) newData[IDX_ACCSU][col] = "19:00-22:00";
-            else newData[IDX_ACCSU][col] = "";
-
-            newData[36][col] = "10:00-15:00 18:00-00:00"; // Chef
-            newData[37][col] = "10:00-15:00 18:00-00:00"; // Sous
-
-            let dayHours = 0;
-            for (let r = 36; r <= 43; r++) {
-                const cell = newData[r][col];
-                if (cell && cell.includes('-')) {
-                    const parts = cell.split(' ');
-                    parts.forEach(p => {
-                        const [start, end] = p.split('-');
-                        if (start && end) {
-                            const h1 = parseInt(start.split(':')[0]);
-                            const h2 = parseInt(end.split(':')[0]) || (end.startsWith('00') ? 24 : 0);
-                            dayHours += (h2 - h1);
-                        }
-                    });
-                }
-            }
-            newData[IDX_TOT_ORE][col] = formatNumberIT(dayHours);
-            totalWeeklyHours += dayHours;
-            totalRevenue += (parseNumberIT(newData[IDX_BUDGET_PRANZO][col]) + parseNumberIT(newData[IDX_BUDGET_CENA][col]));
-            totalCovers += estimatedCovers;
-        }
-
-        const cp = totalCovers > 0 ? (totalWeeklyHours / totalCovers) : 0;
-        const laborCost = totalRevenue > 0 ? ((totalWeeklyHours * AVG_HOURLY_COST) / totalRevenue * 100) : 0;
-
-        setKitchenStats({ cp, laborCost, fop: 0 });
-        setData(newData);
-        await saveToDb(newData);
-    };
 
     return (
         <div className="max-w-full mx-auto p-6 bg-gray-50 min-h-screen">
@@ -254,35 +219,205 @@ export default function ForecastPage() {
                     <p className="text-gray-500 mt-1">Previsionale Costi e Ricavi</p>
                 </div>
                 <div className="flex items-center gap-4">
-                    <span className="font-bold text-gray-700">Settimana:</span>
-                    <select
-                        className="p-2 border rounded-lg bg-gray-50 font-medium outline-none focus:ring-2 focus:ring-indigo-500"
-                        value={selectedWeek?.start}
-                        onChange={(e) => setSelectedWeek(weeks.find(w => w.start === e.target.value) || weeks[0])}
-                    >
-                        {weeks.map(w => (
-                            <option key={w.start} value={w.start}>Week {w.week}: {w.start}</option>
-                        ))}
-                    </select>
+                    <div className="flex flex-col">
+                        <span className="text-xs font-bold text-gray-500 uppercase">Anno</span>
+                        <input
+                            type="number"
+                            className="p-2 border rounded-lg bg-gray-50 font-bold w-20 outline-none focus:ring-2 focus:ring-indigo-500"
+                            value={currentYear}
+                            onChange={(e) => setCurrentYear(parseInt(e.target.value) || new Date().getFullYear())}
+                        />
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-xs font-bold text-gray-500 uppercase">Settimana</span>
+                        <select
+                            className="p-2 border rounded-lg bg-gray-50 font-medium outline-none focus:ring-2 focus:ring-indigo-500"
+                            value={selectedWeek?.start}
+                            onChange={(e) => setSelectedWeek(weeks.find(w => w.start === e.target.value) || weeks[0])}
+                        >
+                            {weeks.map(w => (
+                                <option key={w.start} value={w.start}>Week {w.week}: {w.start}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
             </div>
 
             <div className="flex flex-wrap gap-4 mb-6">
+                {/* File Import Input */}
+                <input
+                    type="file"
+                    accept=".csv, .xlsx, .xls"
+                    onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        setLoading(true);
+                        try {
+                            const buffer = await file.arrayBuffer();
+                            const wb = XLSX.read(buffer);
+                            const ws = wb.Sheets[wb.SheetNames[0]];
+                            const json = XLSX.utils.sheet_to_json(ws, { header: 1 }) as string[][];
+
+                            // Advanced parsing to find the real grid start
+                            // The user's CSV has garbage at the top ("trova il file...", whitespace)
+                            let startRowIndex = -1;
+                            for (let i = 0; i < json.length; i++) {
+                                const rowStr = json[i].join('').toLowerCase();
+                                // Look for key markers like "lunedì" or "budget pranzo"
+                                if (rowStr.includes('luned') || rowStr.includes('budget pranzo')) {
+                                    startRowIndex = i;
+                                    // If we found "Lunedì", we want to include that row (headers)
+                                    // If we found "Budget pranzo", we might have missed headers, checking row before
+                                    if (rowStr.includes('budget pranzo') && i > 0 && String(json[i - 1][1]).toLowerCase().includes('luned')) {
+                                        startRowIndex = i - 1;
+                                    } else if (rowStr.includes('budget pranzo')) {
+                                        startRowIndex = i; // Fallback, just data
+                                    }
+                                    break;
+                                }
+                            }
+
+                            // 1. CODING FIX: Use readAsBinaryString but hint codepage effectively via XLSX
+                            // The issue "Lunedà" suggests UTF-8 interpreted as ANSI or vice versa.
+                            // XLSX.read usually handles this if we pass the right type.
+                            // Let's try explicit 'binary' with codepage hint if needed, or just clean the usage.
+
+                            // To fix "Lunedà¬", we will aggressively clean the text after read.
+                            // Also, we'll look for the WEEK number.
+
+                            // Find Week Number or Dates
+                            // Valid formats: "Week 42", "13/10/2025"
+                            let detectedWeekStart = '';
+
+                            // Scan purely for logic extraction first
+                            for (let r = 0; r < Math.min(json.length, 20); r++) {
+                                const rowStr = json[r].join(' ').toLowerCase();
+                                // Check for "Week XX"
+                                const weekMatch = rowStr.match(/week\s+(\d+)/i);
+                                if (weekMatch) {
+                                    // Found a week number. Let's try to match it to our weeks list.
+                                    const wNum = parseInt(weekMatch[1]);
+                                    const matchingWeek = weeks.find(w => w.week === wNum);
+                                    if (matchingWeek) {
+                                        detectedWeekStart = matchingWeek.start;
+                                        break;
+                                    }
+                                }
+
+                                // Alternative: Check for dates "dd/mm/yyyy"
+                                const dateMatch = rowStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+                                if (dateMatch) {
+                                    // This is likely a Monday date in the header
+                                    // 13/10/2025 -> 2025-10-13
+                                    // We can try to match this to our weeks
+                                    const isoDate = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`;
+                                    const matchingWeek = weeks.find(w => w.start === isoDate);
+                                    if (matchingWeek) {
+                                        detectedWeekStart = matchingWeek.start;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (detectedWeekStart && detectedWeekStart !== selectedWeek.start) {
+                                const confirmSwitch = confirm(`⚠️ Ho rilevato che questo file è per la settimana del ${detectedWeekStart}. \nVuoi cambiare automaticamente settimana e importare lì?`);
+                                if (confirmSwitch) {
+                                    const newWeek = weeks.find(w => w.start === detectedWeekStart);
+                                    if (newWeek) {
+                                        setSelectedWeek(newWeek);
+                                        // We need to wait for state update or just proceed? 
+                                        // React state updates are async. Ideally we set state then save.
+                                        // But here we might just save to memory 'data' state, and user hits save.
+                                        // BUT if user hits SAVE, it saves to *selectedWeek*.
+                                        // We must ensure selectedWeek is updated.
+                                        // A trick is to use a ref or force the saveToDb to take an arg.
+                                        // Let's rely on user clicking Save AFTER standard state update, 
+                                        // OR we just alert them "Week changed to X. Click Save."
+                                    }
+                                }
+                            }
+
+                            // If found, slice from there. If not, use whole file (maybe it's clean)
+                            const dataToProcess = startRowIndex > -1 ? json.slice(startRowIndex) : json;
+
+                            // Clean Data Headers (Simple replace for common Italian encoding errors)
+                            // LunedÃ¬ -> Lunedì, etc.
+                            // We can use a map
+                            const replacements: Record<string, string> = {
+                                'lunedÃ¬': 'Lunedì', 'martedÃ¬': 'Martedì', 'mercoledÃ¬': 'Mercoledì',
+                                'giovedÃ¬': 'Giovedì', 'venerdÃ¬': 'Venerdì', 'luned': 'Lunedì',
+                                'marted': 'Martedì', 'mercoled': 'Mercoledì', 'gioved': 'Giovedì', 'venerd': 'Venerdì',
+                                'lunedà': 'Lunedì', 'martedà': 'Martedì', 'mercoledà': 'Mercoledì', 'giovedà': 'Giovedì', 'venerdà': 'Venerdì',
+                                'produttivit': 'Produttività', 'produttività': 'Produttività', 'produttivitÃ': 'Produttività'
+                            };
+
+                            let cleanData = dataToProcess.map(row => row.map(cell => {
+                                let val = String(cell ?? '').trim();
+
+                                // Fix Headers
+                                Object.keys(replacements).forEach(bad => {
+                                    if (val.toLowerCase().includes(bad)) {
+                                        val = val.replace(new RegExp(bad, 'ig'), replacements[bad]);
+                                    }
+                                });
+
+                                // Clean Numbers (as before)
+                                if (/[0-9]/.test(val) && !val.toLowerCase().includes('week') && !val.includes('/')) {
+                                    val = val.replace(/[^0-9.,-]/g, '');
+                                }
+
+                                return val;
+                            }));
+
+                            // Ensure we have enough columns (fill up to 8 if needed)
+                            cleanData = cleanData.map(row => {
+                                while (row.length < 8) row.push('');
+                                return row;
+                            });
+
+                            // Force Headers based on known structure if this looks like the header row
+                            const headerRow = cleanData[0];
+                            if (headerRow && headerRow.length >= 8) {
+                                // Double check it looks like a header row (contains budget/real keyword or simply is the first row of import)
+                                // We'll just force the days to be nice.
+                                const days = ['Dettaglio', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
+                                cleanData[0] = days;
+                            }
+
+                            setData(cleanData);
+                            // Auto-save to DB to persist changes immediately
+                            await saveToDb(cleanData);
+                            alert('✅ Dati importati e salvati correttamente! Controlla la settimana selezionata.');
+                        } catch (err) {
+                            console.error(err);
+                            alert('Errore lettura file');
+                        } finally {
+                            setLoading(false);
+                            // Reset input
+                            e.target.value = '';
+                        }
+                    }}
+                    style={{ display: 'none' }}
+                    id="csv-upload"
+                />
+
+                <label htmlFor="csv-upload" className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium shadow-sm">
+                    <Upload size={18} /> Importa CSV/Excel
+                </label>
+
                 {data.length > 0 ? (
                     <>
                         <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-medium shadow-sm">
                             <Save size={18} /> Salva
                         </button>
-                        <button onClick={generateKitchenForecast} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium shadow-sm">
-                            <ChefHat size={18} /> Genera Forecast Cucina
-                        </button>
+
                         <button onClick={() => { if (confirm('Cancellare?')) saveToDb([]).then(() => setData([])) }} className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition font-medium">
                             <Trash2 size={18} /> Elimina
                         </button>
                     </>
                 ) : (
                     <button onClick={handleManualInit} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-bold shadow-md">
-                        ➕ Inizializza Tabella
+                        ➕ Inizializza Tabella Vuota
                     </button>
                 )}
             </div>

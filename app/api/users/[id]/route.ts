@@ -26,7 +26,7 @@ export async function DELETE(
         }
 
         // Prevent deleting yourself? 
-        // Ideally checking header x-user-id vs id. But we might not have it easily unless we parse token or trust middleware.
+        // no op, just checking file
         // For now, allow delete.
 
         await prisma.user.delete({

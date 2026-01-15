@@ -16,6 +16,7 @@ interface Staff {
     oreMassime: number;
     costoOra: number;
     postazioni: string[];
+    skillLevel?: string;
 }
 
 export default function StaffPage() {
@@ -32,7 +33,8 @@ export default function StaffPage() {
         oreMinime: 0,
         oreMassime: 40,
         costoOra: 0,
-        postazioni: [] as string[]
+        postazioni: [] as string[],
+        skillLevel: 'MEDIUM'
     });
 
     const availableStations = ['BAR SU', "BAR GIU'", 'B/S', 'PASS', 'CDR', 'ACC', 'CUCINA'];
@@ -45,6 +47,7 @@ export default function StaffPage() {
         setLoading(true);
         try {
             const data = await api.getStaff();
+            data.sort((a: any, b: any) => (a.listIndex ?? 999) - (b.listIndex ?? 999));
             setStaff(data);
         } catch (e) {
             console.error(e);
@@ -60,6 +63,8 @@ export default function StaffPage() {
             if (!payload.email) delete payload.email;
 
             if (editing) {
+                console.log('Updating staff:', editing, payload);
+                if (!editing) throw new Error("ID mancante per la modifica");
                 await api.updateStaff(editing, payload);
                 setEditing(null);
             } else {
@@ -83,7 +88,9 @@ export default function StaffPage() {
             oreMinime: 0,
             oreMassime: 40,
             costoOra: 0,
-            postazioni: []
+            costoOra: 0,
+            postazioni: [],
+            skillLevel: 'MEDIUM'
         });
         setEditing(null);
     }
@@ -98,7 +105,10 @@ export default function StaffPage() {
             oreMinime: s.oreMinime,
             oreMassime: s.oreMassime,
             costoOra: s.costoOra,
-            postazioni: Array.isArray(s.postazioni) ? s.postazioni : []
+            oreMassime: s.oreMassime,
+            costoOra: s.costoOra,
+            postazioni: Array.isArray(s.postazioni) ? s.postazioni : [],
+            skillLevel: s.skillLevel || 'MEDIUM'
         });
         setShowForm(true);
     }
@@ -158,7 +168,7 @@ export default function StaffPage() {
                     return;
                 }
 
-                const payload = rows.slice(headerRowIndex + 1).map((row: any[]) => {
+                const payload = rows.slice(headerRowIndex + 1).map((row: any[], index: number) => {
                     if (!row[idxNome]) return null;
 
                     let nome = String(row[idxNome]).trim();
@@ -178,7 +188,8 @@ export default function StaffPage() {
                         oreMinime: idxMin > -1 ? (row[idxMin] || 0) : 0,
                         oreMassime: idxMax > -1 ? (row[idxMax] || 40) : 40,
                         costoOra: idxCosto > -1 ? (row[idxCosto] || 0) : 0,
-                        postazioni: idxPost > -1 && row[idxPost] ? String(row[idxPost]).split(',').map(s => s.trim()) : [] // Adapt to string[]
+                        postazioni: idxPost > -1 && row[idxPost] ? String(row[idxPost]).split(',').map(s => s.trim()).filter(x => x) : [],
+                        listIndex: index // Explicitly set order from file
                     };
                 }).filter(p => p !== null);
 
@@ -187,11 +198,20 @@ export default function StaffPage() {
                     return;
                 }
 
-                if (confirm(`Trovate ${payload.length} righe. Importare?`)) {
-                    await api.importStaff(payload);
-                    alert(`Importazione completata.`);
-                    await loadStaff();
+                // Prompt for Replace or Append
+                let shouldReplace = false;
+                if (staff.length > 0) {
+                    const choice = confirm(`Trovati ${payload.length} dipendenti.\n\nVuoi SOSTITUIRE l'intera lista esistente con questi nuovi dati?\n(OK = Sostituisci e cancella vecchi, ANNULLA = Aggiungi in coda)`);
+                    shouldReplace = choice;
                 }
+
+                if (shouldReplace) {
+                    await api.deleteAllStaff();
+                }
+
+                await api.importStaff(payload);
+                alert(`Importazione completata.`);
+                await loadStaff();
             } catch (err: any) {
                 alert("Errore importazione: " + err.message);
             }
@@ -215,8 +235,23 @@ export default function StaffPage() {
                     <label className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition cursor-pointer">
                         <Upload size={20} />
                         Importa Excel
-                        <input type="file" className="hidden" onChange={handleFileUpload} accept=".xlsx, .xls" />
+                        <input type="file" className="hidden" onChange={handleFileUpload} accept=".csv, .xlsx, .xls" />
                     </label>
+                    <button
+                        onClick={async () => {
+                            if (confirm('⚠️ SEI SICURO? Questo cancellerà TUTTO lo staff esistente. Usa questa funzione se vuoi ricaricare da zero con l\'ordine corretto.')) {
+                                try {
+                                    await api.deleteAllStaff();
+                                    await loadStaff();
+                                    alert('Staff azzerato.');
+                                } catch (e: any) { alert('Errore: ' + e.message); }
+                            }
+                        }}
+                        className="px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition"
+                        title="Elimina Tutto lo Staff"
+                    >
+                        <Trash2 size={20} />
+                    </button>
                 </div>
             </div>
 
@@ -252,9 +287,22 @@ export default function StaffPage() {
                             <label className="block text-sm font-medium text-gray-700 mb-1">Ore Massime</label>
                             <input type="number" className="w-full p-2 border rounded-md" value={form.oreMassime} onChange={e => setForm({ ...form, oreMassime: parseInt(e.target.value) || 0 })} />
                         </div>
+                        </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Costo Orario (€)</label>
                             <input type="number" className="w-full p-2 border rounded-md" value={form.costoOra} onChange={e => setForm({ ...form, costoOra: parseFloat(e.target.value) || 0 })} />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Livello Skill</label>
+                            <select 
+                                className="w-full p-2 border rounded-md bg-white" 
+                                value={form.skillLevel} 
+                                onChange={e => setForm({ ...form, skillLevel: e.target.value })}
+                            >
+                                <option value="JUNIOR">Junior</option>
+                                <option value="MEDIUM">Medium</option>
+                                <option value="SENIOR">Senior</option>
+                            </select>
                         </div>
                     </div>
 
@@ -297,75 +345,88 @@ export default function StaffPage() {
                         </button>
                     </div>
                 </div>
-            )}
+    )
+}
 
-            {loading ? (
-                <div className="text-center py-10 text-gray-500">Caricamento staff...</div>
-            ) : (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <table className="w-full text-left border-collapse">
-                        <thead className="bg-gray-50 border-b border-gray-200">
-                            <tr>
-                                <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nome</th>
-                                <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ruolo</th>
-                                <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
-                                <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ore (Min-Max)</th>
-                                <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Costo</th>
-                                <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Postazioni</th>
-                                <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Azioni</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {staff.map(s => (
-                                <tr key={s.id} className="hover:bg-gray-50 transition">
-                                    <td className="p-4 font-medium text-gray-900">{s.nome} {s.cognome}</td>
-                                    <td className="p-4 text-gray-600">
-                                        <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-semibold">{s.ruolo}</span>
-                                    </td>
-                                    <td className="p-4 text-gray-500 text-sm">{s.email || '-'}</td>
-                                    <td className="p-4 text-gray-600 text-sm">{s.oreMinime} - {s.oreMassime}</td>
-                                    <td className="p-4 text-gray-600 text-sm">{s.costoOra > 0 ? `€${s.costoOra}` : '-'}</td>
-                                    <td className="p-4">
-                                        <div className="flex flex-wrap gap-1">
-                                            {s.postazioni.slice(0, 3).map(p => (
-                                                <span key={p} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px]">{p}</span>
-                                            ))}
-                                            {s.postazioni.length > 3 && (
-                                                <span className="px-1.5 py-0.5 bg-gray-100 text-gray-400 rounded text-[10px]">+{s.postazioni.length - 3}</span>
-                                            )}
-                                        </div>
-                                    </td>
-                                    <td className="p-4 text-right">
-                                        <div className="flex justify-end gap-2">
-                                            <button
-                                                onClick={() => startEdit(s)}
-                                                className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition"
-                                                title="Modifica"
-                                            >
-                                                <Edit2 size={16} />
-                                            </button>
-                                            <button
-                                                onClick={() => removeRow(s.id, s.nome)}
-                                                className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition"
-                                                title="Elimina"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                            {staff.length === 0 && (
-                                <tr>
-                                    <td colSpan={7} className="p-8 text-center text-gray-400">
-                                        Nessun dipendente trovato. Aggiungine uno o importa da Excel.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+{
+    loading ? (
+        <div className="text-center py-10 text-gray-500">Caricamento staff...</div>
+    ) : (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <table className="w-full text-left border-collapse">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nome</th>
+                        <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ruolo</th>
+                        <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
+                        <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ore (Min-Max)</th>
+                        <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Costo</th>
+                        <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Postazioni</th>
+                        <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Azioni</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                    {staff.map(s => (
+                        <tr key={s.id} className="hover:bg-gray-50 transition">
+                            <td className="p-4 font-medium text-gray-900">{s.nome} {s.cognome}</td>
+                            <td className="p-4 text-gray-600">
+                                <div className="flex flex-col gap-1">
+                                    <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-semibold w-fit">{s.ruolo}</span>
+                                    {s.skillLevel && (
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold w-fit border ${s.skillLevel === 'SENIOR' ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                                            s.skillLevel === 'JUNIOR' ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                                                'bg-gray-100 text-gray-600 border-gray-200'
+                                            }`}>
+                                            {s.skillLevel}
+                                        </span>
+                                    )}
+                                </div>
+                            </td>
+                            <td className="p-4 text-gray-500 text-sm">{s.email || '-'}</td>
+                            <td className="p-4 text-gray-600 text-sm">{s.oreMinime} - {s.oreMassime}</td>
+                            <td className="p-4 text-gray-600 text-sm">{s.costoOra > 0 ? `€${s.costoOra}` : '-'}</td>
+                            <td className="p-4">
+                                <div className="flex flex-wrap gap-1">
+                                    {s.postazioni.slice(0, 3).map(p => (
+                                        <span key={p} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px]">{p}</span>
+                                    ))}
+                                    {s.postazioni.length > 3 && (
+                                        <span className="px-1.5 py-0.5 bg-gray-100 text-gray-400 rounded text-[10px]">+{s.postazioni.length - 3}</span>
+                                    )}
+                                </div>
+                            </td>
+                            <td className="p-4 text-right">
+                                <div className="flex justify-end gap-2">
+                                    <button
+                                        onClick={() => startEdit(s)}
+                                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition"
+                                        title="Modifica"
+                                    >
+                                        <Edit2 size={16} />
+                                    </button>
+                                    <button
+                                        onClick={() => removeRow(s.id, s.nome)}
+                                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition"
+                                        title="Elimina"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
+                    {staff.length === 0 && (
+                        <tr>
+                            <td colSpan={7} className="p-8 text-center text-gray-400">
+                                Nessun dipendente trovato. Aggiungine uno o importa da Excel.
+                            </td>
+                        </tr>
+                    )}
+                </tbody>
+            </table>
         </div>
+    )
+}
+        </div >
     );
 }

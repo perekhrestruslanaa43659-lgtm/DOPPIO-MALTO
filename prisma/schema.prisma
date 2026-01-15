@@ -22,6 +22,8 @@ model Staff {
   moltiplicatore    Float               @default(1.0)
   postazioni        String[]            @default([])
   tenantKey         String              @default("default-tenant")
+  skillLevel        String              @default("MEDIUM") // JUNIOR, MEDIUM, SENIOR
+  incompatibilityId String?             // If set, staff with same ID invalid to work together
   assignments       Assignment[]
   PermissionRequest PermissionRequest[]
   recurringShifts   RecurringShift[]
@@ -144,6 +146,10 @@ model RecurringShift {
   end_time        String?
   shiftTemplateId Int?
   postazione      String?
+  startWeek       Int?
+  endWeek         Int?
+  startYear       Int?
+  endYear         Int?
   tenantKey       String         @default("default-tenant")
   shiftTemplate   ShiftTemplate? @relation(fields: [shiftTemplateId], references: [id])
   staff           Staff          @relation(fields: [staffId], references: [id], onDelete: Cascade)

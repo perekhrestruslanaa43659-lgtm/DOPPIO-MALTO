@@ -29,13 +29,15 @@ export default function PermissionRequestsPage() {
     const [loading, setLoading] = useState(true);
     const [profile, setProfile] = useState<any>(null);
     const [showNewModal, setShowNewModal] = useState(false);
+    const [staffList, setStaffList] = useState<any[]>([]); // To populate select if admin
 
     // New Request Form
     const [formData, setFormData] = useState({
         data: new Date().toISOString().slice(0, 10),
         tipo: 'FERIE', // FERIE, PERMESSO, MALATTIA
         motivo: 'PERSONALE',
-        dettagli: ''
+        dettagli: '',
+        staffId: '' // For admin selection
     });
 
     useEffect(() => {
@@ -58,6 +60,7 @@ export default function PermissionRequestsPage() {
 
             setProfile(userWithStaff);
             setRequests(reqs as Request[]);
+            setStaffList(staffList as any[]); // Store full list
         } catch (e: any) {
             console.error(e);
             alert("Errore caricamento: " + e.message);
@@ -83,8 +86,8 @@ export default function PermissionRequestsPage() {
 
         try {
             await api.createPermissionRequest({
-                staffId: profile.staffId,
-                ...formData
+                ...formData,
+                staffId: (isAdmin && formData.staffId) ? parseInt(formData.staffId) : profile.staffId
             });
             setShowNewModal(false);
             setFormData({ ...formData, dettagli: '' });
