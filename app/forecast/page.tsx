@@ -380,7 +380,7 @@ export default function ForecastPage() {
                                 ['Produttività Budget', '0', '0', '0', '0', '0', '0', '0'],
                                 ['Produttività Real', '0', '0', '0', '0', '0', '0', '0'],
                             ];
-                            for (let i = 12; i < 36; i++) cleanGrid.push([`Riga ${i + 1}`, '', '', '', '', '', '', '']);
+                            // REMOVED filler rows loop
 
                             // Kitchen Rows (Append them to ensure they exist)
                             const kitchenStart = 36;
@@ -442,8 +442,9 @@ export default function ForecastPage() {
                                             if (val.includes('#') || val.includes('Ð')) val = '0';
                                             if (val.toLowerCase().includes('nan')) val = '0';
 
-                                            // Preserve dots/commas but remove currency symbols
-                                            val = val.replace(/€/g, '').trim();
+                                            // STRICT CLEANING: Remove EVERYTHING except numbers, dots, commas, minus
+                                            // This removes €, $, and encoding garbage like â‚¬
+                                            val = val.replace(/[^0-9.,-]/g, '').trim();
 
                                             if (cleanGrid[rule.targetIdx]) {
                                                 cleanGrid[rule.targetIdx][d + 1] = val;
