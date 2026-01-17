@@ -167,8 +167,8 @@ export default function ForecastPage() {
             const get = (r: number) => {
                 if (r === -1 || !newGrid[r]) return 0;
                 const val = String(newGrid[r][col] || '').trim();
-                // Detect Excel errors
-                if (val.includes('#REF') || val.includes('#DIV') || val.includes('#N/A') || val.includes('ÐÐÐ')) {
+                // Aggressive Excel error trap
+                if (val.includes('#') || val.includes('Ð') || val.toLowerCase().includes('nan') || val.toLowerCase().includes('infinity')) {
                     return 0;
                 }
                 return parseNumberIT(val);
@@ -534,10 +534,13 @@ export default function ForecastPage() {
                                 <tr key={rIdx} className={rIdx % 2 ? 'bg-gray-50' : 'bg-white'}>
                                     {row.map((cell, cIdx) => {
                                         const l = String(row[0] || '').toLowerCase();
-                                        // Editable: budget, real, ore, day BUT NOT produttività
-                                        const isEdit = (cIdx >= 1 && cIdx <= 7) &&
-                                            (l.includes('budget') || l.includes('real') || l.includes('ore') || l.includes('day')) &&
-                                            !l.includes('produttività') && !l.includes('produttivit') && !l.includes('differenza');
+                                        // Editable: ALLOW ALL by default, EXCLUDE calculated rows
+                                        const isCalculated =
+                                            l.includes('produttività') || l.includes('produttivit') ||
+                                            l.includes('differenza') || l.includes('cp') || l.includes('labor cost');
+
+                                        // Allow editing for columns 1-7 (Mon-Sun), unless it's a calculated row
+                                        const isEdit = (cIdx >= 1 && cIdx <= 7) && !isCalculated;
 
                                         if (isEdit) {
                                             return (
@@ -552,12 +555,18 @@ export default function ForecastPage() {
                                             );
                                         }
 
-                                        // Read-only cells (including produttività)
+                                        // Read-only cells
                                         const isProduttivita = l.includes('produttività') || l.includes('produttivit');
                                         const isDiff = l.includes('differenza');
                                         let extraClass = 'text-gray-700';
-                                        if (isProduttivita) extraClass = 'bg-green-50 font-bold text-green-700';
-                                        if (isDiff) extraClass = 'bg-gray-50 font-medium text-gray-900 italic';
+
+                                        // Highlight errors if they slipped through (Safety net)
+                                        const displayVal = String(cell);
+                                        const isError = displayVal.includes('#') || displayVal.includes('Ð') || displayVal.includes('NaN') || displayVal.includes('Infinity');
+
+                                        if (isError) extraClass = 'bg-red-50 text-red-500 font-bold';
+                                        else if (isProduttivita) extraClass = 'bg-green-50 font-bold text-green-700';
+                                        else if (isDiff) extraClass = 'bg-gray-50 font-medium text-gray-900 italic';
 
                                         return <td key={cIdx} className={`p-3 text-right border border-gray-100 text-sm ${extraClass}`}>{cell}</td>;
                                     })}
