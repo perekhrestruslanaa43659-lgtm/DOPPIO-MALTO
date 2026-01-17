@@ -292,15 +292,7 @@ export default function ForecastPage() {
         // Fill up to row 36
         for (let i = 12; i < 36; i++) template.push([`Riga ${i + 1}`, '', '', '', '', '', '', '']);
         // Kitchen Rows
-        template.push(['CUCINA - Chef (R37)', '', '', '', '', '', '', '']);
-        template.push(['CUCINA - Sous Chef (R38)', '', '', '', '', '', '', '']);
-        template.push(['CUCINA - ACCSU (R39)', '', '', '', '', '', '', '']);
-        template.push(['CUCINA - Capo Partita (R40)', '', '', '', '', '', '', '']);
-        template.push(['CUCINA - Commis (R41)', '', '', '', '', '', '', '']);
-        template.push(['CUCINA - Lavaggio (R42)', '', '', '', '', '', '', '']);
-        template.push(['CUCINA - Jolly (R43)', '', '', '', '', '', '', '']);
-        template.push(['CUCINA - Extra (R44)', '', '', '', '', '', '', '']);
-        template.push(['CUCINA - Totale Ore (R45)', '0', '0', '0', '0', '0', '0', '0']);
+
 
         setData(template);
         await saveToDb(template);
@@ -383,16 +375,7 @@ export default function ForecastPage() {
                             // REMOVED filler rows loop
 
                             // Kitchen Rows (Append them to ensure they exist)
-                            const kitchenStart = 36;
-                            cleanGrid.push(['CUCINA - Chef (R37)', '', '', '', '', '', '', '']);
-                            cleanGrid.push(['CUCINA - Sous Chef (R38)', '', '', '', '', '', '', '']);
-                            cleanGrid.push(['CUCINA - ACCSU (R39)', '', '', '', '', '', '', '']);
-                            cleanGrid.push(['CUCINA - Capo Partita (R40)', '', '', '', '', '', '', '']);
-                            cleanGrid.push(['CUCINA - Commis (R41)', '', '', '', '', '', '', '']);
-                            cleanGrid.push(['CUCINA - Lavaggio (R42)', '', '', '', '', '', '', '']);
-                            cleanGrid.push(['CUCINA - Jolly (R43)', '', '', '', '', '', '', '']);
-                            cleanGrid.push(['CUCINA - Extra (R44)', '', '', '', '', '', '', '']);
-                            cleanGrid.push(['CUCINA - Totale Ore (R45)', '0', '0', '0', '0', '0', '0', '0']);
+
 
                             // 2. DEFINE MATCHING RULES (File Row -> Template Row Index)
                             const rules = [
