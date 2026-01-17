@@ -483,6 +483,9 @@ export default function ForecastPage() {
                             // Save to DB *FIRST*
                             await saveToDb(finalGrid, targetWeek.start);
 
+                            // Small delay to ensure DB write completes before reload
+                            await new Promise(resolve => setTimeout(resolve, 300));
+
                             // If target week is different, switch view
                             if (targetWeek.start !== selectedWeek.start) {
                                 setSelectedWeek(targetWeek);

@@ -29,7 +29,10 @@ export async function GET(request: NextRequest) {
 
         const forecast = await prisma.forecastRow.findMany({
             where: whereClause,
-            orderBy: { weekStart: 'desc' },
+            orderBy: [
+                { weekStart: 'desc' },
+                { id: 'desc' }  // In case of duplicates, get the latest created
+            ],
         });
 
         return NextResponse.json(forecast);
