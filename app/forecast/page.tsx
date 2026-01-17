@@ -358,7 +358,6 @@ export default function ForecastPage() {
                             const ws = wb.Sheets[wb.SheetNames[0]];
                             const json = XLSX.utils.sheet_to_json(ws, { header: 1 }) as string[][];
 
-                            // Valid check for json
                             if (!json || json.length === 0) {
                                 alert("File vuoto o non leggibile.");
                                 setLoading(false);
@@ -366,91 +365,95 @@ export default function ForecastPage() {
                                 return;
                             }
 
-                            // Advanced parsing - Finding start
-                            let startRowIndex = -1;
-                            for (let i = 0; i < json.length; i++) {
-                                const rowStr = json[i].join('').toLowerCase();
-                                if (rowStr.includes('luned') || rowStr.includes('budget pranzo')) {
-                                    startRowIndex = i;
-                                    if (rowStr.includes('budget pranzo') && i > 0 && String(json[i - 1][1]).toLowerCase().includes('luned')) {
-                                        startRowIndex = i - 1;
-                                    } else if (rowStr.includes('budget pranzo')) {
-                                        startRowIndex = i;
-                                    }
+                            // 1. INITIALIZE CLEAN TEMPLATE (Same as Manual Init)
+                            const cleanGrid = [
+                                ['Dettaglio', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'],
+                                ['Budget pranzo', '0', '0', '0', '0', '0', '0', '0'],
+                                ['Real pranzo', '0', '0', '0', '0', '0', '0', '0'],
+                                ['Budget cena', '0', '0', '0', '0', '0', '0', '0'],
+                                ['Real cena', '0', '0', '0', '0', '0', '0', '0'],
+                                ['Budget day', '0', '0', '0', '0', '0', '0', '0'],
+                                ['Real day', '0', '0', '0', '0', '0', '0', '0'],
+                                ['Differenza', '0', '0', '0', '0', '0', '0', '0'],
+                                ['Ore Budget', '0', '0', '0', '0', '0', '0', '0'],
+                                ['Ore lavorate', '0', '0', '0', '0', '0', '0', '0'],
+                                ['Produttività Budget', '0', '0', '0', '0', '0', '0', '0'],
+                                ['Produttività Real', '0', '0', '0', '0', '0', '0', '0'],
+                            ];
+                            for (let i = 12; i < 36; i++) cleanGrid.push([`Riga ${i + 1}`, '', '', '', '', '', '', '']);
+
+                            // Kitchen Rows (Append them to ensure they exist)
+                            const kitchenStart = 36;
+                            cleanGrid.push(['CUCINA - Chef (R37)', '', '', '', '', '', '', '']);
+                            cleanGrid.push(['CUCINA - Sous Chef (R38)', '', '', '', '', '', '', '']);
+                            cleanGrid.push(['CUCINA - ACCSU (R39)', '', '', '', '', '', '', '']);
+                            cleanGrid.push(['CUCINA - Capo Partita (R40)', '', '', '', '', '', '', '']);
+                            cleanGrid.push(['CUCINA - Commis (R41)', '', '', '', '', '', '', '']);
+                            cleanGrid.push(['CUCINA - Lavaggio (R42)', '', '', '', '', '', '', '']);
+                            cleanGrid.push(['CUCINA - Jolly (R43)', '', '', '', '', '', '', '']);
+                            cleanGrid.push(['CUCINA - Extra (R44)', '', '', '', '', '', '', '']);
+                            cleanGrid.push(['CUCINA - Totale Ore (R45)', '0', '0', '0', '0', '0', '0', '0']);
+
+                            // 2. DEFINE MATCHING RULES (File Row -> Template Row Index)
+                            const rules = [
+                                { keywords: ['budget', 'pranzo'], targetIdx: 1 },
+                                { keywords: ['real', 'pranzo'], targetIdx: 2 },
+                                { keywords: ['budget', 'cena'], targetIdx: 3 },
+                                { keywords: ['real', 'cena'], targetIdx: 4 },
+                                { keywords: ['budget', 'day'], targetIdx: 5 },
+                                { keywords: ['real', 'day'], targetIdx: 6 },
+                                // Skip Differenza (calculated)
+                                { keywords: ['ore', 'budget'], targetIdx: 8 },
+                                { keywords: ['ore', 'lavorate'], targetIdx: 9 },
+                                // Skip Produttività (calculated)
+                            ];
+
+                            // 3. SCAN FILE AND MERGE
+                            // Detect start column (look for 'luned' in header)
+                            let startCol = -1;
+                            // Search first 20 rows for header
+                            for (let r = 0; r < Math.min(json.length, 20); r++) {
+                                const rowStr = json[r].map(c => String(c).toLowerCase());
+                                const mondayIdx = rowStr.findIndex(s => s.includes('luned'));
+                                if (mondayIdx > -1) {
+                                    startCol = mondayIdx;
                                     break;
                                 }
                             }
+                            if (startCol === -1) startCol = 1; // Default to col 1 if not found
 
-                            // Fallback: If no strict header found, look for "header-like" row (many columns)
-                            if (startRowIndex === -1 && json.length > 0) {
-                                startRowIndex = 0; // Default to first row
-                            }
+                            json.forEach(row => {
+                                const rowStr = row.map(c => String(c).toLowerCase()).join(' ');
 
-                            // Date/Week Detection logic preserved (simplified for brevity here, assumed correct)
-                            let detectedWeekStart = '';
-                            for (let r = 0; r < Math.min(json.length, 20); r++) {
-                                const rowStr = json[r].join(' ').toLowerCase();
-                                const weekMatch = rowStr.match(/week\s+(\d+)/i);
-                                if (weekMatch) {
-                                    const wNum = parseInt(weekMatch[1]);
-                                    const matchingWeek = weeks.find(w => w.week === wNum);
-                                    if (matchingWeek) { detectedWeekStart = matchingWeek.start; break; }
+                                // FIX ENCODING: Check if row label has corrupted characters
+                                // But since we match by keywords, label display is handled by template.
+
+                                for (const rule of rules) {
+                                    if (rule.keywords.every(k => rowStr.includes(k))) {
+                                        // Found a match! Copy 7 days values.
+                                        for (let d = 0; d < 7; d++) {
+                                            let val = String(row[startCol + d] || '');
+                                            // Aggressive cleaning
+                                            if (val.includes('#') || val.includes('Ð')) val = '0';
+                                            if (val.toLowerCase().includes('nan')) val = '0';
+
+                                            // Preserve dots/commas but remove currency symbols
+                                            val = val.replace(/€/g, '').trim();
+
+                                            cleanGrid[rule.targetIdx][d + 1] = val; // d+1 because col 0 is label
+                                        }
+                                    }
                                 }
-                                const dateMatch = rowStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-                                if (dateMatch) {
-                                    const isoDate = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`;
-                                    const matchingWeek = weeks.find(w => w.start === isoDate);
-                                    if (matchingWeek) { detectedWeekStart = matchingWeek.start; break; }
-                                }
-                            }
-                            if (detectedWeekStart && detectedWeekStart !== selectedWeek.start) {
-                                if (confirm(`⚠️ Ho rilevato che questo file è per la settimana del ${detectedWeekStart}. \nVuoi cambiare automaticamente settimana e importare lì?`)) {
-                                    const newWeek = weeks.find(w => w.start === detectedWeekStart);
-                                    if (newWeek) setSelectedWeek(newWeek);
-                                }
-                            }
+                            });
 
-                            const dataToProcess = startRowIndex > -1 ? json.slice(startRowIndex) : json;
+                            // 4. APPLY FORMULAS & SAVE
+                            const finalGrid = applyFormulas(cleanGrid);
+                            setData(finalGrid);
+                            await saveToDb(finalGrid);
+                            alert('✅ File analizzato: Dati inseriti nella griglia standard!');
 
-                            const replacements: Record<string, string> = {
-                                'lunedÃ¬': 'Lunedì', 'martedÃ¬': 'Martedì', 'mercoledÃ¬': 'Mercoledì',
-                                'giovedÃ¬': 'Giovedì', 'venerdÃ¬': 'Venerdì', 'luned': 'Lunedì',
-                                'marted': 'Martedì', 'mercoled': 'Mercoledì', 'gioved': 'Giovedì', 'venerd': 'Venerdì',
-                                'lunedà': 'Lunedì', 'martedà': 'Martedì', 'mercoledà': 'Mercoledì', 'giovedà': 'Giovedì', 'venerdà': 'Venerdì',
-                                'produttivit': 'Produttività', 'produttività': 'Produttività', 'produttivitÃ': 'Produttività',
-                                'produttivitã': 'Produttività', 'produttivitã ': 'Produttività'
-                            };
-
-                            let cleanData = dataToProcess.map(row => row.map(cell => {
-                                let val = String(cell ?? '').trim();
-                                Object.keys(replacements).forEach(bad => {
-                                    if (val.toLowerCase().includes(bad)) val = val.replace(new RegExp(bad, 'ig'), replacements[bad]);
-                                });
-                                // CLEAN EXCEL ERRORS - STEP 1
-                                if (val.includes('#REF') || val.includes('#DIV') || val.includes('#N/A') || val.includes('ÐÐÐ')) return '';
-                                if (/[0-9]/.test(val) && !val.toLowerCase().includes('week') && !val.includes('/')) val = val.replace(/[^0-9.,-]/g, '');
-                                return val;
-                            }));
-
-                            // GUARD: Ensure we have data before trying to access cleanData[0]
-                            if (!cleanData || cleanData.length === 0) {
-                                throw new Error("Nessun dato valido trovato nel file.");
-                            }
-
-                            cleanData = cleanData.map(row => { while (row.length < 8) row.push(''); return row; });
-
-                            // SMART ALIGNMENT
-                            const header = cleanData[0].map(s => String(s).toLowerCase());
-                            // ... (rest of logic) ...
-
-                            // ...
-
-                            setData(cleanData);
-                            await saveToDb(cleanData);
-                            alert('✅ Dati allineati e ricalcolati correttamente!');
                         } catch (err) {
                             console.error(err);
-                            // Show actual error message to user for debugging
                             alert('Errore lettura file: ' + (err instanceof Error ? err.message : String(err)));
                         } finally {
                             setLoading(false);
