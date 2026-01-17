@@ -413,8 +413,9 @@ export default function ForecastPage() {
                             let startCol = -1;
                             // Search first 20 rows for header
                             for (let r = 0; r < Math.min(json.length, 20); r++) {
-                                const rowStr = json[r].map(c => String(c).toLowerCase());
-                                const mondayIdx = rowStr.findIndex(s => s.includes('luned'));
+                                // Array.from safety for sparse arrays from XLSX
+                                const rowValues = Array.from(json[r] || []).map(c => String(c ?? '').toLowerCase());
+                                const mondayIdx = rowValues.findIndex(s => s && s.includes('luned'));
                                 if (mondayIdx > -1) {
                                     startCol = mondayIdx;
                                     break;
@@ -423,7 +424,9 @@ export default function ForecastPage() {
                             if (startCol === -1) startCol = 1; // Default to col 1 if not found
 
                             json.forEach(row => {
-                                const rowStr = row.map(c => String(c).toLowerCase()).join(' ');
+                                // Safe sparse array handling
+                                const rowSafe = Array.from(row || []);
+                                const rowStr = rowSafe.map(c => String(c ?? '').toLowerCase()).join(' ');
 
                                 // FIX ENCODING: Check if row label has corrupted characters
                                 // But since we match by keywords, label display is handled by template.
@@ -432,7 +435,9 @@ export default function ForecastPage() {
                                     if (rule.keywords.every(k => rowStr.includes(k))) {
                                         // Found a match! Copy 7 days values.
                                         for (let d = 0; d < 7; d++) {
-                                            let val = String(row[startCol + d] || '');
+                                            const cellVal = rowSafe[startCol + d];
+                                            let val = String(cellVal ?? '').trim();
+
                                             // Aggressive cleaning
                                             if (val.includes('#') || val.includes('Ð')) val = '0';
                                             if (val.toLowerCase().includes('nan')) val = '0';
@@ -440,7 +445,9 @@ export default function ForecastPage() {
                                             // Preserve dots/commas but remove currency symbols
                                             val = val.replace(/€/g, '').trim();
 
-                                            cleanGrid[rule.targetIdx][d + 1] = val; // d+1 because col 0 is label
+                                            if (cleanGrid[rule.targetIdx]) {
+                                                cleanGrid[rule.targetIdx][d + 1] = val;
+                                            }
                                         }
                                     }
                                 }
