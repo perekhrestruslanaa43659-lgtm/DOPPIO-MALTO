@@ -247,9 +247,10 @@ export default function ForecastPage() {
         return newGrid;
     };
 
-    const saveToDb = async (dataToSave: string[][]) => {
+    const saveToDb = async (dataToSave: string[][], overrideWeekStart?: string) => {
         try {
-            await api.saveForecast([{ weekStart: selectedWeek.start, data: JSON.stringify(dataToSave) }]);
+            const target = overrideWeekStart || selectedWeek.start;
+            await api.saveForecast([{ weekStart: target, data: JSON.stringify(dataToSave) }]);
             return true;
         } catch (e: any) {
             alert('Errore Salvataggio: ' + e.message);
@@ -406,6 +407,35 @@ export default function ForecastPage() {
                             }
                             if (startCol === -1) startCol = 1; // Default to col 1 if not found
 
+                            // Detect week BEFORE processing
+                            let targetWeek = selectedWeek;
+                            let detectedWeekStart = '';
+
+                            for (let r = 0; r < Math.min(json.length, 20); r++) {
+                                const rowSafe = Array.from(json[r] || []);
+                                const rowStr = rowSafe.map(c => String(c ?? '').toLowerCase()).join(' ');
+
+                                const weekMatch = rowStr.match(/week\s+(\d+)/i);
+                                if (weekMatch) {
+                                    const wNum = parseInt(weekMatch[1]);
+                                    const matchingWeek = weeks.find(w => w.week === wNum);
+                                    if (matchingWeek) { detectedWeekStart = matchingWeek.start; break; }
+                                }
+                                const dateMatch = rowStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+                                if (dateMatch) {
+                                    const isoDate = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`;
+                                    const matchingWeek = weeks.find(w => w.start === isoDate);
+                                    if (matchingWeek) { detectedWeekStart = matchingWeek.start; break; }
+                                }
+                            }
+
+                            if (detectedWeekStart && detectedWeekStart !== selectedWeek.start) {
+                                if (confirm(`⚠️ Ho rilevato che questo file è per la settimana del ${detectedWeekStart}. \nVuoi importare i dati in quella settimana?`)) {
+                                    const newWeek = weeks.find(w => w.start === detectedWeekStart);
+                                    if (newWeek) targetWeek = newWeek;
+                                }
+                            }
+
                             json.forEach(row => {
                                 // Safe sparse array handling
                                 const rowSafe = Array.from(row || []);
@@ -437,11 +467,20 @@ export default function ForecastPage() {
                                 }
                             });
 
-                            // 4. APPLY FORMULAS & SAVE
+                            // 4. APPLY FORMULAS & SAVE TO TARGET WEEK
                             const finalGrid = applyFormulas(cleanGrid);
-                            setData(finalGrid);
-                            await saveToDb(finalGrid);
-                            alert('✅ File analizzato: Dati inseriti nella griglia standard!');
+
+                            // Save to DB *FIRST*
+                            await saveToDb(finalGrid, targetWeek.start);
+
+                            // If target week is different, switch view
+                            if (targetWeek.start !== selectedWeek.start) {
+                                setSelectedWeek(targetWeek);
+                                alert(`✅ Dati salvati nella settimana del ${targetWeek.week}. Cambio visualizzazione...`);
+                            } else {
+                                setData(finalGrid);
+                                alert('✅ Dati importati correttamente!');
+                            }
 
                         } catch (err) {
                             console.error(err);
