@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -41,6 +40,9 @@ const parseNumberIT = (val: any) => {
     if (typeof val === 'number') return val;
     if (!val) return 0;
     let s = String(val).trim();
+    // Excel error trap
+    if (s.includes('#') || s.includes('Ð')) return 0;
+
     s = s.replace(/€/g, '').replace(/[^0-9.,-]/g, '');
     if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
     else s = s.replace(/\./g, '');
@@ -66,7 +68,6 @@ export default function ForecastPage() {
         setSelectedWeek(match || newWeeks[0]);
     }, [currentYear]);
 
-    // Set default to current week on mount OR restore from LocalStorage
     // Set default to current week on mount OR restore from GLOBAL LocalStorage
     useEffect(() => {
         const savedYear = localStorage.getItem('global_year');
@@ -77,7 +78,6 @@ export default function ForecastPage() {
             const wNum = parseInt(savedWeekNum);
 
             setCurrentYear(y);
-            // Regenerate weeks for the saved year immediately to ensure consistency
             const generatedWeeks = getWeeksList(y);
             setWeeks(generatedWeeks);
 
@@ -85,7 +85,6 @@ export default function ForecastPage() {
             if (found) setSelectedWeek(found);
             else setSelectedWeek(generatedWeeks[0]);
         } else {
-            // Default to today
             const todayW = getWeekRange(new Date());
             setCurrentYear(todayW.year);
             const generatedWeeks = getWeeksList(todayW.year);
@@ -107,18 +106,7 @@ export default function ForecastPage() {
 
     const handleYearChange = (newYear: number) => {
         setCurrentYear(newYear);
-        // We defer saving logic to the week update or effect if needed, 
-        // but typically changing year changes generated weeks.
-
-        // Let's assume user wants to stay on same week NUMBER if possible
-        // The existing useEffect[currentYear] handles the week matching.
-        // We should add logic there to persist the NEW match or wait for user interaction?
-
-        // Ideally, changing year is a user interaction that should be persisted:
         localStorage.setItem('global_year', newYear.toString());
-        // Week might change implicitly, we rely on the effect below which handles week matching logic
-        // But we need to save the new week number if it changes? 
-        // Actually, let's keep it simple: Save Year.
     };
 
     const [data, setData] = useState<string[][]>([]);
@@ -157,6 +145,7 @@ export default function ForecastPage() {
         let idxBudD = -1, idxRealD = -1;
         let idxOreBud = -1, idxOreReal = -1;
         let idxProdBud = -1, idxProdReal = -1;
+        let idxDiff = -1;
 
         newGrid.forEach((row, rIdx) => {
             const l = String(row[0] || '').toLowerCase();
@@ -164,12 +153,13 @@ export default function ForecastPage() {
             if (l.includes('real') && l.includes('pranzo')) idxRealP = rIdx;
             if (l.includes('budget') && l.includes('cena')) idxBudS = rIdx;
             if (l.includes('real') && l.includes('cena')) idxRealS = rIdx;
-            if (l.includes('budget') && (l.includes('day') || l.includes('giornaliero'))) idxBudD = rIdx;
-            if (l.includes('real') && (l.includes('day') || l.includes('giornaliero'))) idxRealD = rIdx;
+            if (l.includes('budget') && (l.includes('day') || l.includes('giornaliero') || l.includes('totale'))) idxBudD = rIdx;
+            if (l.includes('real') && (l.includes('day') || l.includes('giornaliero') || l.includes('totale'))) idxRealD = rIdx;
             if ((l.includes('ore') && l.includes('budget')) || l.includes('ore previste')) idxOreBud = rIdx;
             if (l.includes('ore') && (l.includes('lavorate') || l.includes('reali'))) idxOreReal = rIdx;
             if (l.includes('produttività') && l.includes('budget')) idxProdBud = rIdx;
             if (l.includes('produttività') && (l.includes('real') || l.includes('week'))) idxProdReal = rIdx;
+            if (l.includes('differenza')) idxDiff = rIdx;
         });
 
         for (let col = 1; col <= 7; col++) {
@@ -229,15 +219,19 @@ export default function ForecastPage() {
                 else if ((idxBudP !== -1 || idxBudS !== -1) && (bP > 0 || bS > 0)) revenue = bP + bS;
 
                 // Determine Hours: Worked Hours (Ore Reali)
-                const hours = hR > 0 ? hR : 0; // Only use Real Hours for this specific strict rule? 
-                // User said "Budget Day / Ore lavorate". If Ore lavorate is 0, what?
-                // User said: "Se il valore 'Ore lavorate' è uguale a zero ... restituisci 0"
+                const hours = hR > 0 ? hR : 0;
 
                 if (hours > 0) {
                     set(idxProdReal, revenue / hours);
                 } else {
                     set(idxProdReal, 0); // Strict 0
                 }
+            }
+
+            // SMART CALCULATION: Diff (Real Day - Budget Day)
+            if (idxDiff !== -1 && idxBudD !== -1 && idxRealD !== -1) {
+                const diff = fRD - fBD;
+                set(idxDiff, diff);
             }
         }
         return newGrid;
@@ -279,13 +273,14 @@ export default function ForecastPage() {
             ['Real cena', '0', '0', '0', '0', '0', '0', '0'],
             ['Budget day', '0', '0', '0', '0', '0', '0', '0'],
             ['Real day', '0', '0', '0', '0', '0', '0', '0'],
+            ['Differenza', '0', '0', '0', '0', '0', '0', '0'],
             ['Ore Budget', '0', '0', '0', '0', '0', '0', '0'],
             ['Ore lavorate', '0', '0', '0', '0', '0', '0', '0'],
             ['Produttività Budget', '0', '0', '0', '0', '0', '0', '0'],
             ['Produttività Real', '0', '0', '0', '0', '0', '0', '0'],
         ];
         // Fill up to row 36
-        for (let i = 11; i < 36; i++) template.push([`Riga ${i + 1}`, '', '', '', '', '', '', '']);
+        for (let i = 12; i < 36; i++) template.push([`Riga ${i + 1}`, '', '', '', '', '', '', '']);
         // Kitchen Rows
         template.push(['CUCINA - Chef (R37)', '', '', '', '', '', '', '']);
         template.push(['CUCINA - Sous Chef (R38)', '', '', '', '', '', '', '']);
@@ -353,16 +348,12 @@ export default function ForecastPage() {
                             const ws = wb.Sheets[wb.SheetNames[0]];
                             const json = XLSX.utils.sheet_to_json(ws, { header: 1 }) as string[][];
 
-                            // Advanced parsing to find the real grid start
-                            // The user's CSV has garbage at the top ("trova il file...", whitespace)
+                            // Advanced parsing - Finding start
                             let startRowIndex = -1;
                             for (let i = 0; i < json.length; i++) {
                                 const rowStr = json[i].join('').toLowerCase();
-                                // Look for key markers like "lunedì" or "budget pranzo"
                                 if (rowStr.includes('luned') || rowStr.includes('budget pranzo')) {
                                     startRowIndex = i;
-                                    // If we found "Lunedì", we want to include that row (headers)
-                                    // If we found "Budget pranzo", we might have missed headers, checking row before
                                     if (rowStr.includes('budget pranzo') && i > 0 && String(json[i - 1][1]).toLowerCase().includes('luned')) {
                                         startRowIndex = i - 1;
                                     } else if (rowStr.includes('budget pranzo')) {
@@ -372,72 +363,32 @@ export default function ForecastPage() {
                                 }
                             }
 
-                            // 1. CODING FIX: Use readAsBinaryString but hint codepage effectively via XLSX
-                            // The issue "Lunedà" suggests UTF-8 interpreted as ANSI or vice versa.
-                            // XLSX.read usually handles this if we pass the right type.
-                            // Let's try explicit 'binary' with codepage hint if needed, or just clean the usage.
-
-                            // To fix "Lunedà¬", we will aggressively clean the text after read.
-                            // Also, we'll look for the WEEK number.
-
-                            // Find Week Number or Dates
-                            // Valid formats: "Week 42", "13/10/2025"
+                            // Date/Week Detection logic preserved (simplified for brevity here, assumed correct)
                             let detectedWeekStart = '';
-
-                            // Scan purely for logic extraction first
                             for (let r = 0; r < Math.min(json.length, 20); r++) {
                                 const rowStr = json[r].join(' ').toLowerCase();
-                                // Check for "Week XX"
                                 const weekMatch = rowStr.match(/week\s+(\d+)/i);
                                 if (weekMatch) {
-                                    // Found a week number. Let's try to match it to our weeks list.
                                     const wNum = parseInt(weekMatch[1]);
                                     const matchingWeek = weeks.find(w => w.week === wNum);
-                                    if (matchingWeek) {
-                                        detectedWeekStart = matchingWeek.start;
-                                        break;
-                                    }
+                                    if (matchingWeek) { detectedWeekStart = matchingWeek.start; break; }
                                 }
-
-                                // Alternative: Check for dates "dd/mm/yyyy"
                                 const dateMatch = rowStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
                                 if (dateMatch) {
-                                    // This is likely a Monday date in the header
-                                    // 13/10/2025 -> 2025-10-13
-                                    // We can try to match this to our weeks
                                     const isoDate = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`;
                                     const matchingWeek = weeks.find(w => w.start === isoDate);
-                                    if (matchingWeek) {
-                                        detectedWeekStart = matchingWeek.start;
-                                        break;
-                                    }
+                                    if (matchingWeek) { detectedWeekStart = matchingWeek.start; break; }
                                 }
                             }
-
                             if (detectedWeekStart && detectedWeekStart !== selectedWeek.start) {
-                                const confirmSwitch = confirm(`⚠️ Ho rilevato che questo file è per la settimana del ${detectedWeekStart}. \nVuoi cambiare automaticamente settimana e importare lì?`);
-                                if (confirmSwitch) {
+                                if (confirm(`⚠️ Ho rilevato che questo file è per la settimana del ${detectedWeekStart}. \nVuoi cambiare automaticamente settimana e importare lì?`)) {
                                     const newWeek = weeks.find(w => w.start === detectedWeekStart);
-                                    if (newWeek) {
-                                        setSelectedWeek(newWeek);
-                                        // We need to wait for state update or just proceed? 
-                                        // React state updates are async. Ideally we set state then save.
-                                        // But here we might just save to memory 'data' state, and user hits save.
-                                        // BUT if user hits SAVE, it saves to *selectedWeek*.
-                                        // We must ensure selectedWeek is updated.
-                                        // A trick is to use a ref or force the saveToDb to take an arg.
-                                        // Let's rely on user clicking Save AFTER standard state update, 
-                                        // OR we just alert them "Week changed to X. Click Save."
-                                    }
+                                    if (newWeek) setSelectedWeek(newWeek);
                                 }
                             }
 
-                            // If found, slice from there. If not, use whole file (maybe it's clean)
                             const dataToProcess = startRowIndex > -1 ? json.slice(startRowIndex) : json;
 
-                            // Clean Data Headers (Simple replace for common Italian encoding errors)
-                            // LunedÃ¬ -> Lunedì, etc.
-                            // We can use a map
                             const replacements: Record<string, string> = {
                                 'lunedÃ¬': 'Lunedì', 'martedÃ¬': 'Martedì', 'mercoledÃ¬': 'Mercoledì',
                                 'giovedÃ¬': 'Giovedì', 'venerdÃ¬': 'Venerdì', 'luned': 'Lunedì',
@@ -449,86 +400,72 @@ export default function ForecastPage() {
 
                             let cleanData = dataToProcess.map(row => row.map(cell => {
                                 let val = String(cell ?? '').trim();
-
-                                // Fix Headers
                                 Object.keys(replacements).forEach(bad => {
-                                    if (val.toLowerCase().includes(bad)) {
-                                        val = val.replace(new RegExp(bad, 'ig'), replacements[bad]);
-                                    }
+                                    if (val.toLowerCase().includes(bad)) val = val.replace(new RegExp(bad, 'ig'), replacements[bad]);
                                 });
-
-                                // Clean Excel errors - replace with empty string
-                                if (val.includes('#REF') || val.includes('#DIV') || val.includes('#N/A') || val.includes('ÐÐÐ')) {
-                                    return '';
-                                }
-
-                                // Clean Numbers (as before)
-                                if (/[0-9]/.test(val) && !val.toLowerCase().includes('week') && !val.includes('/')) {
-                                    val = val.replace(/[^0-9.,-]/g, '');
-                                }
-
+                                // CLEAN EXCEL ERRORS - STEP 1
+                                if (val.includes('#REF') || val.includes('#DIV') || val.includes('#N/A') || val.includes('ÐÐÐ')) return '';
+                                if (/[0-9]/.test(val) && !val.toLowerCase().includes('week') && !val.includes('/')) val = val.replace(/[^0-9.,-]/g, '');
                                 return val;
                             }));
 
-                            // Ensure we have enough columns (fill up to 8 if needed)
-                            cleanData = cleanData.map(row => {
-                                while (row.length < 8) row.push('');
-                                return row;
-                            });
+                            cleanData = cleanData.map(row => { while (row.length < 8) row.push(''); return row; });
 
-                            // 4. SMART COLUMN ALIGNMENT
-                            // Find where "Lunedì" actually is in the header row
+                            // SMART ALIGNMENT
                             const header = cleanData[0].map(s => String(s).toLowerCase());
                             let monIdx = header.findIndex(h => h.includes('luned') || h.includes('mon'));
-
-                            // If found and not at expected index 1, shift data
                             if (monIdx > -1) {
-                                // e.g. if monIdx is 2, it means [Label, Garbage, Monday, Tuesday...]
-                                // We want [Label, Monday, Tuesday...]
-                                // But usually Label is at monIdx - 1
                                 const labelIdx = Math.max(0, monIdx - 1);
-
                                 cleanData = cleanData.map(row => {
                                     const newRow = new Array(8).fill('');
-                                    // Row Label
                                     newRow[0] = row[labelIdx];
-                                    // Days
                                     for (let d = 0; d < 7; d++) {
-                                        if (row[monIdx + d] !== undefined) {
-                                            newRow[d + 1] = row[monIdx + d];
-                                        }
+                                        if (row[monIdx + d] !== undefined) newRow[d + 1] = row[monIdx + d];
                                     }
                                     return newRow;
                                 });
                             }
 
-                            // 5. DYNAMIC CALCULATION: Productivity
-                            // Identify Rows
-                            let idxBP = -1, idxBC = -1, idxHours = -1, idxProd = -1;
+                            // 5. DYNAMIC CALCULATION: Productivity & Difference (Strict Import)
+                            let idxBP = -1, idxBC = -1, idxHours = -1, idxProd = -1, idxBudgetDay = -1, idxRealDay = -1, idxDiff = -1;
 
                             cleanData.forEach((row, r) => {
                                 const label = String(row[0]).toLowerCase();
                                 if (label.includes('budget') && label.includes('pranzo')) idxBP = r;
                                 if (label.includes('budget') && label.includes('cena')) idxBC = r;
+                                if (label.includes('budget') && (label.includes('day') || label.includes('totale') || label.includes('giornaliero'))) idxBudgetDay = r;
+                                if (label.includes('real') && (label.includes('day') || label.includes('totale') || label.includes('giornaliero'))) idxRealDay = r;
+
                                 if ((label.includes('ore') && label.includes('lavorat')) || label.includes('ore reali')) idxHours = r;
                                 if (label.includes('produttivit')) idxProd = r;
+                                if (label.includes('differenza')) idxDiff = r;
                             });
 
-                            // If we have the ingredients, cook the productivity
-                            if (idxBP > -1 && idxBC > -1 && idxHours > -1 && idxProd > -1) {
-                                for (let c = 1; c <= 7; c++) {
-                                    const valBP = parseNumberIT(cleanData[idxBP][c]);
-                                    const valBC = parseNumberIT(cleanData[idxBC][c]);
-                                    const valHours = parseNumberIT(cleanData[idxHours][c]);
-
-                                    const totalRev = valBP + valBC;
-
-                                    if (valHours > 0) {
-                                        const calcProd = totalRev / valHours;
-                                        cleanData[idxProd][c] = formatNumberIT(calcProd); // Save formatted
-                                    } else {
-                                        cleanData[idxProd][c] = '0,00';
+                            for (let c = 1; c <= 7; c++) {
+                                // A. Productivity
+                                if (idxProd > -1) {
+                                    let rev = 0;
+                                    if (idxBudgetDay > -1) {
+                                        rev = parseNumberIT(cleanData[idxBudgetDay][c]);
+                                    } else if (idxBP > -1 && idxBC > -1) {
+                                        rev = parseNumberIT(cleanData[idxBP][c]) + parseNumberIT(cleanData[idxBC][c]);
                                     }
+
+                                    if (idxHours > -1) {
+                                        const hrs = parseNumberIT(cleanData[idxHours][c]);
+                                        if (hrs > 0) {
+                                            cleanData[idxProd][c] = formatNumberIT(rev / hrs);
+                                        } else {
+                                            cleanData[idxProd][c] = '0,00';
+                                        }
+                                    }
+                                }
+
+                                // B. Difference (Real - Budget)
+                                if (idxDiff > -1 && idxBudgetDay > -1 && idxRealDay > -1) {
+                                    const bd = parseNumberIT(cleanData[idxBudgetDay][c]);
+                                    const rd = parseNumberIT(cleanData[idxRealDay][c]);
+                                    cleanData[idxDiff][c] = formatNumberIT(rd - bd);
                                 }
                             }
 
@@ -540,7 +477,6 @@ export default function ForecastPage() {
                             alert('Errore lettura file');
                         } finally {
                             setLoading(false);
-                            // Reset input
                             e.target.value = '';
                         }
                     }}
@@ -601,7 +537,7 @@ export default function ForecastPage() {
                                         // Editable: budget, real, ore, day BUT NOT produttività
                                         const isEdit = (cIdx >= 1 && cIdx <= 7) &&
                                             (l.includes('budget') || l.includes('real') || l.includes('ore') || l.includes('day')) &&
-                                            !l.includes('produttività') && !l.includes('produttivit');
+                                            !l.includes('produttività') && !l.includes('produttivit') && !l.includes('differenza');
 
                                         if (isEdit) {
                                             return (
@@ -618,7 +554,12 @@ export default function ForecastPage() {
 
                                         // Read-only cells (including produttività)
                                         const isProduttivita = l.includes('produttività') || l.includes('produttivit');
-                                        return <td key={cIdx} className={`p-3 text-right border border-gray-100 text-sm ${isProduttivita ? 'bg-green-50 font-bold text-green-700' : 'text-gray-700'}`}>{cell}</td>;
+                                        const isDiff = l.includes('differenza');
+                                        let extraClass = 'text-gray-700';
+                                        if (isProduttivita) extraClass = 'bg-green-50 font-bold text-green-700';
+                                        if (isDiff) extraClass = 'bg-gray-50 font-medium text-gray-900 italic';
+
+                                        return <td key={cIdx} className={`p-3 text-right border border-gray-100 text-sm ${extraClass}`}>{cell}</td>;
                                     })}
                                 </tr>
                             ))}
