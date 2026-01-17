@@ -1,6 +1,6 @@
-
 import { SignJWT, jwtVerify } from 'jose';
-import bcrypt from 'bcryptjs';
+
+// Password functions moved to @/lib/password.ts to support Edge Runtime
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-in-production';
 const encodedKey = new TextEncoder().encode(JWT_SECRET);
@@ -17,23 +17,6 @@ export interface JWTPayload {
     tenantKey: string;
     companyName?: string;
     [key: string]: any; // Allow extra claims for jose compatibility
-}
-
-/**
- * Hash a password using bcrypt
- */
-export async function hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, 10);
-}
-
-/**
- * Verify a password against a hash
- */
-export async function verifyPassword(
-    password: string,
-    hash: string
-): Promise<boolean> {
-    return bcrypt.compare(password, hash);
 }
 
 /**

@@ -2,7 +2,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { hashPassword } from '@/lib/auth'; // Ensure this exists or use bcrypt directly if lib/auth not present
+import { hashPassword } from '@/lib/password';
+// Ensure this exists or use bcrypt directly if lib/auth not present
 import crypto from 'crypto';
 import { sendWelcomeEmail } from '@/lib/email';
 import bcrypt from 'bcryptjs';
