@@ -57,8 +57,9 @@ export async function POST(request: NextRequest) {
         const results = [];
         for (const row of rows) {
             let item;
+
+            // 1. Try to find existing by ID (if provided)
             if (row.id) {
-                // Check ownership
                 const existing = await prisma.forecastRow.findFirst({ where: { id: row.id, tenantKey } });
                 if (existing) {
                     item = await prisma.forecastRow.update({
@@ -71,6 +72,26 @@ export async function POST(request: NextRequest) {
                 }
             }
 
+            // 2. If no ID or not found by ID, try to find by weekStart (prevent duplicates)
+            if (!item && row.weekStart) {
+                const existingByWeek = await prisma.forecastRow.findFirst({
+                    where: {
+                        weekStart: row.weekStart,
+                        tenantKey
+                    }
+                });
+
+                if (existingByWeek) {
+                    item = await prisma.forecastRow.update({
+                        where: { id: existingByWeek.id },
+                        data: {
+                            data: typeof row.data === 'string' ? row.data : JSON.stringify(row.data),
+                        }
+                    });
+                }
+            }
+
+            // 3. If still not found, create new
             if (!item) {
                 item = await prisma.forecastRow.create({
                     data: {
