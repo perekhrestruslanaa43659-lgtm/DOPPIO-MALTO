@@ -124,7 +124,9 @@ export default function ForecastPage() {
             if (res && res.length > 0 && res[0].data) {
                 try {
                     const parsed = JSON.parse(res[0].data);
-                    setData(parsed);
+                    // Force apply formulas on load to Clean any legacy bad data (like #REF!)
+                    const clean = applyFormulas(parsed);
+                    setData(clean);
                 } catch (e) { setData([]); }
             } else {
                 setData([]);
