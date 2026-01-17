@@ -436,6 +436,8 @@ export default function ForecastPage() {
                                 }
                             }
 
+                            let matchedCount = 0;
+
                             json.forEach(row => {
                                 // Safe sparse array handling
                                 const rowSafe = Array.from(row || []);
@@ -446,6 +448,7 @@ export default function ForecastPage() {
 
                                 for (const rule of rules) {
                                     if (rule.keywords.every(k => rowStr.includes(k))) {
+                                        matchedCount++;
                                         // Found a match! Copy 7 days values.
                                         for (let d = 0; d < 7; d++) {
                                             const cellVal = rowSafe[startCol + d];
@@ -467,6 +470,13 @@ export default function ForecastPage() {
                                 }
                             });
 
+                            if (matchedCount === 0) {
+                                alert("⚠️ ATTENZIONE: Nessuna riga riconosciuta nel file!\nControlla che il file contenga le voci corrette (es. 'Budget Pranzo', 'Real Cena', ecc).");
+                                setLoading(false);
+                                e.target.value = '';
+                                return;
+                            }
+
                             // 4. APPLY FORMULAS & SAVE TO TARGET WEEK
                             const finalGrid = applyFormulas(cleanGrid);
 
@@ -476,10 +486,10 @@ export default function ForecastPage() {
                             // If target week is different, switch view
                             if (targetWeek.start !== selectedWeek.start) {
                                 setSelectedWeek(targetWeek);
-                                alert(`✅ Dati salvati nella settimana del ${targetWeek.week}. Cambio visualizzazione...`);
+                                alert(`✅ Importate ${matchedCount} righe nella settimana del ${targetWeek.week}.\nCambio visualizzazione...`);
                             } else {
                                 setData(finalGrid);
-                                alert('✅ Dati importati correttamente!');
+                                alert(`✅ Dati importati correttamente! (${matchedCount} righe aggiornate)`);
                             }
 
                         } catch (err) {
