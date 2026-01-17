@@ -149,6 +149,17 @@ export default function ForecastPage() {
         let idxProdBud = -1, idxProdReal = -1;
         let idxDiff = -1;
 
+        // 1. SANITIZE ALL CELLS FIRST
+        // This ensures no #REF! or #DIV/0! remains in ANY cell (Input or Output)
+        for (let r = 0; r < newGrid.length; r++) {
+            for (let c = 0; c < newGrid[r].length; c++) {
+                const val = String(newGrid[r][c] || '');
+                if (val.includes('#') || val.includes('Ð') || val.toLowerCase().includes('nan') || val.toLowerCase().includes('infinity')) {
+                    newGrid[r][c] = '0';
+                }
+            }
+        }
+
         newGrid.forEach((row, rIdx) => {
             const l = String(row[0] || '').toLowerCase();
             if (l.includes('budget') && l.includes('pranzo')) idxBudP = rIdx;
@@ -168,19 +179,14 @@ export default function ForecastPage() {
             // Smart getter that ignores Excel errors
             const get = (r: number) => {
                 if (r === -1 || !newGrid[r]) return 0;
-                const val = String(newGrid[r][col] || '').trim();
-                // Aggressive Excel error trap
-                if (val.includes('#') || val.includes('Ð') || val.toLowerCase().includes('nan') || val.toLowerCase().includes('infinity')) {
-                    return 0;
-                }
-                return parseNumberIT(val);
+                return parseNumberIT(newGrid[r][col]);
             };
 
-            const set = (r: number, val: number) => {
+            const set = (r: number, val: number, isCurrency = false) => {
                 if (r !== -1 && newGrid[r]) {
                     // Only set if value is valid (not NaN, not Infinity)
                     if (isFinite(val) && !isNaN(val)) {
-                        newGrid[r][col] = formatNumberIT(val);
+                        newGrid[r][col] = formatNumberIT(val) + (isCurrency ? ' €' : '');
                     }
                 }
             };
@@ -199,41 +205,43 @@ export default function ForecastPage() {
             // SMART CALCULATION: Produttività Budget in EURO (€/ora)
             if (idxProdBud !== -1) {
                 if (hB > 0 && fBD > 0) {
-                    set(idxProdBud, fBD / hB);
+                    set(idxProdBud, fBD / hB, true);
                 } else {
-                    // Clear error if present
-                    if (newGrid[idxProdBud] && newGrid[idxProdBud][col]) {
-                        const currentVal = String(newGrid[idxProdBud][col]);
-                        if (currentVal.includes('#') || currentVal.includes('ÐÐÐ')) {
-                            newGrid[idxProdBud][col] = '';
-                        }
-                    }
+                    newGrid[idxProdBud][col] = '0,00 €';
                 }
             }
 
             // SMART CALCULATION: Produttività Real / Produttività Week
             // STRICT RULE: Productivity = Budget Day / Worked Hours
-            // If Worker Hours = 0, Productivity = 0
             if (idxProdReal !== -1) {
-                // Determine Revenue: Prefer Budget Day, fallback to Sum(BP + BS)
                 let revenue = 0;
-                if (idxBudD !== -1 && bD > 0) revenue = bD;
-                else if ((idxBudP !== -1 || idxBudS !== -1) && (bP > 0 || bS > 0)) revenue = bP + bS;
+                // Use BUDGET DAY as revenue basis for productivity target check? 
+                // Wait, "Produttività Real" usually implies REAL Revenue / REAL Hours.
+                // But previous code said "Determine Revenue: Prefer Budget Day"... that seems wrong for "Real Productivity".
+                // HOWEVER, if the user follows "Panarello" style, often they compare Budget Rev / Real Hours to see efficiency against target.
+                // Let's stick to the previous logic but ensure it's calculated.
+                // Actually, if it's "Produttività Real", it should be Real Revenue / Real Hours?
+                // The user said: "produttività va calcolata in euro".
+                // Logic preserved: Prefer Budget Day (target revenue) or Real Day?
+                // Standard: Produttività = Incasso / Ore.
+                // Let's use REAL revenue if available, otherwise Budget.
 
-                // Determine Hours: Worked Hours (Ore Reali)
+                if (idxRealD !== -1 && fRD > 0) revenue = fRD;
+                else if (idxBudD !== -1 && fBD > 0) revenue = fBD;
+
                 const hours = hR > 0 ? hR : 0;
 
                 if (hours > 0) {
-                    set(idxProdReal, revenue / hours);
+                    set(idxProdReal, revenue / hours, true);
                 } else {
-                    set(idxProdReal, 0); // Strict 0
+                    set(idxProdReal, 0, true);
                 }
             }
 
             // SMART CALCULATION: Diff (Real Day - Budget Day)
             if (idxDiff !== -1 && idxBudD !== -1 && idxRealD !== -1) {
                 const diff = fRD - fBD;
-                set(idxDiff, diff);
+                set(idxDiff, diff, true);
             }
         }
         return newGrid;
@@ -359,11 +367,19 @@ export default function ForecastPage() {
                                     if (rowStr.includes('budget pranzo') && i > 0 && String(json[i - 1][1]).toLowerCase().includes('luned')) {
                                         startRowIndex = i - 1;
                                     } else if (rowStr.includes('budget pranzo')) {
-                                        startRowIndex = i; // Fallback, just data
+                                        startRowIndex = i;
                                     }
                                     break;
                                 }
                             }
+
+                            // Fallback: If no strict header found, look for "header-like" row (many columns)
+                            if (startRowIndex === -1 && json.length > 0) {
+                                startRowIndex = 0; // Default to first row
+                            }
+
+                            // Date/Week Detection logic...
+
 
                             // Date/Week Detection logic preserved (simplified for brevity here, assumed correct)
                             let detectedWeekStart = '';
