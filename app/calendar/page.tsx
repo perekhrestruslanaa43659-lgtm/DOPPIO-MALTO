@@ -6,32 +6,9 @@ import { api } from '@/lib/api';
 import * as XLSX from 'xlsx';
 import QuarterTimeInput from '@/components/QuarterTimeInput';
 import { Calendar, Save, Trash2, Download, Upload, AlertTriangle, CheckCircle, Wand2, Paintbrush, Clock, DollarSign, TrendingUp, Target } from 'lucide-react';
+import { getWeekNumber, getWeekRange, getDatesInRange, getWeeksList } from '@/lib/date-utils';
 
 // --- Helpers ---
-function getDatesInRange(startDate: string, endDate: string) {
-    const dates = [];
-    let curr = new Date(startDate);
-    const end = new Date(endDate);
-    while (curr <= end) {
-        dates.push(curr.toISOString().split('T')[0]);
-        curr.setDate(curr.getDate() + 1);
-    }
-    return dates;
-}
-
-function getWeekRange(w: number, year: number = 2025) {
-    const d = new Date(Date.UTC(year, 0, 4));
-    const day = d.getUTCDay() || 7;
-    const startOfYear = new Date(d);
-    startOfYear.setUTCDate(d.getUTCDate() - day + 1);
-    const startD = new Date(startOfYear);
-    startD.setUTCDate(startOfYear.getUTCDate() + (w - 1) * 7);
-    const start = startD.toISOString().split('T')[0];
-    const endD = new Date(startD);
-    endD.setUTCDate(endD.getUTCDate() + 6);
-    const end = endD.toISOString().split('T')[0];
-    return { start, end };
-}
 
 // --- Interfaces ---
 interface Assignment {

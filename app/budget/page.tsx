@@ -13,6 +13,10 @@ export default function BudgetPage() {
     const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
     const [week, setWeek] = useState(getWeekNumber(new Date()));
     const [range, setRange] = useState(getWeekRange(getWeekNumber(new Date()), new Date().getFullYear()));
+    const [budgetMap, setBudgetMap] = useState<any>({});
+    const [schedule, setSchedule] = useState<any[]>([]);
+    const [staff, setStaff] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
 
     // Restore from LocalStorage on mount
     useEffect(() => {
