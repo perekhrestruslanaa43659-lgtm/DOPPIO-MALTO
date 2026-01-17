@@ -367,18 +367,69 @@ export default function ForecastPage() {
                             }
 
                             // Advanced parsing - Finding start
-                            // ... (logic continues) ...
                             let startRowIndex = -1;
                             for (let i = 0; i < json.length; i++) {
-                                // ...
+                                const rowStr = json[i].join('').toLowerCase();
+                                if (rowStr.includes('luned') || rowStr.includes('budget pranzo')) {
+                                    startRowIndex = i;
+                                    if (rowStr.includes('budget pranzo') && i > 0 && String(json[i - 1][1]).toLowerCase().includes('luned')) {
+                                        startRowIndex = i - 1;
+                                    } else if (rowStr.includes('budget pranzo')) {
+                                        startRowIndex = i;
+                                    }
+                                    break;
+                                }
                             }
-                            // ...
+
+                            // Fallback: If no strict header found, look for "header-like" row (many columns)
+                            if (startRowIndex === -1 && json.length > 0) {
+                                startRowIndex = 0; // Default to first row
+                            }
+
+                            // Date/Week Detection logic preserved (simplified for brevity here, assumed correct)
+                            let detectedWeekStart = '';
+                            for (let r = 0; r < Math.min(json.length, 20); r++) {
+                                const rowStr = json[r].join(' ').toLowerCase();
+                                const weekMatch = rowStr.match(/week\s+(\d+)/i);
+                                if (weekMatch) {
+                                    const wNum = parseInt(weekMatch[1]);
+                                    const matchingWeek = weeks.find(w => w.week === wNum);
+                                    if (matchingWeek) { detectedWeekStart = matchingWeek.start; break; }
+                                }
+                                const dateMatch = rowStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+                                if (dateMatch) {
+                                    const isoDate = `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}`;
+                                    const matchingWeek = weeks.find(w => w.start === isoDate);
+                                    if (matchingWeek) { detectedWeekStart = matchingWeek.start; break; }
+                                }
+                            }
+                            if (detectedWeekStart && detectedWeekStart !== selectedWeek.start) {
+                                if (confirm(`⚠️ Ho rilevato che questo file è per la settimana del ${detectedWeekStart}. \nVuoi cambiare automaticamente settimana e importare lì?`)) {
+                                    const newWeek = weeks.find(w => w.start === detectedWeekStart);
+                                    if (newWeek) setSelectedWeek(newWeek);
+                                }
+                            }
 
                             const dataToProcess = startRowIndex > -1 ? json.slice(startRowIndex) : json;
-                            // ...
+
+                            const replacements: Record<string, string> = {
+                                'lunedÃ¬': 'Lunedì', 'martedÃ¬': 'Martedì', 'mercoledÃ¬': 'Mercoledì',
+                                'giovedÃ¬': 'Giovedì', 'venerdÃ¬': 'Venerdì', 'luned': 'Lunedì',
+                                'marted': 'Martedì', 'mercoled': 'Mercoledì', 'gioved': 'Giovedì', 'venerd': 'Venerdì',
+                                'lunedà': 'Lunedì', 'martedà': 'Martedì', 'mercoledà': 'Mercoledì', 'giovedà': 'Giovedì', 'venerdà': 'Venerdì',
+                                'produttivit': 'Produttività', 'produttività': 'Produttività', 'produttivitÃ': 'Produttività',
+                                'produttivitã': 'Produttività', 'produttivitã ': 'Produttività'
+                            };
 
                             let cleanData = dataToProcess.map(row => row.map(cell => {
-                                // ...
+                                let val = String(cell ?? '').trim();
+                                Object.keys(replacements).forEach(bad => {
+                                    if (val.toLowerCase().includes(bad)) val = val.replace(new RegExp(bad, 'ig'), replacements[bad]);
+                                });
+                                // CLEAN EXCEL ERRORS - STEP 1
+                                if (val.includes('#REF') || val.includes('#DIV') || val.includes('#N/A') || val.includes('ÐÐÐ')) return '';
+                                if (/[0-9]/.test(val) && !val.toLowerCase().includes('week') && !val.includes('/')) val = val.replace(/[^0-9.,-]/g, '');
+                                return val;
                             }));
 
                             // GUARD: Ensure we have data before trying to access cleanData[0]
