@@ -66,18 +66,60 @@ export default function ForecastPage() {
         setSelectedWeek(match || newWeeks[0]);
     }, [currentYear]);
 
-    // Set default to current week on mount
+    // Set default to current week on mount OR restore from LocalStorage
+    // Set default to current week on mount OR restore from GLOBAL LocalStorage
     useEffect(() => {
-        const todayW = getWeekRange(new Date());
-        setCurrentYear(todayW.year);
-        // We need to wait for year update to propogate? 
-        // Actually, if we set year, the effect above runs.
-        // But for initial load, let's try to set the exact week properly.
-        const generatedWeeks = getWeeksList(todayW.year);
-        setWeeks(generatedWeeks);
-        const found = generatedWeeks.find(w => w.start === todayW.start);
-        if (found) setSelectedWeek(found);
+        const savedYear = localStorage.getItem('global_year');
+        const savedWeekNum = localStorage.getItem('global_week_number');
+
+        if (savedYear && savedWeekNum) {
+            const y = parseInt(savedYear);
+            const wNum = parseInt(savedWeekNum);
+
+            setCurrentYear(y);
+            // Regenerate weeks for the saved year immediately to ensure consistency
+            const generatedWeeks = getWeeksList(y);
+            setWeeks(generatedWeeks);
+
+            const found = generatedWeeks.find(w => w.week === wNum);
+            if (found) setSelectedWeek(found);
+            else setSelectedWeek(generatedWeeks[0]);
+        } else {
+            // Default to today
+            const todayW = getWeekRange(new Date());
+            setCurrentYear(todayW.year);
+            const generatedWeeks = getWeeksList(todayW.year);
+            setWeeks(generatedWeeks);
+            const found = generatedWeeks.find(w => w.start === todayW.start);
+            if (found) setSelectedWeek(found);
+        }
     }, []);
+
+    // Manual Handler to ensure we only save when USER changes something
+    const handleWeekChange = (newWeekStart: string) => {
+        const found = weeks.find(w => w.start === newWeekStart);
+        if (found) {
+            setSelectedWeek(found);
+            localStorage.setItem('global_year', currentYear.toString());
+            localStorage.setItem('global_week_number', found.week.toString());
+        }
+    };
+
+    const handleYearChange = (newYear: number) => {
+        setCurrentYear(newYear);
+        // We defer saving logic to the week update or effect if needed, 
+        // but typically changing year changes generated weeks.
+
+        // Let's assume user wants to stay on same week NUMBER if possible
+        // The existing useEffect[currentYear] handles the week matching.
+        // We should add logic there to persist the NEW match or wait for user interaction?
+
+        // Ideally, changing year is a user interaction that should be persisted:
+        localStorage.setItem('global_year', newYear.toString());
+        // Week might change implicitly, we rely on the effect below which handles week matching logic
+        // But we need to save the new week number if it changes? 
+        // Actually, let's keep it simple: Save Year.
+    };
 
     const [data, setData] = useState<string[][]>([]);
     const [loading, setLoading] = useState(false);
@@ -131,8 +173,25 @@ export default function ForecastPage() {
         });
 
         for (let col = 1; col <= 7; col++) {
-            const get = (r: number) => (r === -1 || !newGrid[r]) ? 0 : parseNumberIT(newGrid[r][col]);
-            const set = (r: number, val: number) => { if (r !== -1 && newGrid[r]) newGrid[r][col] = formatNumberIT(val); };
+            // Smart getter that ignores Excel errors
+            const get = (r: number) => {
+                if (r === -1 || !newGrid[r]) return 0;
+                const val = String(newGrid[r][col] || '').trim();
+                // Detect Excel errors
+                if (val.includes('#REF') || val.includes('#DIV') || val.includes('#N/A') || val.includes('ÐÐÐ')) {
+                    return 0;
+                }
+                return parseNumberIT(val);
+            };
+
+            const set = (r: number, val: number) => {
+                if (r !== -1 && newGrid[r]) {
+                    // Only set if value is valid (not NaN, not Infinity)
+                    if (isFinite(val) && !isNaN(val)) {
+                        newGrid[r][col] = formatNumberIT(val);
+                    }
+                }
+            };
 
             const bP = get(idxBudP), bS = get(idxBudS), bD = get(idxBudD);
             if (idxBudD !== -1 && idxBudP !== -1 && idxBudS !== -1 && bD > 0) set(idxBudS, bD - bP);
@@ -145,9 +204,41 @@ export default function ForecastPage() {
             const fBD = get(idxBudD), fRD = get(idxRealD);
             const hB = get(idxOreBud), hR = get(idxOreReal);
 
-            if (idxProdBud !== -1 && hB > 0 && fBD > 0) set(idxProdBud, fBD / hB);
-            const div = hR > 0 ? hR : hB;
-            if (idxProdReal !== -1 && div > 0 && fRD > 0) set(idxProdReal, fRD / div);
+            // SMART CALCULATION: Produttività Budget in EURO (€/ora)
+            if (idxProdBud !== -1) {
+                if (hB > 0 && fBD > 0) {
+                    set(idxProdBud, fBD / hB);
+                } else {
+                    // Clear error if present
+                    if (newGrid[idxProdBud] && newGrid[idxProdBud][col]) {
+                        const currentVal = String(newGrid[idxProdBud][col]);
+                        if (currentVal.includes('#') || currentVal.includes('ÐÐÐ')) {
+                            newGrid[idxProdBud][col] = '';
+                        }
+                    }
+                }
+            }
+
+            // SMART CALCULATION: Produttività Real / Produttività Week
+            // STRICT RULE: Productivity = Budget Day / Worked Hours
+            // If Worker Hours = 0, Productivity = 0
+            if (idxProdReal !== -1) {
+                // Determine Revenue: Prefer Budget Day, fallback to Sum(BP + BS)
+                let revenue = 0;
+                if (idxBudD !== -1 && bD > 0) revenue = bD;
+                else if ((idxBudP !== -1 || idxBudS !== -1) && (bP > 0 || bS > 0)) revenue = bP + bS;
+
+                // Determine Hours: Worked Hours (Ore Reali)
+                const hours = hR > 0 ? hR : 0; // Only use Real Hours for this specific strict rule? 
+                // User said "Budget Day / Ore lavorate". If Ore lavorate is 0, what?
+                // User said: "Se il valore 'Ore lavorate' è uguale a zero ... restituisci 0"
+
+                if (hours > 0) {
+                    set(idxProdReal, revenue / hours);
+                } else {
+                    set(idxProdReal, 0); // Strict 0
+                }
+            }
         }
         return newGrid;
     };
@@ -165,12 +256,16 @@ export default function ForecastPage() {
     const handleUpdate = (r: number, c: number, val: string) => {
         const d = [...data];
         d[r][c] = val;
-        setData(applyFormulas(d));
+        // Apply formulas immediately to recalculate productivity
+        const calculated = applyFormulas(d);
+        setData(calculated);
     };
 
     const handleSave = async () => {
         setLoading(true);
-        const ok = await saveToDb(data);
+        // Apply formulas one more time before saving
+        const finalData = applyFormulas(data);
+        const ok = await saveToDb(finalData);
         if (ok) alert('✅ Salvataggio Eseguito!');
         setLoading(false);
     };
@@ -225,7 +320,7 @@ export default function ForecastPage() {
                             type="number"
                             className="p-2 border rounded-lg bg-gray-50 font-bold w-20 outline-none focus:ring-2 focus:ring-indigo-500"
                             value={currentYear}
-                            onChange={(e) => setCurrentYear(parseInt(e.target.value) || new Date().getFullYear())}
+                            onChange={(e) => handleYearChange(parseInt(e.target.value) || new Date().getFullYear())}
                         />
                     </div>
                     <div className="flex flex-col">
@@ -233,7 +328,7 @@ export default function ForecastPage() {
                         <select
                             className="p-2 border rounded-lg bg-gray-50 font-medium outline-none focus:ring-2 focus:ring-indigo-500"
                             value={selectedWeek?.start}
-                            onChange={(e) => setSelectedWeek(weeks.find(w => w.start === e.target.value) || weeks[0])}
+                            onChange={(e) => handleWeekChange(e.target.value)}
                         >
                             {weeks.map(w => (
                                 <option key={w.start} value={w.start}>Week {w.week}: {w.start}</option>
@@ -348,7 +443,8 @@ export default function ForecastPage() {
                                 'giovedÃ¬': 'Giovedì', 'venerdÃ¬': 'Venerdì', 'luned': 'Lunedì',
                                 'marted': 'Martedì', 'mercoled': 'Mercoledì', 'gioved': 'Giovedì', 'venerd': 'Venerdì',
                                 'lunedà': 'Lunedì', 'martedà': 'Martedì', 'mercoledà': 'Mercoledì', 'giovedà': 'Giovedì', 'venerdà': 'Venerdì',
-                                'produttivit': 'Produttività', 'produttività': 'Produttività', 'produttivitÃ': 'Produttività'
+                                'produttivit': 'Produttività', 'produttività': 'Produttività', 'produttivitÃ': 'Produttività',
+                                'produttivitã': 'Produttività', 'produttivitã ': 'Produttività'
                             };
 
                             let cleanData = dataToProcess.map(row => row.map(cell => {
@@ -360,6 +456,11 @@ export default function ForecastPage() {
                                         val = val.replace(new RegExp(bad, 'ig'), replacements[bad]);
                                     }
                                 });
+
+                                // Clean Excel errors - replace with empty string
+                                if (val.includes('#REF') || val.includes('#DIV') || val.includes('#N/A') || val.includes('ÐÐÐ')) {
+                                    return '';
+                                }
 
                                 // Clean Numbers (as before)
                                 if (/[0-9]/.test(val) && !val.toLowerCase().includes('week') && !val.includes('/')) {
@@ -375,19 +476,65 @@ export default function ForecastPage() {
                                 return row;
                             });
 
-                            // Force Headers based on known structure if this looks like the header row
-                            const headerRow = cleanData[0];
-                            if (headerRow && headerRow.length >= 8) {
-                                // Double check it looks like a header row (contains budget/real keyword or simply is the first row of import)
-                                // We'll just force the days to be nice.
-                                const days = ['Dettaglio', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'];
-                                cleanData[0] = days;
+                            // 4. SMART COLUMN ALIGNMENT
+                            // Find where "Lunedì" actually is in the header row
+                            const header = cleanData[0].map(s => String(s).toLowerCase());
+                            let monIdx = header.findIndex(h => h.includes('luned') || h.includes('mon'));
+
+                            // If found and not at expected index 1, shift data
+                            if (monIdx > -1) {
+                                // e.g. if monIdx is 2, it means [Label, Garbage, Monday, Tuesday...]
+                                // We want [Label, Monday, Tuesday...]
+                                // But usually Label is at monIdx - 1
+                                const labelIdx = Math.max(0, monIdx - 1);
+
+                                cleanData = cleanData.map(row => {
+                                    const newRow = new Array(8).fill('');
+                                    // Row Label
+                                    newRow[0] = row[labelIdx];
+                                    // Days
+                                    for (let d = 0; d < 7; d++) {
+                                        if (row[monIdx + d] !== undefined) {
+                                            newRow[d + 1] = row[monIdx + d];
+                                        }
+                                    }
+                                    return newRow;
+                                });
+                            }
+
+                            // 5. DYNAMIC CALCULATION: Productivity
+                            // Identify Rows
+                            let idxBP = -1, idxBC = -1, idxHours = -1, idxProd = -1;
+
+                            cleanData.forEach((row, r) => {
+                                const label = String(row[0]).toLowerCase();
+                                if (label.includes('budget') && label.includes('pranzo')) idxBP = r;
+                                if (label.includes('budget') && label.includes('cena')) idxBC = r;
+                                if ((label.includes('ore') && label.includes('lavorat')) || label.includes('ore reali')) idxHours = r;
+                                if (label.includes('produttivit')) idxProd = r;
+                            });
+
+                            // If we have the ingredients, cook the productivity
+                            if (idxBP > -1 && idxBC > -1 && idxHours > -1 && idxProd > -1) {
+                                for (let c = 1; c <= 7; c++) {
+                                    const valBP = parseNumberIT(cleanData[idxBP][c]);
+                                    const valBC = parseNumberIT(cleanData[idxBC][c]);
+                                    const valHours = parseNumberIT(cleanData[idxHours][c]);
+
+                                    const totalRev = valBP + valBC;
+
+                                    if (valHours > 0) {
+                                        const calcProd = totalRev / valHours;
+                                        cleanData[idxProd][c] = formatNumberIT(calcProd); // Save formatted
+                                    } else {
+                                        cleanData[idxProd][c] = '0,00';
+                                    }
+                                }
                             }
 
                             setData(cleanData);
-                            // Auto-save to DB to persist changes immediately
                             await saveToDb(cleanData);
-                            alert('✅ Dati importati e salvati correttamente! Controlla la settimana selezionata.');
+                            alert('✅ Dati allineati e ricalcolati correttamente!');
                         } catch (err) {
                             console.error(err);
                             alert('Errore lettura file');
@@ -451,7 +598,10 @@ export default function ForecastPage() {
                                 <tr key={rIdx} className={rIdx % 2 ? 'bg-gray-50' : 'bg-white'}>
                                     {row.map((cell, cIdx) => {
                                         const l = String(row[0] || '').toLowerCase();
-                                        const isEdit = (cIdx >= 1 && cIdx <= 7) && (l.includes('budget') || l.includes('real') || l.includes('ore') || l.includes('day'));
+                                        // Editable: budget, real, ore, day BUT NOT produttività
+                                        const isEdit = (cIdx >= 1 && cIdx <= 7) &&
+                                            (l.includes('budget') || l.includes('real') || l.includes('ore') || l.includes('day')) &&
+                                            !l.includes('produttività') && !l.includes('produttivit');
 
                                         if (isEdit) {
                                             return (
@@ -465,7 +615,10 @@ export default function ForecastPage() {
                                                 </td>
                                             );
                                         }
-                                        return <td key={cIdx} className="p-3 text-right text-gray-700 border border-gray-100 text-sm">{cell}</td>;
+
+                                        // Read-only cells (including produttività)
+                                        const isProduttivita = l.includes('produttività') || l.includes('produttivit');
+                                        return <td key={cIdx} className={`p-3 text-right border border-gray-100 text-sm ${isProduttivita ? 'bg-green-50 font-bold text-green-700' : 'text-gray-700'}`}>{cell}</td>;
                                     })}
                                 </tr>
                             ))}

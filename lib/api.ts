@@ -20,7 +20,14 @@ export const api = {
     register: (data: any) => request('/register', { method: 'POST', body: JSON.stringify(data) }),
 
     getUsers: () => request('/users'),
+
+    createUser: (data: any) => request('/users', { method: 'POST', body: JSON.stringify(data) }),
+
     deleteUser: (id: number) => request(`/users?id=${id}`, { method: 'DELETE' }),
+
+    // --- Settings ---
+    getSettings: () => request('/settings'),
+    updateSettings: (data: any) => request('/settings', { method: 'PUT', body: JSON.stringify(data) }),
 
     // --- Staff ---
     getStaff: () => request('/staff'),
@@ -48,6 +55,8 @@ export const api = {
     addUnavailability: (data: any) => request('/unavailability', { method: 'POST', body: JSON.stringify(data) }),
     upsertUnavailability: (data: any) => request('/unavailability', { method: 'POST', body: JSON.stringify(data) }),
     deleteUnavailability: (id: number) => request(`/unavailability?id=${id}`, { method: 'DELETE' }),
+    deleteAllUnavailability: () => request('/unavailability/delete-all', { method: 'DELETE' }),
+    deleteMultipleUnavailability: (ids: number[]) => request('/unavailability/delete-multiple', { method: 'POST', body: JSON.stringify({ ids }) }),
 
     getAbsences: () => request('/absences'),
     updateAbsence: (id: number, status: string) => request(`/absences`, { method: 'PUT', body: JSON.stringify({ id, status }) }),
@@ -75,6 +84,7 @@ export const api = {
     createPermissionRequest: (data: any) => request('/permission-requests', { method: 'POST', body: JSON.stringify(data) }),
     approveRequest: (id: string, response: string) => request(`/permission-requests/${id}/approve`, { method: 'POST', body: JSON.stringify({ adminResponse: response }) }),
     rejectRequest: (id: string, response: string) => request(`/permission-requests/${id}/reject`, { method: 'POST', body: JSON.stringify({ adminResponse: response }) }),
+    deletePermissionRequest: (id: string | number) => request(`/permission-requests/${id}`, { method: 'DELETE' }),
     getPendingRequestsCount: () => request('/permission-requests/count'),
 
     // --- AI ---

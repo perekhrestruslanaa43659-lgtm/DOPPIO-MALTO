@@ -61,17 +61,61 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Staff not found or access denied' }, { status: 403 });
         }
 
+        const userRole = request.headers.get('x-user-role');
+        const userId = request.headers.get('x-user-id');
+        const isAdmin = userRole === 'ADMIN' || userRole === 'MANAGER' || userRole === 'OWNER';
+        const status = isAdmin ? 'APPROVED' : 'PENDING';
+
         const req = await (prisma as any).permissionRequest.create({
             data: {
                 staffId: parseInt(body.staffId),
                 data: body.data,
+                endDate: body.endDate,
+                startTime: body.startTime,
+                endTime: body.endTime,
                 tipo: body.tipo,
                 motivo: body.motivo,
                 dettagli: body.dettagli,
-                status: 'PENDING',
+                status: status,
                 updatedAt: new Date(),
+                processedBy: isAdmin && userId ? parseInt(userId) : null,
+                processedAt: isAdmin ? new Date() : null,
+                adminResponse: isAdmin ? 'Auto-approvata (Creata da Admin)' : null
             },
         });
+
+        if (status === 'APPROVED') {
+            // Helper to create unavail
+            const createUnavail = async (dt: string, st: string | null, et: string | null) => {
+                await (prisma as any).unavailability.create({
+                    data: {
+                        staffId: parseInt(body.staffId),
+                        data: dt,
+                        tipo: 'TOTALE',
+                        reason: `${body.tipo} - ${body.motivo}`,
+                        start_time: st,
+                        end_time: et,
+                        tenantKey: tenantKey
+                    }
+                });
+            };
+
+            if (body.endDate && body.endDate > body.data) {
+                // Period: Create for range
+                let curr = new Date(body.data);
+                const end = new Date(body.endDate);
+                while (curr <= end) {
+                    await createUnavail(curr.toISOString().split('T')[0], null, null);
+                    curr.setDate(curr.getDate() + 1);
+                }
+            } else if (body.startTime && body.endTime) {
+                // Hourly
+                await createUnavail(body.data, body.startTime, body.endTime);
+            } else {
+                // Single Day
+                await createUnavail(body.data, null, null);
+            }
+        }
 
         return NextResponse.json(req);
     } catch (error) {

@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { BadgeCheck, Ban, Clock, Plus, Search, Filter, MessageSquare, User } from 'lucide-react';
+import { BadgeCheck, Ban, Clock, Plus, Search, Filter, MessageSquare, User, Trash2 } from 'lucide-react';
 
 interface Request {
     id: number;
@@ -34,6 +34,10 @@ export default function PermissionRequestsPage() {
     // New Request Form
     const [formData, setFormData] = useState({
         data: new Date().toISOString().slice(0, 10),
+        endDate: '',
+        startTime: '',
+        endTime: '',
+        mode: 'GIORNALIERO', // GIORNALIERO, PERIODO, ORARIO
         tipo: 'FERIE', // FERIE, PERMESSO, MALATTIA
         motivo: 'PERSONALE',
         dettagli: '',
@@ -69,7 +73,7 @@ export default function PermissionRequestsPage() {
         }
     };
 
-    const isAdmin = profile?.role === 'ADMIN' || profile?.role === 'MANAGER';
+    const isAdmin = profile?.role === 'ADMIN' || profile?.role === 'MANAGER' || profile?.role === 'OWNER';
 
     // Filter logic
     const displayedRequests = requests.filter(r => {
@@ -82,12 +86,14 @@ export default function PermissionRequestsPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!profile?.staffId) return alert("Errore: Profilo Staff non trovato. Contatta l'amministratore.");
+        // Check: if not admin, must have staffId. If admin, must have selected staffId OR have own staffId.
+        const targetStaffId = (isAdmin && formData.staffId) ? parseInt(formData.staffId) : profile?.staffId;
+        if (!targetStaffId) return alert("Errore: Nessun dipendente selezionato o Profilo Staff non trovato.");
 
         try {
             await api.createPermissionRequest({
                 ...formData,
-                staffId: (isAdmin && formData.staffId) ? parseInt(formData.staffId) : profile.staffId
+                staffId: targetStaffId
             });
             setShowNewModal(false);
             setFormData({ ...formData, dettagli: '' });
@@ -114,8 +120,8 @@ export default function PermissionRequestsPage() {
         <div className="max-w-6xl mx-auto p-6 bg-gray-50 min-h-screen">
             <div className="flex justify-between items-center mb-8">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800">Richieste Permessi</h1>
-                    <p className="text-gray-500">Gestione Ferie, Permessi e Malattie (Tot: {displayedRequests.length})</p>
+                    <h1 className="text-2xl font-bold text-gray-800">Richieste Permessi (Pianificate)</h1>
+                    <p className="text-gray-500">Gestione di Ferie e Permessi <strong>richiesti in anticipo</strong>. (Tot: {displayedRequests.length})</p>
                 </div>
                 <button
                     onClick={() => setShowNewModal(true)}
@@ -169,6 +175,7 @@ export default function PermissionRequestsPage() {
                             <th className="p-4">Dettagli</th>
                             <th className="p-4 text-center">Stato</th>
                             <th className="p-4">Risposta Admin</th>
+                            {isAdmin && <th className="p-4 text-right">Azioni</th>}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 text-sm">
@@ -195,6 +202,26 @@ export default function PermissionRequestsPage() {
                                         </div>
                                     )}
                                 </td>
+                                {isAdmin && (
+                                    <td className="p-4 text-right">
+                                        <button
+                                            onClick={async () => {
+                                                if (confirm('Sei sicuro di voler eliminare questa richiesta? Se era approvata, verrà rimossa anche l\'indisponibilità dal calendario.')) {
+                                                    try {
+                                                        await api.deletePermissionRequest(req.id);
+                                                        loadData();
+                                                    } catch (e: any) {
+                                                        alert(e.message);
+                                                    }
+                                                }
+                                            }}
+                                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition"
+                                            title="Elimina richiesta"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </td>
+                                )}
                             </tr>
                         ))}
                     </tbody>
@@ -202,64 +229,127 @@ export default function PermissionRequestsPage() {
             </div>
 
             {/* Modal */}
-            {showNewModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
-                        <h3 className="text-xl font-bold mb-4">Nuova Richiesta</h3>
-                        <form onSubmit={handleSubmit} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Data</label>
-                                <input
-                                    type="date"
-                                    required
-                                    className="w-full p-2 border rounded-lg"
-                                    value={formData.data}
-                                    onChange={e => setFormData({ ...formData, data: e.target.value })}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Tipo Assenza</label>
-                                <select
-                                    className="w-full p-2 border rounded-lg bg-white"
-                                    value={formData.tipo}
-                                    onChange={e => setFormData({ ...formData, tipo: e.target.value })}
-                                >
-                                    <option value="FERIE">Ferie</option>
-                                    <option value="PERMESSO">Permesso</option>
-                                    <option value="MALATTIA">Malattia</option>
-                                    <option value="ALTRO">Altro</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Motivazione (Categoria)</label>
-                                <select
-                                    className="w-full p-2 border rounded-lg bg-white"
-                                    value={formData.motivo}
-                                    onChange={e => setFormData({ ...formData, motivo: e.target.value })}
-                                >
-                                    <option value="PERSONALE">Personale</option>
-                                    <option value="SALUTE">Salute</option>
-                                    <option value="FAMIGLIA">Famiglia</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-bold text-gray-700 mb-1">Note / Dettagli</label>
-                                <textarea
-                                    className="w-full p-2 border rounded-lg h-24 resize-none"
-                                    placeholder="Inserisci dettagli aggiuntivi..."
-                                    value={formData.dettagli}
-                                    onChange={e => setFormData({ ...formData, dettagli: e.target.value })}
-                                ></textarea>
-                            </div>
+            {
+                showNewModal && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+                            <h3 className="text-xl font-bold mb-4">Nuova Richiesta</h3>
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                {isAdmin && (
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 mb-1">Dipendente (Admin)</label>
+                                        <select
+                                            className="w-full p-2 border rounded-lg bg-white mb-4"
+                                            value={formData.staffId}
+                                            onChange={e => setFormData({ ...formData, staffId: e.target.value })}
+                                        >
+                                            <option value="">-- Seleziona Dipendente --</option>
+                                            {staffList.map((s: any) => (
+                                                <option key={s.id} value={s.id}>{s.nome} {s.cognome}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
 
-                            <div className="flex gap-3 pt-4 border-t mt-4">
-                                <button type="button" onClick={() => setShowNewModal(false)} className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium transition">Annulla</button>
-                                <button type="submit" className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-bold transition">Invia Richiesta</button>
-                            </div>
-                        </form>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Durata</label>
+                                    <div className="flex gap-2 mb-3">
+                                        {['GIORNALIERO', 'PERIODO', 'ORARIO'].map(m => (
+                                            <button
+                                                key={m}
+                                                type="button"
+                                                onClick={() => setFormData({ ...formData, mode: m })}
+                                                className={`flex-1 py-2 text-xs font-bold rounded border ${formData.mode === m ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200'}`}
+                                            >
+                                                {m === 'GIORNALIERO' ? 'Giornaliero' : (m === 'PERIODO' ? 'Più Giorni' : 'Orario/Parziale')}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-700 mb-1">
+                                            {formData.mode === 'PERIODO' ? 'Dal' : 'Data'}
+                                        </label>
+                                        <input
+                                            type="date"
+                                            required
+                                            className="w-full p-2 border rounded-lg"
+                                            value={formData.data}
+                                            onChange={e => setFormData({ ...formData, data: e.target.value })}
+                                        />
+                                    </div>
+                                    {formData.mode === 'PERIODO' && (
+                                        <div>
+                                            <label className="block text-sm font-bold text-gray-700 mb-1">Al</label>
+                                            <input
+                                                type="date"
+                                                required
+                                                className="w-full p-2 border rounded-lg"
+                                                value={formData.endDate}
+                                                onChange={e => setFormData({ ...formData, endDate: e.target.value })}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+
+                                {formData.mode === 'ORARIO' && (
+                                    <div className="grid grid-cols-2 gap-4 bg-orange-50 p-3 rounded-lg border border-orange-100">
+                                        <div>
+                                            <label className="block text-sm font-bold text-gray-700 mb-1">Dalle</label>
+                                            <input type="time" required value={formData.startTime} onChange={e => setFormData({ ...formData, startTime: e.target.value })} className="w-full p-2 border rounded" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-bold text-gray-700 mb-1">Alle</label>
+                                            <input type="time" required value={formData.endTime} onChange={e => setFormData({ ...formData, endTime: e.target.value })} className="w-full p-2 border rounded" />
+                                        </div>
+                                    </div>
+                                )}
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Tipo Assenza</label>
+                                    <select
+                                        className="w-full p-2 border rounded-lg bg-white"
+                                        value={formData.tipo}
+                                        onChange={e => setFormData({ ...formData, tipo: e.target.value })}
+                                    >
+                                        <option value="FERIE">Ferie</option>
+                                        <option value="PERMESSO">Permesso</option>
+                                        <option value="MALATTIA">Malattia</option>
+                                        <option value="ALTRO">Altro</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Motivazione (Categoria)</label>
+                                    <select
+                                        className="w-full p-2 border rounded-lg bg-white"
+                                        value={formData.motivo}
+                                        onChange={e => setFormData({ ...formData, motivo: e.target.value })}
+                                    >
+                                        <option value="PERSONALE">Personale</option>
+                                        <option value="SALUTE">Salute</option>
+                                        <option value="FAMIGLIA">Famiglia</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-gray-700 mb-1">Note / Dettagli</label>
+                                    <textarea
+                                        className="w-full p-2 border rounded-lg h-24 resize-none"
+                                        placeholder="Inserisci dettagli aggiuntivi..."
+                                        value={formData.dettagli}
+                                        onChange={e => setFormData({ ...formData, dettagli: e.target.value })}
+                                    ></textarea>
+                                </div>
+
+                                <div className="flex gap-3 pt-4 border-t mt-4">
+                                    <button type="button" onClick={() => setShowNewModal(false)} className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium transition">Annulla</button>
+                                    <button type="submit" className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-bold transition">Invia Richiesta</button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }

@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/auth';
+import { getSMTPConfig } from '@/lib/smtp-providers';
 
 export async function POST(request: NextRequest) {
     try {
-        const { email, password, name, role, companyName } = await request.json();
+        const requestBody = await request.json();
+        const { email, password, name, role, companyName } = requestBody;
 
         if (!email || !password || !name) {
             return NextResponse.json(
@@ -33,6 +35,17 @@ export async function POST(request: NextRequest) {
         // Hash password
         const hashedPassword = await hashPassword(password);
 
+        // Determine SMTP configuration
+        let finalHost = requestBody.smtpHost;
+        let finalPort = requestBody.smtpPort ? parseInt(requestBody.smtpPort) : null;
+
+        // If provider is specified, use auto-configuration
+        if (requestBody.provider && requestBody.provider !== 'CUSTOM') {
+            const config = getSMTPConfig(requestBody.provider);
+            finalHost = config.host;
+            finalPort = config.port;
+        }
+
         // Create user as restaurant owner
         const user = await prisma.user.create({
             data: {
@@ -42,6 +55,11 @@ export async function POST(request: NextRequest) {
                 role: role || 'OWNER',
                 tenantKey,
                 companyName,
+                // Save SMTP config
+                smtpHost: finalHost,
+                smtpPort: finalPort,
+                smtpUser: requestBody.smtpUser,
+                smtpPassword: requestBody.smtpPassword
             },
         });
 

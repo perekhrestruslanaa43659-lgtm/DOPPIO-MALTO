@@ -7,53 +7,42 @@ import * as XLSX from 'xlsx';
 import { Save, Upload, Download, RefreshCw, DollarSign } from 'lucide-react';
 
 // Setup Helpers
-function getWeekRange(w: number, year = 2025) {
-    const d = new Date(Date.UTC(year, 0, 4));
-    const day = d.getUTCDay() || 7;
-    const startOfYear = new Date(d);
-    startOfYear.setUTCDate(d.getUTCDate() - day + 1);
-
-    const startD = new Date(startOfYear);
-    startD.setUTCDate(startOfYear.getUTCDate() + (w - 1) * 7);
-
-    const start = startD.toISOString().slice(0, 10);
-    const endD = new Date(startD);
-    endD.setUTCDate(endD.getUTCDate() + 6);
-    const end = endD.toISOString().split('T')[0];
-
-    return { start, end };
-}
-
-function getDatesInRange(startDate: string, endDate: string) {
-    const dates = [];
-    let curr = new Date(startDate);
-    const end = new Date(endDate);
-    while (curr <= end) {
-        dates.push(curr.toISOString().split('T')[0]);
-        curr.setDate(curr.getDate() + 1);
-    }
-    return dates;
-}
+import { getWeekNumber, getWeekRange, getDatesInRange } from '@/lib/date-utils';
 
 export default function BudgetPage() {
     const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
     const [week, setWeek] = useState(getWeekNumber(new Date()));
     const [range, setRange] = useState(getWeekRange(getWeekNumber(new Date()), new Date().getFullYear()));
-    const [schedule, setSchedule] = useState<any[]>([]);
-    const [staff, setStaff] = useState<any[]>([]);
-    const [budgetMap, setBudgetMap] = useState<Record<string, any>>({});
-    const [loading, setLoading] = useState(false);
 
-    function getWeekNumber(d: Date) {
-        d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-        d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-        return Math.ceil((((Number(d) - Number(yearStart)) / 86400000) + 1) / 7);
-    }
+    // Restore from LocalStorage on mount
+    useEffect(() => {
+        let y = new Date().getFullYear();
+        let w = getWeekNumber();
+
+        if (typeof window !== 'undefined') {
+            const savedYear = localStorage.getItem('global_year');
+            const savedWeek = localStorage.getItem('global_week_number');
+
+            if (savedYear && savedWeek) {
+                y = parseInt(savedYear);
+                w = parseInt(savedWeek);
+            } else {
+                // If missing, SAVE Defaults immediately
+                localStorage.setItem('global_year', y.toString());
+                localStorage.setItem('global_week_number', w.toString());
+            }
+        }
+
+        setCurrentYear(y);
+        setWeek(w);
+        setRange(getWeekRange(w, y));
+    }, []);
 
     const changeWeek = (w: number) => {
         setWeek(w);
         setRange(getWeekRange(w, currentYear));
+        localStorage.setItem('global_week_number', w.toString());
+        localStorage.setItem('global_year', currentYear.toString());
     };
 
     const days = getDatesInRange(range.start, range.end);
@@ -294,6 +283,8 @@ export default function BudgetPage() {
                                     const y = parseInt(e.target.value) || 2025;
                                     setCurrentYear(y);
                                     setRange(getWeekRange(week, y));
+                                    localStorage.setItem('global_year', y.toString());
+                                    localStorage.setItem('global_week_number', week.toString());
                                 }}
                             />
                         </div>

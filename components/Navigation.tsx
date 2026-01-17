@@ -7,7 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
     Calendar, Users, Clock, DollarSign, BarChart2,
     Bot, FileText, Settings, LogOut, Menu, X,
-    CalendarDays, UserPlus, Briefcase
+    CalendarDays, UserPlus, Coffee, Briefcase
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -52,8 +52,9 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
         { label: 'AI Assistant', href: '/ai', icon: <Bot size={20} /> },
     ];
 
-    if (user?.role === 'ADMIN' || user?.role === 'MANAGER') {
-        menuItems.push({ label: 'Gestione Utenti', href: '/users', icon: <Settings size={20} /> });
+    if (user?.role === 'ADMIN' || user?.role === 'MANAGER' || user?.role === 'OWNER') {
+        menuItems.push({ label: 'Gestione Utenti', href: '/users', icon: <Users size={20} /> });
+        menuItems.push({ label: 'Impostazioni', href: '/settings', icon: <Settings size={20} /> });
     }
 
     return (
@@ -69,7 +70,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
             `}>
                 <div className="p-6 flex justify-between items-center border-b border-gray-100 h-16">
                     <div className="font-bold text-xl text-gray-800 flex items-center gap-2">
-                        <Briefcase className="text-blue-600" />
+                        <Coffee className="text-blue-600" />
                         ScheduFlow
                     </div>
                     <button onClick={() => setIsOpen(false)} className="md:hidden text-gray-500">

@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import * as XLSX from 'xlsx';
 import QuarterTimeInput from '@/components/QuarterTimeInput';
-import { Calendar, Save, Trash2, Download, Upload, AlertTriangle, CheckCircle, Wand2, Paintbrush } from 'lucide-react';
+import { Calendar, Save, Trash2, Download, Upload, AlertTriangle, CheckCircle, Wand2, Paintbrush, Clock, DollarSign, TrendingUp, Target } from 'lucide-react';
 
 // --- Helpers ---
 function getDatesInRange(startDate: string, endDate: string) {
@@ -75,6 +75,9 @@ export default function CalendarPage() {
     const [matrix, setMatrix] = useState<Record<number, Record<string, Assignment[]>>>({});
     const [unavailabilities, setUnavailabilities] = useState<any[]>([]);
 
+    const [budgets, setBudgets] = useState<any[]>([]);
+    const [forecastData, setForecastData] = useState<string[][]>([]);
+
     const [currentYear, setCurrentYear] = useState(2025);
     const [selectedWeek, setSelectedWeek] = useState(42);
     const [range, setRange] = useState(getWeekRange(42, 2025));
@@ -86,16 +89,22 @@ export default function CalendarPage() {
 
     // --- Persistence & Calculation ---
     useEffect(() => {
-        // Restore from LocalStorage
-        const savedWeek = localStorage.getItem('calendar_week');
-        const savedYear = localStorage.getItem('calendar_year');
+        // Restore from LocalStorage (GLOBAL KEYS)
+        const savedWeek = localStorage.getItem('global_week_number');
+        const savedYear = localStorage.getItem('global_year');
 
-        let w = savedWeek ? parseInt(savedWeek) : 42; // Default fallback can be improved
-        let y = savedYear ? parseInt(savedYear) : 2025;
+        let w = savedWeek ? parseInt(savedWeek) : getWeekNumber();
+        let y = savedYear ? parseInt(savedYear) : new Date().getFullYear();
 
         // Verify validity roughly
-        if (isNaN(w) || w < 1 || w > 53) w = 42;
-        if (isNaN(y)) y = 2025;
+        if (isNaN(w) || w < 1 || w > 53) w = getWeekNumber();
+        if (isNaN(y)) y = new Date().getFullYear();
+
+        // If nothing was saved, SAVE DEFAULT NOW to ensure consistency across pages
+        if (!savedWeek || !savedYear) {
+            localStorage.setItem('global_week_number', w.toString());
+            localStorage.setItem('global_year', y.toString());
+        }
 
         setSelectedWeek(w);
         setCurrentYear(y);
@@ -107,9 +116,9 @@ export default function CalendarPage() {
     }, [range]);
 
     const changeWeek = (w: number, y: number = currentYear) => {
-        // Save to LocalStorage
-        localStorage.setItem('calendar_week', w.toString());
-        localStorage.setItem('calendar_year', y.toString());
+        // Save to LocalStorage (GLOBAL KEYS)
+        localStorage.setItem('global_week_number', w.toString());
+        localStorage.setItem('global_year', y.toString());
 
         const r = getWeekRange(w, y);
         setRange(r);
@@ -120,15 +129,18 @@ export default function CalendarPage() {
     async function loadData() {
         setLoading(true);
         try {
-            const [sch, stf, tmpl, unav] = await Promise.all([
+            const [sch, stf, tmpl, unav, bdg, fcst] = await Promise.all([
                 api.getSchedule(range.start, range.end),
                 api.getStaff(),
                 api.getShiftTemplates(),
-                api.getUnavailability(range.start, range.end)
+                api.getUnavailability(range.start, range.end),
+                api.getBudget(range.start, range.end),
+                api.getForecast(range.start, range.start)
             ]);
 
             const safeSch = Array.isArray(sch) ? sch : [];
             setSchedule(safeSch);
+            setBudgets(Array.isArray(bdg) ? bdg : []);
 
             const safeStf = Array.isArray(stf) ? stf : [];
             // Sort staff by listIndex
@@ -142,6 +154,22 @@ export default function CalendarPage() {
 
             setTemplates(Array.isArray(tmpl) ? tmpl : []);
             setUnavailabilities(Array.isArray(unav) ? unav : []);
+
+            // Parse Forecast Data
+            if (fcst && fcst.length > 0 && fcst[0].data) {
+                try {
+                    const parsed = JSON.parse(fcst[0].data);
+                    console.log('✅ Forecast data loaded:', parsed.length, 'rows');
+                    console.log('Forecast headers:', parsed[0]);
+                    setForecastData(parsed);
+                } catch (e) {
+                    console.warn('❌ Failed to parse forecast data:', e);
+                    setForecastData([]);
+                }
+            } else {
+                console.warn('⚠️ No forecast data found for week:', range.start);
+                setForecastData([]);
+            }
 
             // Build Matrix
             const m: Record<number, Record<string, Assignment[]>> = {};
@@ -166,8 +194,32 @@ export default function CalendarPage() {
 
     const calcHours = (start: string | null, end: string | null) => {
         if (!start || !end) return 0;
-        const [h1, m1] = start.split(':').map(Number);
-        const [h2, m2] = end.split(':').map(Number);
+
+        // Clean and validate time strings
+        const cleanTime = (time: string) => {
+            // Remove any extra whitespace and take only the time part (HH:MM)
+            const cleaned = time.trim().split(' ')[0];
+            return cleaned;
+        };
+
+        const startClean = cleanTime(start);
+        const endClean = cleanTime(end);
+
+        // Validate format HH:MM
+        if (!/^\d{1,2}:\d{2}$/.test(startClean) || !/^\d{1,2}:\d{2}$/.test(endClean)) {
+            console.warn(`Invalid time format: start="${start}", end="${end}"`);
+            return 0;
+        }
+
+        const [h1, m1] = startClean.split(':').map(Number);
+        const [h2, m2] = endClean.split(':').map(Number);
+
+        // Validate parsed numbers
+        if (isNaN(h1) || isNaN(m1) || isNaN(h2) || isNaN(m2)) {
+            console.warn(`Failed to parse time: start="${start}", end="${end}"`);
+            return 0;
+        }
+
         let diff = (h2 + m2 / 60) - (h1 + m1 / 60);
         if (diff < 0) diff += 24;
         return Math.round(diff * 100) / 100;
@@ -195,6 +247,38 @@ export default function CalendarPage() {
         return { totalAssignedHours, totalContractHours, totalCost, diff: totalContractHours - totalAssignedHours };
     };
     const stats = getStats();
+
+    // Helper to parse Italian number format from forecast
+    const parseNumberIT = (val: any) => {
+        if (typeof val === 'number') {
+            return isFinite(val) ? val : 0;
+        }
+        if (!val) return 0;
+        let s = String(val).trim();
+        // Handle Excel errors
+        if (s.includes('#') || s.includes('Ð') || s.toLowerCase() === 'nan') return 0;
+
+        s = s.replace(/€/g, '').replace(/[^0-9.,-]/g, '');
+        if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+        else s = s.replace(/\./g, '');
+        const res = parseFloat(s);
+        return isFinite(res) ? res : 0;
+    };
+
+    // Helper to extract forecast value by row name and day index (Finds LAST matching row)
+    const getForecastValue = (rowName: string, dayIndex: number): number => {
+        if (!forecastData || forecastData.length === 0) return 0;
+
+        // Search in reverse to find the last occurrence (the one valid/visible in Forecast Page)
+        for (let i = forecastData.length - 1; i >= 0; i--) {
+            const row = forecastData[i];
+            if (String(row[0] || '').toLowerCase().includes(rowName.toLowerCase())) {
+                if (!row[dayIndex + 1]) return 0;
+                return parseNumberIT(row[dayIndex + 1]);
+            }
+        }
+        return 0;
+    };
 
     // --- Actions ---
     const generate = async () => {
@@ -476,6 +560,196 @@ export default function CalendarPage() {
                             );
                         })}
                     </tbody>
+                    <tfoot className="bg-white sticky bottom-0 z-40 font-sans shadow-[0_-4px_20px_rgba(0,0,0,0.08)] border-t border-indigo-100">
+                        {(() => {
+                            // --- Calculation Logic for Footer ---
+                            const statsMap = days.map((d, dayIdx) => {
+                                const budget = budgets.find((b: any) => b.data === d);
+                                let realLunch = 0;
+                                let realDinner = 0;
+
+                                staff.forEach(s => {
+                                    const asns = matrix[s.id]?.[d] || [];
+                                    asns.forEach(a => {
+                                        const st = a.start_time || a.shiftTemplate?.oraInizio;
+                                        const et = a.end_time || a.shiftTemplate?.oraFine;
+                                        if (!st || !et) return;
+
+                                        // Safe time parsing
+                                        const parseTime = (timeStr: string) => {
+                                            const cleaned = timeStr.trim().split(' ')[0];
+                                            const parts = cleaned.split(':');
+                                            if (parts.length !== 2) return null;
+                                            const h = parseInt(parts[0]);
+                                            const m = parseInt(parts[1]);
+                                            if (isNaN(h) || isNaN(m)) return null;
+                                            return h + m / 60;
+                                        };
+
+                                        const starts = parseTime(st);
+                                        const ends = parseTime(et);
+
+                                        if (starts === null || ends === null) return;
+
+                                        let endsAdjusted = ends;
+                                        if (ends < starts) endsAdjusted = ends + 24;
+
+                                        const cutoff = 16.0;
+                                        const lunchEnd = Math.min(endsAdjusted, cutoff);
+                                        realLunch += Math.max(0, lunchEnd - starts);
+
+                                        const dinnerStart = Math.max(starts, cutoff);
+                                        realDinner += Math.max(0, endsAdjusted - dinnerStart);
+                                    });
+                                });
+
+                                // Get forecast data for this day
+                                const budgetHours = getForecastValue('ore budget', dayIdx); // Total Daily Budget Hours
+                                const budgetLunch_Revenue = getForecastValue('budget pranzo', dayIdx);
+                                const budgetDinner_Revenue = getForecastValue('budget cena', dayIdx);
+                                const realLunch_Revenue = getForecastValue('real pranzo', dayIdx);
+                                const realDinner_Revenue = getForecastValue('real cena', dayIdx);
+
+                                // Use explicit day hours if available, otherwise split total
+                                // Ideally 'ore budget' is daily. We split by revenue weight.
+                                const totalBudgetRevenue = budgetLunch_Revenue + budgetDinner_Revenue;
+
+                                const budgetLunchHours = totalBudgetRevenue > 0
+                                    ? budgetHours * (budgetLunch_Revenue / totalBudgetRevenue)
+                                    : budgetHours * 0.5;
+
+                                const budgetDinnerHours = totalBudgetRevenue > 0
+                                    ? budgetHours * (budgetDinner_Revenue / totalBudgetRevenue)
+                                    : budgetHours * 0.5;
+
+                                return {
+                                    date: d,
+                                    realLunch: isFinite(realLunch) ? realLunch : 0,
+                                    realDinner: isFinite(realDinner) ? realDinner : 0,
+                                    budgetLunch: isFinite(budgetLunchHours) ? budgetLunchHours : 0,
+                                    budgetDinner: isFinite(budgetDinnerHours) ? budgetDinnerHours : 0,
+
+                                    // Revenues
+                                    revLunch_Real: realLunch_Revenue,
+                                    revDinner_Real: realDinner_Revenue,
+                                    revLunch_Budget: budgetLunch_Revenue,
+                                    revDinner_Budget: budgetDinner_Revenue,
+                                };
+                            });
+
+                            const SummaryRow = ({ label, icon: Icon, accessor, format, type, highlightDiff }: any) => (
+                                <tr className="group transition-colors hover:bg-indigo-50/30">
+                                    <td colSpan={4} className="py-3 px-4 text-right bg-white border-r border-indigo-50">
+                                        <div className="flex items-center justify-end gap-2 text-indigo-900 font-semibold text-xs uppercase tracking-wider">
+                                            {Icon && <Icon size={14} className="text-indigo-400" />}
+                                            {label}
+                                        </div>
+                                    </td>
+                                    {statsMap.map((s, i) => {
+                                        const valL = accessor({ ...s, type: 'LUNCH' });
+                                        const valD = accessor({ ...s, type: 'DINNER' });
+
+                                        // Dynamic Styling based on Row Type
+                                        let classL = "text-gray-600";
+                                        let classD = "text-gray-600";
+                                        let bgL = "";
+                                        let bgD = "";
+
+                                        if (highlightDiff) {
+                                            // Compare Real vs Budget
+                                            const bL = accessor({ ...s, type: 'LUNCH', mode: 'BUDGET' });
+                                            const bD = accessor({ ...s, type: 'DINNER', mode: 'BUDGET' });
+                                            const rL = valL; // Assumes valL is REAL
+                                            const rD = valD;
+
+                                            const diffL = bL ? rL - bL : 0;
+                                            const diffD = bD ? rD - bD : 0;
+
+                                            if (diffL > 2) { classL = "text-red-600 font-bold"; bgL = "bg-red-50"; }
+                                            if (diffL < -2 && bL) { classL = "text-emerald-600 font-bold"; bgL = "bg-emerald-50"; }
+
+                                            if (diffD > 2) { classD = "text-red-600 font-bold"; bgD = "bg-red-50"; }
+                                            if (diffD < -2 && bD) { classD = "text-emerald-600 font-bold"; bgD = "bg-emerald-50"; }
+                                        }
+
+                                        if (type === 'PROD') {
+                                            // Produttività formatting
+                                            classL = valL > 0 ? "text-indigo-700 font-bold" : "text-gray-300";
+                                            classD = valD > 0 ? "text-indigo-700 font-bold" : "text-gray-300";
+                                            if (valL > 0) bgL = "bg-indigo-50/50";
+                                            if (valD > 0) bgD = "bg-indigo-50/50";
+                                        }
+
+                                        if (type === 'MONEY') {
+                                            classL = valL > 0 ? "text-gray-700 font-medium" : "text-gray-300";
+                                            classD = valD > 0 ? "text-gray-700 font-medium" : "text-gray-300";
+                                        }
+
+                                        return (
+                                            <React.Fragment key={i}>
+                                                <td colSpan={3} className={`p-2 text-center border-r border-indigo-50 text-xs ${classL} ${bgL}`}>
+                                                    {format(valL)}
+                                                </td>
+                                                <td colSpan={3} className={`p-2 text-center border-r border-indigo-100/50 text-xs ${classD} ${bgD}`}>
+                                                    {format(valD)}
+                                                </td>
+                                            </React.Fragment>
+                                        )
+                                    })}
+                                </tr>
+                            );
+
+                            return (
+                                <>
+                                    <SummaryRow
+                                        label="Ore Reali"
+                                        icon={Clock}
+                                        type="REAL"
+                                        highlightDiff={true}
+                                        accessor={(ctx: any) => {
+                                            if (ctx.mode === 'BUDGET') return ctx.type === 'LUNCH' ? ctx.budgetLunch : ctx.budgetDinner;
+                                            return ctx.type === 'LUNCH' ? ctx.realLunch : ctx.realDinner;
+                                        }}
+                                        format={(v: number) => v.toFixed(1)}
+                                    />
+                                    <SummaryRow
+                                        label="Budget H."
+                                        icon={Target}
+                                        accessor={(ctx: any) => ctx.type === 'LUNCH' ? ctx.budgetLunch : ctx.budgetDinner}
+                                        format={(v: number) => v > 0 ? v.toFixed(1) : '-'}
+                                    />
+                                    <SummaryRow
+                                        label="Budget €"
+                                        icon={DollarSign}
+                                        type="MONEY"
+                                        accessor={(ctx: any) => ctx.type === 'LUNCH' ? ctx.revLunch_Budget : ctx.revDinner_Budget}
+                                        format={(v: number) => v > 0 ? `€ ${Math.round(v)}` : '-'}
+                                    />
+                                    <SummaryRow
+                                        label="Incasso Reale"
+                                        icon={TrendingUp}
+                                        type="MONEY"
+                                        accessor={(ctx: any) => ctx.type === 'LUNCH' ? ctx.revLunch_Real : ctx.revDinner_Real}
+                                        format={(v: number) => v > 0 ? `€ ${Math.round(v)}` : '-'}
+                                    />
+                                    <SummaryRow
+                                        label="Produttività"
+                                        icon={Wand2}
+                                        type="PROD"
+                                        accessor={(ctx: any) => {
+                                            // CALCULATED AUTOMATICALLY: Revenue / Real Hours
+                                            const rev = ctx.type === 'LUNCH' ? ctx.revLunch_Real : ctx.revDinner_Real;
+                                            const hours = ctx.type === 'LUNCH' ? ctx.realLunch : ctx.realDinner;
+
+                                            if (hours > 0 && rev > 0) return rev / hours;
+                                            return 0;
+                                        }}
+                                        format={(v: number) => v > 0 ? `€ ${v.toFixed(1)}` : '-'}
+                                    />
+                                </>
+                            );
+                        })()}
+                    </tfoot>
                 </table>
             </div>
 

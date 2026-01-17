@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import * as XLSX from 'xlsx';
-import { Trash2, Edit2, Upload, Plus, X, Save } from 'lucide-react';
+import { Trash2, Edit2, Upload, Plus, X, Save, Grid3x3, List } from 'lucide-react';
 
 interface Staff {
     id: number;
@@ -24,6 +24,7 @@ export default function StaffPage() {
     const [loading, setLoading] = useState(true);
     const [editing, setEditing] = useState<number | null>(null);
     const [showForm, setShowForm] = useState(false);
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
     const [form, setForm] = useState({
         nome: '',
@@ -38,6 +39,16 @@ export default function StaffPage() {
     });
 
     const availableStations = ['BAR SU', "BAR GIU'", 'B/S', 'PASS', 'CDR', 'ACC', 'CUCINA'];
+
+    // Helper function to capitalize names properly
+    const capitalizeName = (name: string) => {
+        if (!name) return '';
+        return name
+            .toLowerCase()
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+    };
 
     useEffect(() => {
         loadStaff();
@@ -88,7 +99,6 @@ export default function StaffPage() {
             oreMinime: 0,
             oreMassime: 40,
             costoOra: 0,
-            costoOra: 0,
             postazioni: [],
             skillLevel: 'MEDIUM'
         });
@@ -103,8 +113,6 @@ export default function StaffPage() {
             email: s.email || '',
             ruolo: s.ruolo,
             oreMinime: s.oreMinime,
-            oreMassime: s.oreMassime,
-            costoOra: s.costoOra,
             oreMassime: s.oreMassime,
             costoOra: s.costoOra,
             postazioni: Array.isArray(s.postazioni) ? s.postazioni : [],
@@ -223,7 +231,26 @@ export default function StaffPage() {
     return (
         <div className="p-6 max-w-7xl mx-auto">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-gray-800">Personale</h1>
+                <div className="flex items-center gap-4">
+                    <h1 className="text-3xl font-bold text-gray-800">Personale</h1>
+                    {/* View Toggle */}
+                    <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg">
+                        <button
+                            onClick={() => setViewMode('grid')}
+                            className={`p-2 rounded transition ${viewMode === 'grid' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+                            title="Vista a Cards"
+                        >
+                            <Grid3x3 size={18} />
+                        </button>
+                        <button
+                            onClick={() => setViewMode('list')}
+                            className={`p-2 rounded transition ${viewMode === 'list' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+                            title="Vista Elenco"
+                        >
+                            <List size={18} />
+                        </button>
+                    </div>
+                </div>
                 <div className="flex gap-2">
                     <button
                         onClick={() => { resetForm(); setShowForm(!showForm); }}
@@ -278,7 +305,7 @@ export default function StaffPage() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Ore Minime</label>
                             <input type="number" className="w-full p-2 border rounded-md" value={form.oreMinime} onChange={e => setForm({ ...form, oreMinime: parseInt(e.target.value) || 0 })} />
@@ -287,16 +314,15 @@ export default function StaffPage() {
                             <label className="block text-sm font-medium text-gray-700 mb-1">Ore Massime</label>
                             <input type="number" className="w-full p-2 border rounded-md" value={form.oreMassime} onChange={e => setForm({ ...form, oreMassime: parseInt(e.target.value) || 0 })} />
                         </div>
-                        </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Costo Orario (€)</label>
                             <input type="number" className="w-full p-2 border rounded-md" value={form.costoOra} onChange={e => setForm({ ...form, costoOra: parseFloat(e.target.value) || 0 })} />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Livello Skill</label>
-                            <select 
-                                className="w-full p-2 border rounded-md bg-white" 
-                                value={form.skillLevel} 
+                            <select
+                                className="w-full p-2 border rounded-md bg-white"
+                                value={form.skillLevel}
                                 onChange={e => setForm({ ...form, skillLevel: e.target.value })}
                             >
                                 <option value="JUNIOR">Junior</option>
@@ -345,88 +371,189 @@ export default function StaffPage() {
                         </button>
                     </div>
                 </div>
-    )
-}
+            )}
+            {
+                loading ? (
+                    <div className="text-center py-10 text-gray-500">Caricamento staff...</div>
+                ) : staff.length === 0 ? (
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+                        <div className="text-gray-400 text-lg mb-2">Nessun dipendente trovato</div>
+                        <p className="text-gray-500 text-sm">Aggiungine uno o importa da Excel</p>
+                    </div>
+                ) : viewMode === 'grid' ? (
+                    // GRID VIEW (Cards)
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {staff.map(s => {
+                            const initials = `${s.nome[0] || ''}${s.cognome?.[0] || ''}`.toUpperCase();
+                            const skillColors = {
+                                SENIOR: 'from-purple-500 to-purple-600',
+                                MEDIUM: 'from-blue-500 to-blue-600',
+                                JUNIOR: 'from-orange-500 to-orange-600'
+                            };
+                            const skillColor = skillColors[s.skillLevel as keyof typeof skillColors] || 'from-gray-500 to-gray-600';
 
-{
-    loading ? (
-        <div className="text-center py-10 text-gray-500">Caricamento staff...</div>
-    ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <table className="w-full text-left border-collapse">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                        <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nome</th>
-                        <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ruolo</th>
-                        <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
-                        <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ore (Min-Max)</th>
-                        <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Costo</th>
-                        <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Postazioni</th>
-                        <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Azioni</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                    {staff.map(s => (
-                        <tr key={s.id} className="hover:bg-gray-50 transition">
-                            <td className="p-4 font-medium text-gray-900">{s.nome} {s.cognome}</td>
-                            <td className="p-4 text-gray-600">
-                                <div className="flex flex-col gap-1">
-                                    <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-semibold w-fit">{s.ruolo}</span>
-                                    {s.skillLevel && (
-                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold w-fit border ${s.skillLevel === 'SENIOR' ? 'bg-purple-100 text-purple-700 border-purple-200' :
-                                            s.skillLevel === 'JUNIOR' ? 'bg-orange-100 text-orange-700 border-orange-200' :
-                                                'bg-gray-100 text-gray-600 border-gray-200'
-                                            }`}>
-                                            {s.skillLevel}
-                                        </span>
-                                    )}
+                            return (
+                                <div key={s.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200 overflow-hidden group">
+                                    {/* Header with Avatar */}
+                                    <div className="p-6 pb-4">
+                                        <div className="flex items-start gap-4">
+                                            <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${skillColor} flex items-center justify-center text-white font-bold text-lg shadow-md flex-shrink-0`}>
+                                                {initials}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="text-lg font-bold text-gray-900 truncate">
+                                                    {capitalizeName(s.nome)} {capitalizeName(s.cognome)}
+                                                </h3>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="px-2.5 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-xs font-semibold">
+                                                        {s.ruolo}
+                                                    </span>
+                                                    {s.skillLevel && (
+                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${s.skillLevel === 'SENIOR' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                                            s.skillLevel === 'JUNIOR' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                                                                'bg-blue-50 text-blue-700 border-blue-200'
+                                                            }`}>
+                                                            {s.skillLevel}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Info Section */}
+                                    <div className="px-6 pb-4 space-y-3">
+                                        {s.email && (
+                                            <div className="flex items-center gap-2 text-sm">
+                                                <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                </svg>
+                                                <span className="text-gray-600 truncate">{s.email}</span>
+                                            </div>
+                                        )}
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="bg-gray-50 rounded-lg p-3">
+                                                <div className="text-xs text-gray-500 mb-1">Ore Contratto</div>
+                                                <div className="text-sm font-bold text-gray-900">{s.oreMinime} - {s.oreMassime}h</div>
+                                            </div>
+                                            {s.costoOra > 0 && (
+                                                <div className="bg-emerald-50 rounded-lg p-3">
+                                                    <div className="text-xs text-emerald-600 mb-1">Costo Orario</div>
+                                                    <div className="text-sm font-bold text-emerald-700">€{s.costoOra}</div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {s.postazioni.length > 0 && (
+                                            <div>
+                                                <div className="text-xs text-gray-500 mb-2">Postazioni</div>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {s.postazioni.map(p => (
+                                                        <span key={p} className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-xs font-medium border border-indigo-100">
+                                                            {p}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Actions Footer */}
+                                    <div className="px-6 py-3 bg-gray-50 border-t border-gray-100 flex justify-end gap-2">
+                                        <button
+                                            onClick={() => startEdit(s)}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition text-sm font-medium"
+                                            title="Modifica"
+                                        >
+                                            <Edit2 size={14} />
+                                            Modifica
+                                        </button>
+                                        <button
+                                            onClick={() => removeRow(s.id, s.nome)}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-md transition text-sm font-medium"
+                                            title="Elimina"
+                                        >
+                                            <Trash2 size={14} />
+                                            Elimina
+                                        </button>
+                                    </div>
                                 </div>
-                            </td>
-                            <td className="p-4 text-gray-500 text-sm">{s.email || '-'}</td>
-                            <td className="p-4 text-gray-600 text-sm">{s.oreMinime} - {s.oreMassime}</td>
-                            <td className="p-4 text-gray-600 text-sm">{s.costoOra > 0 ? `€${s.costoOra}` : '-'}</td>
-                            <td className="p-4">
-                                <div className="flex flex-wrap gap-1">
-                                    {s.postazioni.slice(0, 3).map(p => (
-                                        <span key={p} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px]">{p}</span>
-                                    ))}
-                                    {s.postazioni.length > 3 && (
-                                        <span className="px-1.5 py-0.5 bg-gray-100 text-gray-400 rounded text-[10px]">+{s.postazioni.length - 3}</span>
-                                    )}
-                                </div>
-                            </td>
-                            <td className="p-4 text-right">
-                                <div className="flex justify-end gap-2">
-                                    <button
-                                        onClick={() => startEdit(s)}
-                                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition"
-                                        title="Modifica"
-                                    >
-                                        <Edit2 size={16} />
-                                    </button>
-                                    <button
-                                        onClick={() => removeRow(s.id, s.nome)}
-                                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition"
-                                        title="Elimina"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    ))}
-                    {staff.length === 0 && (
-                        <tr>
-                            <td colSpan={7} className="p-8 text-center text-gray-400">
-                                Nessun dipendente trovato. Aggiungine uno o importa da Excel.
-                            </td>
-                        </tr>
-                    )}
-                </tbody>
-            </table>
-        </div>
-    )
-}
+                            );
+                        })}
+                    </div>
+                ) : (
+                    // LIST VIEW (Table)
+                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <table className="w-full text-left border-collapse">
+                            <thead className="bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Nome</th>
+                                    <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ruolo</th>
+                                    <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
+                                    <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ore (Min-Max)</th>
+                                    <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Costo</th>
+                                    <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Postazioni</th>
+                                    <th className="p-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {staff.map(s => (
+                                    <tr key={s.id} className="hover:bg-gray-50 transition">
+                                        <td className="p-4 font-medium text-gray-900">
+                                            {capitalizeName(s.nome)} {capitalizeName(s.cognome)}
+                                        </td>
+                                        <td className="p-4 text-gray-600">
+                                            <div className="flex flex-col gap-1">
+                                                <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-semibold w-fit">{s.ruolo}</span>
+                                                {s.skillLevel && (
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold w-fit border ${s.skillLevel === 'SENIOR' ? 'bg-purple-100 text-purple-700 border-purple-200' :
+                                                        s.skillLevel === 'JUNIOR' ? 'bg-orange-100 text-orange-700 border-orange-200' :
+                                                            'bg-blue-100 text-blue-700 border-blue-200'
+                                                        }`}>
+                                                        {s.skillLevel}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="p-4 text-gray-500 text-sm">{s.email || '-'}</td>
+                                        <td className="p-4 text-gray-600 text-sm">{s.oreMinime} - {s.oreMassime}</td>
+                                        <td className="p-4 text-gray-600 text-sm">{s.costoOra > 0 ? `€${s.costoOra}` : '-'}</td>
+                                        <td className="p-4">
+                                            <div className="flex flex-wrap gap-1">
+                                                {s.postazioni.slice(0, 3).map(p => (
+                                                    <span key={p} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px]">{p}</span>
+                                                ))}
+                                                {s.postazioni.length > 3 && (
+                                                    <span className="px-1.5 py-0.5 bg-gray-100 text-gray-400 rounded text-[10px]">+{s.postazioni.length - 3}</span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="p-4 text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <button
+                                                    onClick={() => startEdit(s)}
+                                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition"
+                                                    title="Modifica"
+                                                >
+                                                    <Edit2 size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => removeRow(s.id, s.nome)}
+                                                    className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition"
+                                                    title="Elimina"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )
+            }
         </div >
     );
 }

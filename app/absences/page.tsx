@@ -50,6 +50,9 @@ export default function AbsencesPage() {
     const [staffList, setStaffList] = useState<Staff[]>([]);
     const [items, setItems] = useState<ActivityItem[]>([]);
     const [loading, setLoading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
     // Filters
     const [filterStart, setFilterStart] = useState('');
@@ -155,6 +158,8 @@ export default function AbsencesPage() {
         const f = unavailForm;
         if (!f.staffId || !f.reason) { alert("Staff e Motivo sono obbligatori"); return; }
 
+        if (submitting) return; // Prevent duplicate submissions
+
         let dates: string[] = [];
         if (f.scope === 'single') dates.push(f.date);
         else if (f.scope === 'daily_range') {
@@ -172,6 +177,7 @@ export default function AbsencesPage() {
             }
         }
 
+        setSubmitting(true);
         try {
             for (const d of dates) {
                 await api.upsertUnavailability({
@@ -183,23 +189,40 @@ export default function AbsencesPage() {
                     endTime: f.tipo === 'PARZIALE' ? f.endTime : null
                 });
             }
-            alert(`Inserite ${dates.length} assenze.`);
-            loadData(filterStart, filterEnd);
-        } catch (e: any) { alert(e.message); }
+            alert(`✅ Inserite ${dates.length} assenze con successo!`);
+
+            // Reset form
+            setUnavailForm({
+                staffId: '',
+                scope: 'single',
+                date: '',
+                startDate: '',
+                endDate: '',
+                startWeek: '',
+                endWeek: '',
+                selectedDays: [1],
+                tipo: 'TOTALE',
+                startTime: '',
+                endTime: '',
+                reason: ''
+            });
+
+            // Auto-refresh data
+            await loadData(filterStart, filterEnd);
+        } catch (e: any) {
+            alert("❌ Errore: " + e.message);
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     const handleAvailSubmit = async () => {
         const f = availForm;
         if (!f.staffId || !f.startTime || !f.endTime) { alert("Dati mancanti"); return; }
 
-        // Construct payload for bulk creation
-        // Legacy "saveAvailability" does strict logic. We can reuse legacy logic on client side loop or server?
-        // Legacy server endpoints supported specific logic. 
-        // My `createAssignment` works per single assignment.
-        // I will implement a simplfied client-side loop for "Availability" (Assignments creation).
+        if (submitting) return; // Prevent duplicate submissions
 
         let dates: string[] = [];
-        // Same date logic as above
         if (f.scope === 'single') dates.push(f.date);
         else if (f.scope === 'daily_range') {
             let c = new Date(f.startDate);
@@ -217,26 +240,43 @@ export default function AbsencesPage() {
         }
 
         let duplicates = 0;
+        setSubmitting(true);
         try {
             for (const d of dates) {
-                // Check dup?
-                // Just create, if unique constraint fails API throws. 
-                // But my API creates if not exists logic?
-                // `createAssignment` creates.
                 try {
                     await api.createAssignment({
                         staffId: Number(f.staffId),
                         data: d,
                         start_time: f.startTime,
                         end_time: f.endTime,
-                        shiftTemplateId: null, // Manual
+                        shiftTemplateId: null,
                         status: false
                     });
                 } catch (err) { duplicates++; }
             }
-            alert(`Creati ${dates.length - duplicates} turni. (${duplicates} errori/duplicati)`);
-            loadData(filterStart, filterEnd);
-        } catch (e: any) { alert(e.message); }
+            alert(`✅ Creati ${dates.length - duplicates} turni. (${duplicates} errori/duplicati)`);
+
+            // Reset form
+            setAvailForm({
+                staffId: '',
+                scope: 'single',
+                date: '',
+                startDate: '',
+                endDate: '',
+                startWeek: '',
+                endWeek: '',
+                selectedDays: [1],
+                startTime: '',
+                endTime: ''
+            });
+
+            // Auto-refresh
+            await loadData(filterStart, filterEnd);
+        } catch (e: any) {
+            alert("❌ Errore: " + e.message);
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     const daysLabels = [{ l: 'Lun', v: 1 }, { l: 'Mar', v: 2 }, { l: 'Mer', v: 3 }, { l: 'Gio', v: 4 }, { l: 'Ven', v: 5 }, { l: 'Sab', v: 6 }, { l: 'Dom', v: 0 }];
@@ -248,15 +288,73 @@ export default function AbsencesPage() {
         setF({ ...f, selectedDays: curr.includes(d) ? curr.filter((x: number) => x !== d) : [...curr, d] });
     };
 
+    // Multi-select handlers
+    const toggleSelectAll = () => {
+        const unavailItems = items.filter(it => it.activityType === 'UNAVAIL');
+        if (selectedIds.length === unavailItems.length) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(unavailItems.map(it => it.id));
+        }
+    };
+
+    const toggleSelectItem = (id: number) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+        );
+    };
+
+    // Bulk delete handlers
+    const handleDeleteSelected = async () => {
+        if (selectedIds.length === 0) {
+            alert("⚠️ Seleziona almeno un'assenza da eliminare");
+            return;
+        }
+
+        if (!confirm(`Eliminare ${selectedIds.length} assenze selezionate?`)) return;
+
+        setDeleting(true);
+        try {
+            await api.deleteMultipleUnavailability(selectedIds);
+            alert(`✅ Eliminate ${selectedIds.length} assenze!`);
+            setSelectedIds([]);
+            await loadData(filterStart, filterEnd);
+        } catch (e: any) {
+            alert("❌ Errore: " + e.message);
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const handleDeleteAll = async () => {
+        if (!confirm("⚠️ ATTENZIONE: Eliminare TUTTE le assenze?")) return;
+        if (!confirm("Sei sicuro? Questa operazione è IRREVERSIBILE!")) return;
+
+        setDeleting(true);
+        try {
+            const result = await api.deleteAllUnavailability();
+            alert(`✅ ${result.message}`);
+            setSelectedIds([]);
+            await loadData(filterStart, filterEnd);
+        } catch (e: any) {
+            alert("❌ Errore: " + e.message);
+        } finally {
+            setDeleting(false);
+        }
+    };
+
     return (
         <div className="max-w-7xl mx-auto p-6">
             <div className="mb-8 flex justify-between items-end">
                 <div>
                     <h1 className="text-2xl font-bold flex items-center gap-3 text-gray-800">
-                        <CalendarOff className="text-red-600" />
-                        Disponibilità & Assenze
+                        <AlertTriangle className="text-red-600" />
+                        Registrazione Assenze (Impreviste)
                     </h1>
-                    <p className="text-gray-500 mt-1">Gestisci assenze (ferie, malattie) e inserimenti manuali massivi.</p>
+                    <p className="text-gray-500 mt-1">
+                        Registra qui assenze <strong>non pianificate</strong> (es. malattia, infortunio, emergenze comunicate all'ultimo).
+                        <br />Per ferie o permessi richiesti in anticipo, usa la sezione <a href="/requests" className="text-blue-600 underline">Richieste</a>.
+                    </p>
                 </div>
             </div>
 
@@ -339,13 +437,46 @@ export default function AbsencesPage() {
                             </div>
 
                             <div className="col-span-full">
-                                <label className="block font-bold mb-1 text-red-600">Motivo (Obbligatorio)</label>
-                                <input type="text" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-red-500" placeholder="Es. Ferie, Malattia..." value={unavailForm.reason} onChange={e => setUnavailForm({ ...unavailForm, reason: e.target.value })} />
+                                <label className="block font-bold mb-1">Categoria Assenza</label>
+                                <select
+                                    className="input w-full p-2 border rounded mb-3 bg-gray-50"
+                                    onChange={(e) => {
+                                        if (e.target.value) {
+                                            setUnavailForm({ ...unavailForm, reason: e.target.value });
+                                        }
+                                    }}
+                                >
+                                    <option value="">-- Seleziona o Scrivi Sotto --</option>
+                                    <option value="Malattia">Malattia</option>
+                                    <option value="Infortunio">Infortunio</option>
+                                    <option value="Permesso Urgente 104">Permesso Urgente / 104</option>
+                                    <option value="Assenza Ingiustificata">Assenza Ingiustificata</option>
+                                    <option value="Lutto">Lutto</option>
+                                    <option value="Altro">Altro (specificare sotto)</option>
+                                </select>
+
+                                <label className="block font-bold mb-1 text-red-600">Dettagli / Motivo (Obbligatorio)</label>
+                                <input type="text" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-red-500" placeholder="Es. Malattia, o dettagli aggiuntivi..." value={unavailForm.reason} onChange={e => setUnavailForm({ ...unavailForm, reason: e.target.value })} />
                             </div>
 
                             <div className="col-span-full">
-                                <button onClick={handleUnavailSubmit} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg shadow transition">
-                                    Registra Assenza
+                                <button
+                                    onClick={handleUnavailSubmit}
+                                    disabled={submitting}
+                                    className={`w-full font-bold py-3 rounded-lg shadow transition flex items-center justify-center gap-2 ${submitting
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-red-600 hover:bg-red-700 text-white'
+                                        }`}
+                                >
+                                    {submitting ? (
+                                        <>
+                                            <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Elaborazione...
+                                        </>
+                                    ) : 'Registra Assenza'}
                                 </button>
                             </div>
                         </div>
@@ -403,8 +534,23 @@ export default function AbsencesPage() {
                             </div>
 
                             <div className="col-span-full">
-                                <button onClick={handleAvailSubmit} className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow transition">
-                                    Genera Turni
+                                <button
+                                    onClick={handleAvailSubmit}
+                                    disabled={submitting}
+                                    className={`w-full font-bold py-3 rounded-lg shadow transition flex items-center justify-center gap-2 ${submitting
+                                        ? 'bg-gray-400 cursor-not-allowed'
+                                        : 'bg-green-600 hover:bg-green-700 text-white'
+                                        }`}
+                                >
+                                    {submitting ? (
+                                        <>
+                                            <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            Elaborazione...
+                                        </>
+                                    ) : 'Genera Turni'}
                                 </button>
                             </div>
                         </div>
@@ -414,18 +560,53 @@ export default function AbsencesPage() {
 
             {/* List */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
-                    <h3 className="font-bold text-gray-700">Cronologia Attività</h3>
-                    <div className="flex gap-2 text-sm">
-                        <input type="date" className="border rounded p-1" value={filterStart} onChange={e => setFilterStart(e.target.value)} />
-                        <span className="self-center">-</span>
-                        <input type="date" className="border rounded p-1" value={filterEnd} onChange={e => setFilterEnd(e.target.value)} />
-                        <button onClick={() => loadData(filterStart, filterEnd)} className="bg-gray-800 text-white px-3 py-1 rounded">Filtra</button>
+                <div className="p-4 border-b bg-gray-50">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-bold text-gray-700">Cronologia Attività</h3>
+                        <div className="flex gap-2 text-sm">
+                            <input type="date" className="border rounded p-1" value={filterStart} onChange={e => setFilterStart(e.target.value)} />
+                            <span className="self-center">-</span>
+                            <input type="date" className="border rounded p-1" value={filterEnd} onChange={e => setFilterEnd(e.target.value)} />
+                            <button onClick={() => loadData(filterStart, filterEnd)} className="bg-gray-800 text-white px-3 py-1 rounded">Filtra</button>
+                        </div>
                     </div>
+                    {items.filter(it => it.activityType === 'UNAVAIL').length > 0 && (
+                        <div className="flex gap-2 items-center">
+                            <button
+                                onClick={handleDeleteSelected}
+                                disabled={selectedIds.length === 0 || deleting}
+                                className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${selectedIds.length === 0 || deleting
+                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    : 'bg-orange-600 hover:bg-orange-700 text-white'
+                                    }`}
+                            >
+                                <Trash2 size={16} />
+                                {deleting ? 'Eliminazione...' : `Elimina Selezionate (${selectedIds.length})`}
+                            </button>
+                            <button
+                                onClick={handleDeleteAll}
+                                disabled={deleting}
+                                className={`px-4 py-2 rounded-lg font-medium transition ${deleting
+                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    : 'bg-red-600 hover:bg-red-700 text-white'
+                                    }`}
+                            >
+                                {deleting ? 'Eliminazione...' : 'Cancella Tutte le Assenze'}
+                            </button>
+                        </div>
+                    )}
                 </div>
                 <table className="w-full text-left text-sm">
                     <thead className="bg-gray-100 text-gray-500 uppercase font-semibold">
                         <tr>
+                            <th className="p-3 w-12">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedIds.length > 0 && selectedIds.length === items.filter(it => it.activityType === 'UNAVAIL').length}
+                                    onChange={toggleSelectAll}
+                                    className="w-4 h-4 cursor-pointer"
+                                />
+                            </th>
                             <th className="p-3">Staff</th>
                             <th className="p-3">Data</th>
                             <th className="p-3">Tipo / Orario</th>
@@ -434,14 +615,26 @@ export default function AbsencesPage() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {loading && <tr><td colSpan={5} className="p-4 text-center">Caricamento...</td></tr>}
-                        {!loading && items.length === 0 && <tr><td colSpan={5} className="p-4 text-center text-gray-400">Nessuna attività trovata</td></tr>}
+                        {loading && <tr><td colSpan={6} className="p-4 text-center">Caricamento...</td></tr>}
+                        {!loading && items.length === 0 && <tr><td colSpan={6} className="p-4 text-center text-gray-400">Nessuna attività trovata</td></tr>}
                         {items.map(it => (
                             <tr key={`${it.activityType}-${it.id}`} className="hover:bg-gray-50">
+                                <td className="p-3">
+                                    {it.activityType === 'UNAVAIL' ? (
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedIds.includes(it.id)}
+                                            onChange={() => toggleSelectItem(it.id)}
+                                            className="w-4 h-4 cursor-pointer"
+                                        />
+                                    ) : (
+                                        <span className="w-4 h-4 inline-block"></span>
+                                    )}
+                                </td>
                                 <td className="p-3 font-medium">{it.staff?.nome} {it.staff?.cognome}</td>
                                 <td className="p-3">{it.data}</td>
                                 <td className="p-3">
-                                    <span className={`px-2 py-0.5 rounded textxs font-bold ${it.activityType === 'UNAVAIL' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${it.activityType === 'UNAVAIL' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
                                         {it.activityType === 'UNAVAIL' ? 'ASSENZA' : 'TURNO'}
                                     </span>
                                 </td>

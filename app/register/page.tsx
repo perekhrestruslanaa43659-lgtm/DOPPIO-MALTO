@@ -10,6 +10,11 @@ export default function RegisterPage() {
         email: '',
         password: '',
         confirmPassword: '',
+        provider: 'CUSTOM',
+        smtpHost: '',
+        smtpPort: '',
+        smtpUser: '',
+        smtpPassword: ''
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -46,6 +51,11 @@ export default function RegisterPage() {
                     name: formData.name,
                     email: formData.email,
                     password: formData.password,
+                    provider: (formData as any).provider,
+                    smtpHost: (formData as any).smtpHost,
+                    smtpPort: (formData as any).smtpPort,
+                    smtpUser: (formData as any).smtpUser,
+                    smtpPassword: (formData as any).smtpPassword
                 }),
             });
 
@@ -137,6 +147,55 @@ export default function RegisterPage() {
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                             required
                         />
+                    </div>
+
+                    <div className="border-t pt-4 mt-6 mb-6">
+                        <h3 className="text-lg font-semibold mb-4 text-gray-700">Configurazione Email (Opzionale)</h3>
+                        <p className="text-sm text-gray-500 mb-4">Inserisci i dati SMTP per inviare automaticamente le password ai dipendenti.</p>
+
+                        {/* Provider Selection */}
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium mb-1">Provider Email</label>
+                            <select
+                                name="provider"
+                                value={(formData as any).provider || 'CUSTOM'}
+                                onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
+                                className="w-full px-3 py-2 border rounded-md"
+                            >
+                                <option value="GMAIL">Gmail</option>
+                                <option value="OUTLOOK">Outlook / Hotmail</option>
+                                <option value="YAHOO">Yahoo Mail</option>
+                                <option value="ICLOUD">iCloud</option>
+                                <option value="ARUBA">Aruba (PEC)</option>
+                                <option value="CUSTOM">Personalizzato</option>
+                            </select>
+                            {(formData as any).provider === 'GMAIL' && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Richiede App Password da <a href="https://myaccount.google.com/apppasswords" target="_blank" className="text-blue-600 underline">myaccount.google.com/apppasswords</a>
+                                </p>
+                            )}
+                        </div>
+
+                        {(formData as any).provider === 'CUSTOM' && (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium mb-1">SMTP Host</label>
+                                    <input type="text" name="smtpHost" placeholder="es. smtp.gmail.com" value={(formData as any).smtpHost || ''} onChange={handleChange} className="w-full px-3 py-2 border rounded-md" />
+                                </div>
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium mb-1">Porta</label>
+                                    <input type="number" name="smtpPort" placeholder="es. 587" value={(formData as any).smtpPort || ''} onChange={handleChange} className="w-full px-3 py-2 border rounded-md" />
+                                </div>
+                            </div>
+                        )}
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium mb-1">Email Mittente / Utente SMTP</label>
+                            <input type="text" name="smtpUser" placeholder="tuamail@gmail.com" value={(formData as any).smtpUser || ''} onChange={handleChange} className="w-full px-3 py-2 border rounded-md" />
+                        </div>
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium mb-1">Password SMTP</label>
+                            <input type="password" name="smtpPassword" placeholder="App Password" value={(formData as any).smtpPassword || ''} onChange={handleChange} className="w-full px-3 py-2 border rounded-md" />
+                        </div>
                     </div>
 
                     <button

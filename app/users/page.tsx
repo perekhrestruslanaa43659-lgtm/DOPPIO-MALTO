@@ -31,7 +31,7 @@ export default function UsersPage() {
         name: '',
         surname: '',
         email: '',
-        password: '',
+        password: '', // Kept for type safety but unused
         role: 'USER'
     });
 
@@ -65,8 +65,12 @@ export default function UsersPage() {
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         try {
-            await api.register(form);
-            alert("✅ Utente creato con successo!");
+            const res = await api.createUser(form);
+            if (res.emailSent) {
+                alert("✅ Utente creato! Email con password inviata con successo.");
+            } else {
+                alert("✅ Utente creato, ma ERRORE invio email: " + (res.emailError || 'Sconosciuto') + "\n\nLa password è stata generata ma l'utente non l'ha ricevuta. Controlla configurazione SMTP.");
+            }
             setForm({ name: '', surname: '', email: '', password: '', role: 'USER' });
             loadUsers();
         } catch (e: any) {
@@ -114,10 +118,7 @@ export default function UsersPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
                         <input required type="email" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
-                        <input required type="password" className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} />
-                    </div>
+
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Ruolo</label>
                         <select className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-indigo-500" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>

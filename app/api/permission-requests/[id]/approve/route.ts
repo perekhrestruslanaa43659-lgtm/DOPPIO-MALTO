@@ -37,6 +37,37 @@ export async function POST(
             }
         });
 
+        // Helper to create unavail
+        const createUnavail = async (dt: string, st: string | null, et: string | null) => {
+            await (prisma as any).unavailability.create({
+                data: {
+                    staffId: updated.staffId,
+                    data: dt,
+                    tipo: 'TOTALE',
+                    reason: `Permesso Approvato: ${updated.tipo}`,
+                    start_time: st,
+                    end_time: et,
+                    tenantKey: tenantKey
+                }
+            });
+        };
+
+        if (updated.endDate && updated.endDate > updated.data) {
+            // Period
+            let curr = new Date(updated.data);
+            const end = new Date(updated.endDate);
+            while (curr <= end) {
+                await createUnavail(curr.toISOString().split('T')[0], null, null);
+                curr.setDate(curr.getDate() + 1);
+            }
+        } else if (updated.startTime && updated.endTime) {
+            // Hourly
+            await createUnavail(updated.data, updated.startTime, updated.endTime);
+        } else {
+            // Single Day
+            await createUnavail(updated.data, null, null);
+        }
+
         return NextResponse.json(updated);
     } catch (error) {
         console.error('Error approving request:', error);

@@ -133,6 +133,11 @@ model User {
   role              String              @default("OWNER")
   tenantKey         String              @default("default-tenant")
   companyName       String?
+  // SMTP Configuration (Optional)
+  smtpHost          String?
+  smtpPort          Int?
+  smtpUser          String?
+  smtpPassword      String?
   PermissionRequest PermissionRequest[]
 
   @@index([tenantKey])
@@ -161,6 +166,9 @@ model PermissionRequest {
   id            Int       @id @default(autoincrement())
   staffId       Int
   data          String
+  endDate       String?   // For ranges
+  startTime     String?   // For partial days
+  endTime       String?   // For partial days
   tipo          String
   motivo        String?
   dettagli      String?
