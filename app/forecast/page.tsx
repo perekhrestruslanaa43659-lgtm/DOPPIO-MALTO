@@ -250,34 +250,16 @@ export default function ForecastPage() {
     const handleUpdate = (r: number, c: number, val: string) => {
         const d = [...data];
         d[r][c] = val;
-
-        // Check if we are editing a "Calculated Row" (Produttività, Differenza)
-        // If so, SKIP formula application to prevent overwriting the manual edit.
-        const rowLabel = String(d[r][0] || '').toLowerCase();
-        const isCalculatedRow =
-            rowLabel.includes('produttività') || rowLabel.includes('produttivit') ||
-            rowLabel.includes('differenza') || rowLabel.includes('cp') || rowLabel.includes('labor cost');
-
-        if (isCalculatedRow) {
-            setData(d); // Just save the value, don't recalculate
-        } else {
-            // Apply formulas immediately to recalculate productivity based on new inputs
-            const calculated = applyFormulas(d);
-            setData(calculated);
-        }
+        // Apply formulas immediately to recalculate productivity based on inputs
+        const calculated = applyFormulas(d);
+        setData(calculated);
     };
 
     const handleSave = async () => {
         setLoading(true);
-        // Apply formulas one more time before saving? 
-        // CAREFUL: If user made manual edits to productivity, this might overwrite them if we re-run formulas globally.
-        // However, usually we want consistency. 
-        // Compromise: We run formulas. If user wants to "Force" productivity, they are fighting the system.
-        // BUT, user asked to modify it. So maybe we should blindly save what is on screen?
-        // Let's blindly save 'data' as is, assuming the user's last action (edit or formula) is the truth.
-        // const finalData = applyFormulas(data); <--- REMOVED to respect manual overrides
-
-        const ok = await saveToDb(data);
+        // Apply formulas one more time before saving to be safe
+        const finalData = applyFormulas(data);
+        const ok = await saveToDb(finalData);
         if (ok) alert('✅ Salvataggio Eseguito!');
         setLoading(false);
     };
@@ -552,11 +534,13 @@ export default function ForecastPage() {
                                 <tr key={rIdx} className={rIdx % 2 ? 'bg-gray-50' : 'bg-white'}>
                                     {row.map((cell, cIdx) => {
                                         const l = String(row[0] || '').toLowerCase();
-                                        // Editable: ALLOW ALL by default, EXCLUDE only headers/labels (Col 0)
-                                        // User specifically asked to modify Produttività, so we unlock everything.
+                                        // Editable: ALLOW ALL by default, EXCLUDE calculated rows
+                                        const isCalculated =
+                                            l.includes('produttività') || l.includes('produttivit') ||
+                                            l.includes('differenza') || l.includes('cp') || l.includes('labor cost');
 
-                                        // Allow editing for columns 1-7 (Mon-Sun)
-                                        const isEdit = cIdx >= 1 && cIdx <= 7;
+                                        // Allow editing for columns 1-7 (Mon-Sun), unless it's a calculated row
+                                        const isEdit = (cIdx >= 1 && cIdx <= 7) && !isCalculated;
 
                                         if (isEdit) {
                                             return (
@@ -571,7 +555,7 @@ export default function ForecastPage() {
                                             );
                                         }
 
-                                        // Read-only cells
+                                        // Read-only cells (including produttività)
                                         const isProduttivita = l.includes('produttività') || l.includes('produttivit');
                                         const isDiff = l.includes('differenza');
                                         let extraClass = 'text-gray-700';
