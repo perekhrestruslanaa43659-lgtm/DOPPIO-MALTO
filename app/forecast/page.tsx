@@ -369,15 +369,18 @@ export default function ForecastPage() {
                 }
             };
 
-            const bP = get(idxBudP), bS = get(idxBudS); // bD = get(idxBudD);
-            // AGGRESSIVE CORRECTION: Always calculate Day = Lunch + Dinner if Lunch/Dinner exist
-            if (idxBudD !== -1 && idxBudP !== -1 && idxBudS !== -1) {
+            const bP = get(idxBudP), bS = get(idxBudS);
+            const bD = get(idxBudD);
+            // AGGRESSIVE CORRECTION: Only calculate Day if it's 0 or missing
+            // This prevents overwriting imported values
+            if (idxBudD !== -1 && idxBudP !== -1 && idxBudS !== -1 && bD === 0) {
                 set(idxBudD, bP + bS);
             }
 
-            const rP = get(idxRealP), rS = get(idxRealS); // rD = get(idxRealD);
-            // AGGRESSIVE CORRECTION: Always calculate Real Day = Real Lunch + Real Dinner
-            if (idxRealD !== -1 && idxRealP !== -1 && idxRealS !== -1) {
+            const rP = get(idxRealP), rS = get(idxRealS);
+            const rD = get(idxRealD);
+            // AGGRESSIVE CORRECTION: Only calculate Real Day if it's 0 or missing
+            if (idxRealD !== -1 && idxRealP !== -1 && idxRealS !== -1 && rD === 0) {
                 set(idxRealD, rP + rS);
             }
 
