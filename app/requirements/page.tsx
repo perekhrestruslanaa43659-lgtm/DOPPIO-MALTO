@@ -297,20 +297,28 @@ function RequirementsContent() {
     };
 
     // --- Calculations ---
-    const dailyTotals = days.map(d => {
+    const dailyLunchTotals = days.map(d => {
         let sum = 0;
         rows.forEach(r => {
-            // Skip inactive
             if (r.extra?.active === false) return;
-
             const s = r.slots[d];
-            if (s) {
-                sum += calcHours(s.lIn, s.lOut);
-                sum += calcHours(s.dIn, s.dOut);
-            }
+            if (s) sum += calcHours(s.lIn, s.lOut);
         });
         return sum;
     });
+
+    const dailyDinnerTotals = days.map(d => {
+        let sum = 0;
+        rows.forEach(r => {
+            if (r.extra?.active === false) return;
+            const s = r.slots[d];
+            if (s) sum += calcHours(s.dIn, s.dOut);
+        });
+        return sum;
+    });
+
+    const dailyTotals = days.map((_, i) => dailyLunchTotals[i] + dailyDinnerTotals[i]);
+
 
     return (
         <div className="max-w-full mx-auto p-4 bg-gray-50 min-h-screen">
@@ -430,12 +438,36 @@ function RequirementsContent() {
                             );
                         })}
 
-                        {/* Totals Row */}
-                        <tr className="bg-gray-100 font-bold border-t-2 border-gray-300">
+                        {/* Totals Row - LUNCH */}
+                        <tr className="bg-blue-50 font-bold border-t-2 border-gray-300">
+                            <td className="sticky left-0 bg-blue-50 z-10 p-2"></td>
+                            <td className="p-2 text-right sticky left-[40px] bg-blue-50 z-10 text-blue-700">ORE PRANZO</td>
+                            {dailyLunchTotals.map((tot, i) => (
+                                <td key={i} colSpan={4} className="p-2 text-center border-r text-blue-700 font-bold">
+                                    {tot.toFixed(1)} h
+                                </td>
+                            ))}
+                            <td></td>
+                        </tr>
+
+                        {/* Totals Row - DINNER */}
+                        <tr className="bg-indigo-50 font-bold">
+                            <td className="sticky left-0 bg-indigo-50 z-10 p-2"></td>
+                            <td className="p-2 text-right sticky left-[40px] bg-indigo-50 z-10 text-indigo-700">ORE CENA</td>
+                            {dailyDinnerTotals.map((tot, i) => (
+                                <td key={i} colSpan={4} className="p-2 text-center border-r text-indigo-700 font-bold">
+                                    {tot.toFixed(1)} h
+                                </td>
+                            ))}
+                            <td></td>
+                        </tr>
+
+                        {/* Totals Row - TOTAL */}
+                        <tr className="bg-gray-100 font-bold border-t border-gray-300">
                             <td className="sticky left-0 bg-gray-100 z-10 p-2"></td>
                             <td className="p-2 text-right sticky left-[40px] bg-gray-100 z-10">TOTALE FABBISOGNO</td>
                             {dailyTotals.map((tot, i) => (
-                                <td key={i} colSpan={4} className="p-2 text-center border-r text-indigo-700 bg-indigo-50">
+                                <td key={i} colSpan={4} className="p-2 text-center border-r text-gray-700 bg-gray-100">
                                     {tot.toFixed(1)} h
                                 </td>
                             ))}
