@@ -135,14 +135,14 @@ function RequirementsContent() {
         try {
             // Load Requirements
             const reqProm = fetch(`/api/requirements?date=${range.start}`).then(r => r.json());
-            // Load Forecast for Budget comparison
-            const foreProm = api.getForecast(range.start, range.end);
+            // Load Budget hours from Budget API (not Forecast)
+            const budgetProm = api.getBudget(range.start, range.end);
             // Load Assignments to calculate assigned hours
             const assignProm = api.getSchedule(range.start, range.end);
             // Load Staff for names
             const staffProm = api.getStaff();
 
-            const [data, forecastRes, assignments, staffList] = await Promise.all([reqProm, foreProm, assignProm, staffProm]);
+            const [data, budgetData, assignments, staffList] = await Promise.all([reqProm, budgetProm, assignProm, staffProm]);
 
             // 1. Setup Rows
             let loadedRows: CoverageRow[] = [];
@@ -166,30 +166,17 @@ function RequirementsContent() {
 
             setRows(loadedRows);
 
-            // 2. Parse Forecast Budget Hours
+            // 2. Parse Budget Hours from Budget API
             const bHours: Record<string, number> = {};
-            if (forecastRes && forecastRes[0]?.data) {
-                try {
-                    const grid = JSON.parse(forecastRes[0].data);
-                    let idxOreBud = -1;
-                    grid.forEach((row: any[], i: number) => {
-                        const l = String(row[0] || '').toLowerCase();
-                        if ((l.includes('ore') && l.includes('budget')) || l.includes('ore previste')) idxOreBud = i;
-                    });
-
-                    if (idxOreBud !== -1) {
-                        days.forEach((d, i) => {
-                            const val = grid[idxOreBud][i + 1];
-                            let num = 0;
-                            if (val) {
-                                let s = String(val).replace(/[^0-9.,-]/g, '').replace(',', '.');
-                                num = parseFloat(s) || 0;
-                            }
-                            bHours[d] = num;
-                        });
+            if (Array.isArray(budgetData)) {
+                budgetData.forEach((b: any) => {
+                    // Budget API returns { data: 'YYYY-MM-DD', budgetHours: number }
+                    if (b.data && typeof b.budgetHours === 'number') {
+                        bHours[b.data] = b.budgetHours;
                     }
-                } catch (e) { console.error("Forecast parse error", e); }
+                });
             }
+            console.log('📊 Budget hours loaded:', bHours);
             setBudgetHours(bHours);
 
             // 3. Calculate Assigned Hours from Assignments (split by lunch/dinner at 16:00)
