@@ -680,13 +680,20 @@ export default function ForecastPage() {
                             json.forEach(row => {
                                 // Safe sparse array handling
                                 const rowSafe = Array.from(row || []);
-                                const rowStr = rowSafe.map(c => String(c ?? '').toLowerCase()).join(' ');
+
+                                // CRITICAL FIX: Only check FIRST COLUMN (label) for matching
+                                // This prevents matching percentage rows or other data rows
+                                const firstCol = String(rowSafe[0] ?? '').toLowerCase().trim();
+
+                                // Skip empty first columns
+                                if (!firstCol) return;
 
                                 // FIX ENCODING: Check if row label has corrupted characters
                                 // But since we match by keywords, label display is handled by template.
 
                                 for (const rule of rules) {
-                                    if (rule.keywords.every(k => rowStr.includes(k))) {
+                                    // Match only if ALL keywords are in the FIRST COLUMN
+                                    if (rule.keywords.every(k => firstCol.includes(k))) {
                                         matchedCount++;
                                         // Found a match! Copy 7 days values.
                                         for (let d = 0; d < 7; d++) {
@@ -697,12 +704,15 @@ export default function ForecastPage() {
                                             if (val.includes('#') || val.includes('Ð')) val = '0';
                                             if (val.toLowerCase().includes('nan')) val = '0';
 
-                                            // STRICT CLEANING: Remove EVERYTHING except numbers, dots, commas, minus
+                                            // STRICT CLEANING: Remove EVERYTHING except numbers, dots, commas, minus, spaces
                                             // This removes €, $, and encoding garbage like â‚¬
-                                            val = val.replace(/[^0-9.,-]/g, '').trim();
+                                            val = val.replace(/[^0-9.,-\s]/g, '').trim();
+
+                                            // Remove spaces (used as thousands separator in some formats)
+                                            val = val.replace(/\s+/g, '');
 
                                             // ITALIAN FORMAT CONVERSION
-                                            // Italian: 1.234,56 → Standard: 1234.56
+                                            // Italian: 1.234,56 or 1 234,56 → Standard: 1234.56
                                             // Remove thousands separator (dot in Italian format)
                                             // Replace decimal separator (comma) with dot
                                             if (val.includes(',')) {
@@ -716,6 +726,7 @@ export default function ForecastPage() {
                                                 cleanGrid[rule.targetIdx][d + 1] = val;
                                             }
                                         }
+                                        break; // Stop after first match to avoid double-matching
                                     }
                                 }
                             });
