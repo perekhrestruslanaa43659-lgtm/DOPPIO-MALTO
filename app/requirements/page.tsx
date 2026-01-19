@@ -79,6 +79,8 @@ function RequirementsContent() {
 
     const [rows, setRows] = useState<CoverageRow[]>([]);
     const [budgetHours, setBudgetHours] = useState<Record<string, number>>({});
+    const [assignedLunchHours, setAssignedLunchHours] = useState<Record<string, number>>({});
+    const [assignedDinnerHours, setAssignedDinnerHours] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(false);
 
     const days = getDatesInRange(range.start, range.end);
@@ -135,8 +137,12 @@ function RequirementsContent() {
             const reqProm = fetch(`/api/requirements?date=${range.start}`).then(r => r.json());
             // Load Forecast for Budget comparison
             const foreProm = api.getForecast(range.start, range.end);
+            // Load Assignments to calculate assigned hours
+            const assignProm = api.getSchedule(range.start, range.end);
+            // Load Staff for names
+            const staffProm = api.getStaff();
 
-            const [data, forecastRes] = await Promise.all([reqProm, foreProm]);
+            const [data, forecastRes, assignments, staffList] = await Promise.all([reqProm, foreProm, assignProm, staffProm]);
 
             // 1. Setup Rows
             let loadedRows: CoverageRow[] = [];
@@ -185,6 +191,60 @@ function RequirementsContent() {
                 } catch (e) { console.error("Forecast parse error", e); }
             }
             setBudgetHours(bHours);
+
+            // 3. Calculate Assigned Hours from Assignments (split by lunch/dinner at 16:00)
+            const assignedLunch: Record<string, number> = {};
+            const assignedDinner: Record<string, number> = {};
+
+            days.forEach(d => {
+                assignedLunch[d] = 0;
+                assignedDinner[d] = 0;
+            });
+
+            if (Array.isArray(assignments)) {
+                assignments.forEach((a: any) => {
+                    const date = a.data;
+                    if (!days.includes(date)) return;
+
+                    const st = a.start_time || a.shiftTemplate?.oraInizio;
+                    const et = a.end_time || a.shiftTemplate?.oraFine;
+                    if (!st || !et) return;
+
+                    // Parse times
+                    const parseTime = (timeStr: string) => {
+                        const cleaned = timeStr.trim().split(' ')[0];
+                        const parts = cleaned.split(':');
+                        if (parts.length !== 2) return null;
+                        const h = parseInt(parts[0]);
+                        const m = parseInt(parts[1]);
+                        if (isNaN(h) || isNaN(m)) return null;
+                        return h + m / 60;
+                    };
+
+                    const starts = parseTime(st);
+                    const ends = parseTime(et);
+                    if (starts === null || ends === null) return;
+
+                    let endsAdjusted = ends;
+                    if (ends < starts) endsAdjusted = ends + 24; // Handle overnight
+
+                    const cutoff = 16.0; // 16:00 cutoff for lunch/dinner
+
+                    // Calculate lunch hours (before 16:00)
+                    const lunchEnd = Math.min(endsAdjusted, cutoff);
+                    const lunchHours = Math.max(0, lunchEnd - starts);
+                    assignedLunch[date] += lunchHours;
+
+                    // Calculate dinner hours (after 16:00)
+                    const dinnerStart = Math.max(starts, cutoff);
+                    const dinnerHours = Math.max(0, endsAdjusted - dinnerStart);
+                    assignedDinner[date] += dinnerHours;
+                });
+            }
+
+            // Store in state (need to add these state variables)
+            setAssignedLunchHours(assignedLunch);
+            setAssignedDinnerHours(assignedDinner);
 
         } catch (e: any) {
             console.error(e);
@@ -441,7 +501,7 @@ function RequirementsContent() {
                         {/* Totals Row - LUNCH */}
                         <tr className="bg-blue-50 font-bold border-t-2 border-gray-300">
                             <td className="sticky left-0 bg-blue-50 z-10 p-2"></td>
-                            <td className="p-2 text-right sticky left-[40px] bg-blue-50 z-10 text-blue-700">ORE PRANZO</td>
+                            <td className="p-2 text-right sticky left-[40px] bg-blue-50 z-10 text-blue-700">FABBISOGNO PRANZO</td>
                             {dailyLunchTotals.map((tot, i) => (
                                 <td key={i} colSpan={4} className="p-2 text-center border-r text-blue-700 font-bold">
                                     {tot.toFixed(1)} h
@@ -450,10 +510,28 @@ function RequirementsContent() {
                             <td></td>
                         </tr>
 
+                        {/* Assigned Hours - LUNCH */}
+                        <tr className="bg-blue-100 font-bold text-blue-800">
+                            <td className="sticky left-0 bg-blue-100 z-10 p-2"></td>
+                            <td className="p-2 text-right sticky left-[40px] bg-blue-100 z-10">ORE ASSEGNATE PRANZO</td>
+                            {days.map((d, i) => {
+                                const assigned = assignedLunchHours[d] || 0;
+                                const required = dailyLunchTotals[i];
+                                const diff = assigned - required;
+                                const color = diff >= 0 ? 'text-green-700' : 'text-red-700';
+                                return (
+                                    <td key={i} colSpan={4} className={`p-2 text-center border-r ${color} font-bold`}>
+                                        {assigned.toFixed(1)} h
+                                    </td>
+                                );
+                            })}
+                            <td></td>
+                        </tr>
+
                         {/* Totals Row - DINNER */}
-                        <tr className="bg-indigo-50 font-bold">
+                        <tr className="bg-indigo-50 font-bold border-t border-gray-200">
                             <td className="sticky left-0 bg-indigo-50 z-10 p-2"></td>
-                            <td className="p-2 text-right sticky left-[40px] bg-indigo-50 z-10 text-indigo-700">ORE CENA</td>
+                            <td className="p-2 text-right sticky left-[40px] bg-indigo-50 z-10 text-indigo-700">FABBISOGNO CENA</td>
                             {dailyDinnerTotals.map((tot, i) => (
                                 <td key={i} colSpan={4} className="p-2 text-center border-r text-indigo-700 font-bold">
                                     {tot.toFixed(1)} h
@@ -462,7 +540,25 @@ function RequirementsContent() {
                             <td></td>
                         </tr>
 
-                        {/* Totals Row - TOTAL */}
+                        {/* Assigned Hours - DINNER */}
+                        <tr className="bg-indigo-100 font-bold text-indigo-800">
+                            <td className="sticky left-0 bg-indigo-100 z-10 p-2"></td>
+                            <td className="p-2 text-right sticky left-[40px] bg-indigo-100 z-10">ORE ASSEGNATE CENA</td>
+                            {days.map((d, i) => {
+                                const assigned = assignedDinnerHours[d] || 0;
+                                const required = dailyDinnerTotals[i];
+                                const diff = assigned - required;
+                                const color = diff >= 0 ? 'text-green-700' : 'text-red-700';
+                                return (
+                                    <td key={i} colSpan={4} className={`p-2 text-center border-r ${color} font-bold`}>
+                                        {assigned.toFixed(1)} h
+                                    </td>
+                                );
+                            })}
+                            <td></td>
+                        </tr>
+
+                        {/* TOTALE FABBISOGNO */}
                         <tr className="bg-gray-100 font-bold border-t border-gray-300">
                             <td className="sticky left-0 bg-gray-100 z-10 p-2"></td>
                             <td className="p-2 text-right sticky left-[40px] bg-gray-100 z-10">TOTALE FABBISOGNO</td>
@@ -474,14 +570,50 @@ function RequirementsContent() {
                             <td></td>
                         </tr>
 
-                        {/* Budget Row */}
-                        <tr className="bg-emerald-50 font-bold text-emerald-800 border-t border-gray-200">
+                        {/* SEPARATOR */}
+                        <tr className="h-2 bg-gray-200"><td colSpan={100}></td></tr>
+
+                        {/* BUDGET HOURS - LUNCH (from Forecast) */}
+                        <tr className="bg-emerald-50 font-bold text-emerald-800 border-t-2 border-emerald-300">
                             <td className="sticky left-0 bg-emerald-50 z-10 p-2"></td>
-                            <td className="p-2 text-right sticky left-[40px] bg-emerald-50 z-10">BUDGET (Forecast)</td>
-                            {dailyTotals.map((_, i) => {
-                                const b = budgetHours[days[i]] || 0;
+                            <td className="p-2 text-right sticky left-[40px] bg-emerald-50 z-10">BUDGET ORE PRANZO</td>
+                            {days.map((d, i) => {
+                                const budgetTotal = budgetHours[d] || 0;
+                                // Split budget proportionally (you can improve this with actual forecast data)
+                                const budgetLunch = budgetTotal * 0.5; // Simplified: 50/50 split
                                 return (
                                     <td key={i} colSpan={4} className="p-2 text-center border-r">
+                                        {budgetLunch.toFixed(1)} h
+                                    </td>
+                                );
+                            })}
+                            <td></td>
+                        </tr>
+
+                        {/* BUDGET HOURS - DINNER (from Forecast) */}
+                        <tr className="bg-emerald-50 font-bold text-emerald-800">
+                            <td className="sticky left-0 bg-emerald-50 z-10 p-2"></td>
+                            <td className="p-2 text-right sticky left-[40px] bg-emerald-50 z-10">BUDGET ORE CENA</td>
+                            {days.map((d, i) => {
+                                const budgetTotal = budgetHours[d] || 0;
+                                const budgetDinner = budgetTotal * 0.5; // Simplified: 50/50 split
+                                return (
+                                    <td key={i} colSpan={4} className="p-2 text-center border-r">
+                                        {budgetDinner.toFixed(1)} h
+                                    </td>
+                                );
+                            })}
+                            <td></td>
+                        </tr>
+
+                        {/* BUDGET TOTAL */}
+                        <tr className="bg-emerald-100 font-bold text-emerald-900">
+                            <td className="sticky left-0 bg-emerald-100 z-10 p-2"></td>
+                            <td className="p-2 text-right sticky left-[40px] bg-emerald-100 z-10">BUDGET ORE TOTALE</td>
+                            {days.map((d, i) => {
+                                const b = budgetHours[d] || 0;
+                                return (
+                                    <td key={i} colSpan={4} className="p-2 text-center border-r font-bold">
                                         {b.toFixed(1)} h
                                     </td>
                                 );
@@ -489,17 +621,17 @@ function RequirementsContent() {
                             <td></td>
                         </tr>
 
-                        {/* Diff Row */}
+                        {/* DIFFERENCE - TOTAL */}
                         <tr className="bg-white font-bold border-t border-gray-200 text-[10px]">
                             <td className="sticky left-0 bg-white z-10 p-2"></td>
-                            <td className="p-2 text-right sticky left-[40px] bg-white z-10">DIFFERENZA</td>
+                            <td className="p-2 text-right sticky left-[40px] bg-white z-10">DIFFERENZA (Budget - Fabbisogno)</td>
                             {dailyTotals.map((tot, i) => {
                                 const b = budgetHours[days[i]] || 0;
                                 const diff = b - tot;
                                 const color = diff >= 0 ? 'text-green-600' : 'text-red-600';
                                 return (
                                     <td key={i} colSpan={4} className={`p-2 text-center border-r ${color}`}>
-                                        {diff > 0 ? '+' : ''}{diff.toFixed(1)}
+                                        {diff > 0 ? '+' : ''}{diff.toFixed(1)} h
                                     </td>
                                 );
                             })}
