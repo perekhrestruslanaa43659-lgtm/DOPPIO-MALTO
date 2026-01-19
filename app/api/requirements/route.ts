@@ -44,32 +44,26 @@ export async function POST(request: Request) {
 
         console.log(`📝 Saving ${rows.length} coverage rows for week ${weekStart}`);
 
-        // Use a single transaction with optimized operations
-        await prisma.$transaction(async (tx) => {
-            // Delete existing for this week
-            const deleted = await tx.coverageRow.deleteMany({
-                where: { weekStart, tenantKey }
-            });
-            console.log(`🗑️  Deleted ${deleted.count} existing rows`);
-
-            // Create all new rows in one operation (much faster than loop)
-            if (rows.length > 0) {
-                const created = await tx.coverageRow.createMany({
-                    data: rows.map(row => ({
-                        weekStart,
-                        station: row.station,
-                        frequency: row.frequency || '',
-                        slots: JSON.stringify(row.slots || {}),
-                        extra: JSON.stringify(row.extra || {}),
-                        tenantKey
-                    }))
-                });
-                console.log(`✅ Created ${created.count} new rows`);
-            }
-        }, {
-            maxWait: 10000, // Maximum time to wait for transaction to start (10s)
-            timeout: 20000, // Maximum time for transaction to complete (20s)
+        // Delete existing rows first (no transaction to avoid timeout)
+        const deleted = await prisma.coverageRow.deleteMany({
+            where: { weekStart, tenantKey }
         });
+        console.log(`🗑️  Deleted ${deleted.count} existing rows`);
+
+        // Create all new rows in one operation
+        if (rows.length > 0) {
+            const created = await prisma.coverageRow.createMany({
+                data: rows.map(row => ({
+                    weekStart,
+                    station: row.station,
+                    frequency: row.frequency || '',
+                    slots: JSON.stringify(row.slots || {}),
+                    extra: JSON.stringify(row.extra || {}),
+                    tenantKey
+                }))
+            });
+            console.log(`✅ Created ${created.count} new rows`);
+        }
 
         return NextResponse.json({ success: true });
     } catch (error) {
