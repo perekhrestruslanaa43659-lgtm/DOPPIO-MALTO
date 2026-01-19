@@ -238,8 +238,14 @@ export default function CalendarPage() {
         if (s.includes('#') || s.includes('Ð') || s.toLowerCase() === 'nan') return 0;
 
         s = s.replace(/€/g, '').replace(/[^0-9.,-]/g, '');
-        if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
-        else s = s.replace(/\./g, '');
+
+        // CRITICAL FIX: If has comma, it's Italian format (1.234,56)
+        // If no comma, dot is decimal separator (1234.56) - DON'T remove it!
+        if (s.includes(',')) {
+            s = s.replace(/\./g, '').replace(',', '.');
+        }
+        // else: keep dots as decimal separators
+
         const res = parseFloat(s);
         return isFinite(res) ? res : 0;
     };
