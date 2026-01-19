@@ -701,6 +701,17 @@ export default function ForecastPage() {
                                             // This removes €, $, and encoding garbage like â‚¬
                                             val = val.replace(/[^0-9.,-]/g, '').trim();
 
+                                            // ITALIAN FORMAT CONVERSION
+                                            // Italian: 1.234,56 → Standard: 1234.56
+                                            // Remove thousands separator (dot in Italian format)
+                                            // Replace decimal separator (comma) with dot
+                                            if (val.includes(',')) {
+                                                // Has comma - likely Italian format
+                                                val = val.replace(/\./g, ''); // Remove dots (thousands separator)
+                                                val = val.replace(',', '.'); // Replace comma with dot (decimal)
+                                            }
+                                            // else: already in standard format or no decimals
+
                                             if (cleanGrid[rule.targetIdx]) {
                                                 cleanGrid[rule.targetIdx][d + 1] = val;
                                             }
