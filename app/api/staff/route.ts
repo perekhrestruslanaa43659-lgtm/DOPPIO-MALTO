@@ -24,12 +24,16 @@ export async function GET(request: NextRequest) {
 
         console.log(`✅ Trovati ${staff.length} membri dello staff`);
         console.log('=== STAFF GET SUCCESS ===\n');
-        // Convert ListIndex if needed (or rely on frontend to specific sort)
-        // Legacy frontend expects "postazioni" to be a string?
-        // Let's check: StaffPage.jsx line 291: Array.isArray(s.postazioni) ? s.postazioni.join(', ') : ...
-        // So frontend handles Array safely. We can return array.
 
-        return NextResponse.json(staff);
+        // Convert postazioni from string to array for frontend compatibility
+        const staffWithParsedPostazioni = staff.map(member => ({
+            ...member,
+            postazioni: typeof member.postazioni === 'string'
+                ? JSON.parse(member.postazioni || '[]')
+                : member.postazioni
+        }));
+
+        return NextResponse.json(staffWithParsedPostazioni);
     } catch (error) {
         console.error('\n❌ === STAFF GET ERROR ===');
         console.error('Tipo errore:', error instanceof Error ? error.constructor.name : typeof error);
