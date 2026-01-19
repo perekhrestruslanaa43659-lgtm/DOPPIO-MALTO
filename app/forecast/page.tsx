@@ -668,12 +668,15 @@ export default function ForecastPage() {
                                 }
                             }
 
+
                             if (detectedWeekStart && detectedWeekStart !== selectedWeek.start) {
-                                if (confirm(`⚠️ Ho rilevato che questo file è per la settimana del ${detectedWeekStart}. \nVuoi importare i dati in quella settimana?`)) {
-                                    const newWeek = weeks.find(w => w.start === detectedWeekStart);
-                                    if (newWeek) targetWeek = newWeek;
-                                }
+                                const detectedWeekNum = weeks.find(w => w.start === detectedWeekStart)?.week || '?';
+                                alert(`❌ ERRORE: Questo file è per la settimana ${detectedWeekNum} (${detectedWeekStart}), ma sei sulla settimana ${selectedWeek.week} (${selectedWeek.start}).\n\nCambia settimana prima di importare il file.`);
+                                setLoading(false);
+                                e.target.value = '';
+                                return;
                             }
+
 
                             let matchedCount = 0;
 
