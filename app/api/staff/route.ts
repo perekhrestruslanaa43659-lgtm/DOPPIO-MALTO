@@ -26,12 +26,32 @@ export async function GET(request: NextRequest) {
         console.log('=== STAFF GET SUCCESS ===\n');
 
         // Convert postazioni from string to array for frontend compatibility
-        const staffWithParsedPostazioni = staff.map(member => ({
-            ...member,
-            postazioni: typeof member.postazioni === 'string'
-                ? JSON.parse(member.postazioni || '[]')
-                : member.postazioni
-        }));
+        const staffWithParsedPostazioni = staff.map(member => {
+            let postazioni: string[] = [];
+
+            try {
+                if (typeof member.postazioni === 'string') {
+                    // Try to parse as JSON first
+                    if (member.postazioni.trim().startsWith('[')) {
+                        postazioni = JSON.parse(member.postazioni);
+                    } else if (member.postazioni.trim()) {
+                        // Fallback: split by comma
+                        postazioni = member.postazioni.split(',').map(s => s.trim()).filter(s => s);
+                    }
+                } else if (Array.isArray(member.postazioni)) {
+                    postazioni = member.postazioni;
+                }
+            } catch (error) {
+                console.error(`⚠️ Error parsing postazioni for staff ${member.id}:`, error);
+                // Fallback to empty array
+                postazioni = [];
+            }
+
+            return {
+                ...member,
+                postazioni
+            };
+        });
 
         return NextResponse.json(staffWithParsedPostazioni);
     } catch (error) {
