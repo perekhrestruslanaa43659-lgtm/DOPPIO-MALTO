@@ -711,16 +711,18 @@ export default function ForecastPage() {
                                             // Remove spaces (used as thousands separator in some formats)
                                             val = val.replace(/\s+/g, '');
 
-                                            // ITALIAN FORMAT CONVERSION
-                                            // Italian: 1.234,56 or 1 234,56 → Standard: 1234.56
-                                            // Remove thousands separator (dot in Italian format)
-                                            // Replace decimal separator (comma) with dot
+                                            // ITALIAN FORMAT CONVERSION - IMPROVED
+                                            // Italian: 5.500,00 → Standard: 5500.00
+                                            // Strategy: If has comma, split on comma
+                                            //   - Part before comma: remove all dots (thousands separators)
+                                            //   - Part after comma: keep as decimals
                                             if (val.includes(',')) {
-                                                // Has comma - likely Italian format
-                                                val = val.replace(/\./g, ''); // Remove dots (thousands separator)
-                                                val = val.replace(',', '.'); // Replace comma with dot (decimal)
+                                                const parts = val.split(',');
+                                                const integerPart = parts[0].replace(/\./g, ''); // Remove dots from integer part
+                                                const decimalPart = parts[1] || ''; // Keep decimal part as-is
+                                                val = integerPart + '.' + decimalPart;
                                             }
-                                            // else: already in standard format or no decimals
+                                            // else: already in standard format (no comma, dots are decimals)
 
                                             if (cleanGrid[rule.targetIdx]) {
                                                 cleanGrid[rule.targetIdx][d + 1] = val;
