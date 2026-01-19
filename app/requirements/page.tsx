@@ -579,11 +579,10 @@ function RequirementsContent() {
                             <td className="p-2 text-right sticky left-[40px] bg-emerald-50 z-10">BUDGET ORE PRANZO</td>
                             {days.map((d, i) => {
                                 const budgetTotal = budgetHours[d] || 0;
-                                // Split budget proportionally (you can improve this with actual forecast data)
-                                const budgetLunch = budgetTotal * 0.5; // Simplified: 50/50 split
+                                const budgetLunch = budgetTotal * 0.5;
                                 return (
                                     <td key={i} colSpan={4} className="p-2 text-center border-r">
-                                        {budgetLunch.toFixed(1)} h
+                                        {budgetLunch > 0 ? `${budgetLunch.toFixed(1)} h` : '-'}
                                     </td>
                                 );
                             })}
@@ -596,10 +595,10 @@ function RequirementsContent() {
                             <td className="p-2 text-right sticky left-[40px] bg-emerald-50 z-10">BUDGET ORE CENA</td>
                             {days.map((d, i) => {
                                 const budgetTotal = budgetHours[d] || 0;
-                                const budgetDinner = budgetTotal * 0.5; // Simplified: 50/50 split
+                                const budgetDinner = budgetTotal * 0.5;
                                 return (
                                     <td key={i} colSpan={4} className="p-2 text-center border-r">
-                                        {budgetDinner.toFixed(1)} h
+                                        {budgetDinner > 0 ? `${budgetDinner.toFixed(1)} h` : '-'}
                                     </td>
                                 );
                             })}
@@ -614,7 +613,7 @@ function RequirementsContent() {
                                 const b = budgetHours[d] || 0;
                                 return (
                                     <td key={i} colSpan={4} className="p-2 text-center border-r font-bold">
-                                        {b.toFixed(1)} h
+                                        {b > 0 ? `${b.toFixed(1)} h` : '-'}
                                     </td>
                                 );
                             })}
@@ -627,6 +626,9 @@ function RequirementsContent() {
                             <td className="p-2 text-right sticky left-[40px] bg-white z-10">DIFFERENZA (Budget - Fabbisogno)</td>
                             {dailyTotals.map((tot, i) => {
                                 const b = budgetHours[days[i]] || 0;
+                                if (b === 0) {
+                                    return <td key={i} colSpan={4} className="p-2 text-center border-r text-gray-400">-</td>;
+                                }
                                 const diff = b - tot;
                                 const color = diff >= 0 ? 'text-green-600' : 'text-red-600';
                                 return (
