@@ -54,16 +54,17 @@ function getWeeksList(year: number) {
     return arr;
 }
 
-const parseNumberIT = (val: any) => {
-    if (typeof val === 'number') return val;
-    if (!val) return 0;
-    let s = String(val).trim();
-    // Excel error trap
-    if (s.includes('#') || s.includes('Ð')) return 0;
+const parseNumberIT = (s: string) => {
+    if (!s) return 0;
+    s = String(s).trim();
 
-    s = s.replace(/€/g, '').replace(/[^0-9.,-]/g, '');
-    if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
-    else s = s.replace(/\./g, '');
+    // If has comma, it's Italian format: 1.234,56
+    if (s.includes(',')) {
+        s = s.replace(/\./g, '').replace(',', '.');
+    }
+    // else: Standard format with dot as decimal: 1234.56
+    // Don't remove dots! They are decimal separators
+
     return parseFloat(s) || 0;
 };
 
