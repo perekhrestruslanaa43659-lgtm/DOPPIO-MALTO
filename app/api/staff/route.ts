@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
                 oreMassime: parseInt(body.oreMassime) || 40,
                 costoOra: parseFloat(body.costoOra) || 0,
                 moltiplicatore: parseFloat(body.moltiplicatore) || 1.0,
-                postazioni: postazioni,
+                postazioni: JSON.stringify(postazioni),
 
                 listIndex: 0, // Default to 0, or calculate max
                 tenantKey: tenantKey,
@@ -130,7 +130,7 @@ export async function PUT(request: NextRequest) {
                 oreMassime: parseInt(body.oreMassime) || 40,
                 costoOra: parseFloat(body.costoOra) || 0,
                 moltiplicatore: parseFloat(body.moltiplicatore) || 1.0,
-                postazioni: postazioni,
+                postazioni: JSON.stringify(postazioni),
                 skillLevel: body.skillLevel || 'MEDIUM',
                 incompatibilityId: body.incompatibilityId || null,
             },
