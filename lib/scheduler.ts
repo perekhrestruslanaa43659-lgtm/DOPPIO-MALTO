@@ -285,13 +285,30 @@ export async function generateSmartSchedule(startDate: string, endDate: string, 
         return toMinutes(a.start) - toMinutes(b.start);
     });
 
+    // CRITICAL FIX: Deduplicate tasks to prevent duplicate station assignments
+    // If multiple coverageRows exist for same station, we get duplicate tasks
+    const uniqueTasks: ShiftTask[] = [];
+    const taskKeys = new Set<string>();
+
+    for (const task of tasks) {
+        const key = `${task.date}|${task.start}|${task.end}|${task.station}|${task.type}`;
+        if (!taskKeys.has(key)) {
+            taskKeys.add(key);
+            uniqueTasks.push(task);
+        } else {
+            console.log(`[Scheduler] ⚠️ Skipped duplicate task: ${task.station} on ${task.date} ${task.start}-${task.end}`);
+        }
+    }
+
+    console.log(`[Scheduler] Tasks: ${tasks.length} total, ${uniqueTasks.length} unique (removed ${tasks.length - uniqueTasks.length} duplicates)`);
+
     // Group by (Date + ShiftType) to handle "Batch" constraints (like distribution of Seniors)
     // Actually, we process task by task for simplicity, but "Senior per Role" means per *Role* per Shift.
     // We can just try to fill tasks.
 
     // const newAssignments: any[] = [];
 
-    for (const task of tasks) {
+    for (const task of uniqueTasks) {
         // 3. Score Candidates
         // ------------------
 
