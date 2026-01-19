@@ -79,6 +79,8 @@ function RequirementsContent() {
 
     const [rows, setRows] = useState<CoverageRow[]>([]);
     const [budgetHours, setBudgetHours] = useState<Record<string, number>>({});
+    const [budgetLunchHours, setBudgetLunchHours] = useState<Record<string, number>>({});
+    const [budgetDinnerHours, setBudgetDinnerHours] = useState<Record<string, number>>({});
     const [assignedLunchHours, setAssignedLunchHours] = useState<Record<string, number>>({});
     const [assignedDinnerHours, setAssignedDinnerHours] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(false);
@@ -168,16 +170,25 @@ function RequirementsContent() {
 
             // 2. Parse Budget Hours from Budget API
             const bHours: Record<string, number> = {};
+            const bLunchHours: Record<string, number> = {};
+            const bDinnerHours: Record<string, number> = {};
+
             if (Array.isArray(budgetData)) {
                 budgetData.forEach((b: any) => {
-                    // Budget API returns { data: 'YYYY-MM-DD', budgetHours: number }
-                    if (b.data && typeof b.budgetHours === 'number') {
-                        bHours[b.data] = b.budgetHours;
+                    // Budget API returns { data: 'YYYY-MM-DD', hoursLunch: number, hoursDinner: number }
+                    if (b.data) {
+                        const lunchHours = parseFloat(b.hoursLunch) || 0;
+                        const dinnerHours = parseFloat(b.hoursDinner) || 0;
+                        bLunchHours[b.data] = lunchHours;
+                        bDinnerHours[b.data] = dinnerHours;
+                        bHours[b.data] = lunchHours + dinnerHours;
                     }
                 });
             }
-            console.log('📊 Budget hours loaded:', bHours);
+            console.log('📊 Budget hours loaded:', { total: bHours, lunch: bLunchHours, dinner: bDinnerHours });
             setBudgetHours(bHours);
+            setBudgetLunchHours(bLunchHours);
+            setBudgetDinnerHours(bDinnerHours);
 
             // 3. Calculate Assigned Hours from Assignments (split by lunch/dinner at 16:00)
             const assignedLunch: Record<string, number> = {};
@@ -565,8 +576,7 @@ function RequirementsContent() {
                             <td className="sticky left-0 bg-emerald-50 z-10 p-2"></td>
                             <td className="p-2 text-right sticky left-[40px] bg-emerald-50 z-10">BUDGET ORE PRANZO</td>
                             {days.map((d, i) => {
-                                const budgetTotal = budgetHours[d] || 0;
-                                const budgetLunch = budgetTotal * 0.5;
+                                const budgetLunch = budgetLunchHours[d] || 0;
                                 return (
                                     <td key={i} colSpan={4} className="p-2 text-center border-r">
                                         {budgetLunch > 0 ? `${budgetLunch.toFixed(1)} h` : '-'}
@@ -581,8 +591,7 @@ function RequirementsContent() {
                             <td className="sticky left-0 bg-emerald-50 z-10 p-2"></td>
                             <td className="p-2 text-right sticky left-[40px] bg-emerald-50 z-10">BUDGET ORE CENA</td>
                             {days.map((d, i) => {
-                                const budgetTotal = budgetHours[d] || 0;
-                                const budgetDinner = budgetTotal * 0.5;
+                                const budgetDinner = budgetDinnerHours[d] || 0;
                                 return (
                                     <td key={i} colSpan={4} className="p-2 text-center border-r">
                                         {budgetDinner > 0 ? `${budgetDinner.toFixed(1)} h` : '-'}
