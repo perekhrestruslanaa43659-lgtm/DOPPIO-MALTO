@@ -7,17 +7,23 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
     try {
+        console.log('\n=== STAFF GET REQUEST ===');
         const tenantKey = request.headers.get('x-user-tenant-key');
+        console.log('📍 TenantKey:', tenantKey);
 
         if (!tenantKey) {
+            console.log('❌ Nessun tenant key fornito');
             return NextResponse.json({ error: 'Tenant key required' }, { status: 400 });
         }
 
+        console.log('🔍 Ricerca staff...');
         const staff = await prisma.staff.findMany({
             where: { tenantKey },
             orderBy: { listIndex: 'asc' }, // Respect custom order (e.g. import order)
         });
 
+        console.log(`✅ Trovati ${staff.length} membri dello staff`);
+        console.log('=== STAFF GET SUCCESS ===\n');
         // Convert ListIndex if needed (or rely on frontend to specific sort)
         // Legacy frontend expects "postazioni" to be a string?
         // Let's check: StaffPage.jsx line 291: Array.isArray(s.postazioni) ? s.postazioni.join(', ') : ...
@@ -25,20 +31,28 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json(staff);
     } catch (error) {
-        console.error('Error fetching staff:', error);
+        console.error('\n❌ === STAFF GET ERROR ===');
+        console.error('Tipo errore:', error instanceof Error ? error.constructor.name : typeof error);
+        console.error('Messaggio:', error instanceof Error ? error.message : String(error));
+        console.error('Stack:', error instanceof Error ? error.stack : 'N/A');
+        console.error('==========================\n');
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }
 
 export async function POST(request: NextRequest) {
     try {
+        console.log('\n=== STAFF POST REQUEST ===');
         const tenantKey = request.headers.get('x-user-tenant-key');
+        console.log('📍 TenantKey:', tenantKey);
 
         if (!tenantKey) {
+            console.log('❌ Nessun tenant key fornito');
             return NextResponse.json({ error: 'Tenant key required' }, { status: 400 });
         }
 
         const body = await request.json();
+        console.log('👤 Creazione nuovo staff:', body.nome, body.cognome);
 
         // Handle postazioni conversion (String -> String[])
         let postazioni: string[] = [];
@@ -47,6 +61,8 @@ export async function POST(request: NextRequest) {
         } else if (Array.isArray(body.postazioni)) {
             postazioni = body.postazioni;
         }
+        console.log('   - Ruolo:', body.ruolo);
+        console.log('   - Postazioni:', postazioni);
 
         const staff = await prisma.staff.create({
             data: {
@@ -67,10 +83,15 @@ export async function POST(request: NextRequest) {
             },
         });
 
-
+        console.log(`✅ Staff creato con ID: ${staff.id}`);
+        console.log('=== STAFF POST SUCCESS ===\n');
         return NextResponse.json(staff);
     } catch (error) {
-        console.error('Error creating staff:', error);
+        console.error('\n❌ === STAFF POST ERROR ===');
+        console.error('Tipo errore:', error instanceof Error ? error.constructor.name : typeof error);
+        console.error('Messaggio:', error instanceof Error ? error.message : String(error));
+        console.error('Stack:', error instanceof Error ? error.stack : 'N/A');
+        console.error('===========================\n');
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }

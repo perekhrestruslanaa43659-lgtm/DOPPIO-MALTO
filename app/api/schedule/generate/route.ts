@@ -21,17 +21,31 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Start and End dates required' }, { status: 400 });
         }
 
-        // Call Smart Scheduler
-        const newAssignments = await generateSmartSchedule(start, end, tenantKey);
+        // 1. Clear existing assignments in the range (Overwrite)
+        // This prevents doubling of hours if generated multiple times
+        await prisma.assignment.deleteMany({
+            where: {
+                tenantKey,
+                data: {
+                    gte: start,
+                    lte: end
+                }
+                // Removed status: false to ensure FULL OVERWRITE of the generated period.
+            }
+        });
+
+        // 2. Call Smart Scheduler
+        const result = await generateSmartSchedule(start, end, tenantKey);
+        const { assignments, unassigned } = result;
 
         // Batch Create
-        if (newAssignments.length > 0) {
+        if (assignments.length > 0) {
             await prisma.assignment.createMany({
-                data: newAssignments
+                data: assignments
             });
         }
 
-        return NextResponse.json({ success: true, count: newAssignments.length });
+        return NextResponse.json({ success: true, count: assignments.length, unassigned });
 
     } catch (error: any) {
         console.error('Error generating schedule:', error);

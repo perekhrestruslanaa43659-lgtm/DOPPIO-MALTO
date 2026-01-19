@@ -54,7 +54,7 @@ async function main() {
                     oreMinime: 20,
                     oreMassime: 40,
                     costoOra: 12.5,
-                    postazioni: ['SALA', 'BAR'],
+                    postazioni: JSON.stringify(['SALA', 'BAR']),
                     listIndex: 1,
                 },
                 {
@@ -66,7 +66,7 @@ async function main() {
                     oreMinime: 30,
                     oreMassime: 40,
                     costoOra: 15.0,
-                    postazioni: ['CUCINA'],
+                    postazioni: JSON.stringify(['CUCINA']),
                     listIndex: 2,
                 },
                 {
@@ -78,7 +78,7 @@ async function main() {
                     oreMinime: 15,
                     oreMassime: 35,
                     costoOra: 13.0,
-                    postazioni: ['BAR'],
+                    postazioni: JSON.stringify(['BAR']),
                     listIndex: 3,
                 },
                 {
@@ -90,7 +90,7 @@ async function main() {
                     oreMinime: 20,
                     oreMassime: 40,
                     costoOra: 12.0,
-                    postazioni: ['SALA'],
+                    postazioni: JSON.stringify(['SALA']),
                     listIndex: 4,
                 },
             ],

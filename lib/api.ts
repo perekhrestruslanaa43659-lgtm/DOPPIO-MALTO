@@ -2,13 +2,42 @@
 const BASE_URL = '/api';
 
 async function request(endpoint: string, options: RequestInit = {}) {
-    const headers = { 'Content-Type': 'application/json', ...options.headers };
-    const res = await fetch(`${BASE_URL}${endpoint}`, { ...options, headers });
-    if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `Error ${res.status}`);
+    const method = options.method || 'GET';
+    console.log(`\n🌐 === API CALL START ===`);
+    console.log(`   Method: ${method}`);
+    console.log(`   Endpoint: ${endpoint}`);
+    if (options.body) {
+        const bodyPreview = String(options.body).substring(0, 200);
+        console.log(`   Body preview: ${bodyPreview}${String(options.body).length > 200 ? '...' : ''}`);
     }
-    return res.json();
+
+    const headers = { 'Content-Type': 'application/json', ...options.headers };
+    const startTime = performance.now();
+
+    try {
+        const res = await fetch(`${BASE_URL}${endpoint}`, { ...options, headers });
+        const duration = Math.round(performance.now() - startTime);
+
+        console.log(`📡 API Response: ${res.status} ${res.statusText} (${duration}ms)`);
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            console.error(`❌ API Error: ${err.message || `Error ${res.status}`}`);
+            console.log(`=== API CALL END (ERROR) ===\n`);
+            throw new Error(err.message || `Error ${res.status}`);
+        }
+
+        const data = await res.json();
+        console.log(`✅ Response data:`, typeof data === 'object' && Array.isArray(data) ? `Array(${data.length})` : typeof data);
+        console.log(`=== API CALL END (SUCCESS) ===\n`);
+        return data;
+    } catch (error) {
+        const duration = Math.round(performance.now() - startTime);
+        console.error(`❌ === API CALL FAILED (${duration}ms) ===`);
+        console.error(`   Error:`, error);
+        console.log(`=========================\n`);
+        throw error;
+    }
 }
 
 export const api = {
@@ -71,7 +100,7 @@ export const api = {
     // --- Forecast & Budget ---
     getForecast: (start: string, end: string) => request(`/forecast?start=${start}&end=${end}`),
     saveForecast: (data: any) => request('/forecast', { method: 'POST', body: JSON.stringify(data) }),
-    deleteForecast: (id: number) => request(`/forecast?id=${id}`, { method: 'DELETE' }),
+    deleteForecast: (weekStart: string) => request(`/forecast?start=${weekStart}`, { method: 'DELETE' }),
 
     getBudget: (start: string, end: string) => request(`/budget?start=${start}&end=${end}`),
     upsertBudget: (data: any) => request('/budget', { method: 'POST', body: JSON.stringify(data) }),

@@ -27,9 +27,15 @@ export async function middleware(request: NextRequest) {
     const token = request.cookies.get('token')?.value;
 
     if (token) {
+        console.log('\n🔐 MIDDLEWARE: Token trovato, verifica in corso...');
+        console.log('   Path:', pathname);
         try {
             // Verify token
             const decoded = await verifyToken(token);
+            console.log('✅ Token verificato per utente:', decoded.email);
+            console.log('   - UserID:', decoded.userId);
+            console.log('   - Role:', decoded.role);
+            console.log('   - TenantKey:', decoded.tenantKey);
 
             // Add user info to headers for API routes
             const requestHeaders = new Headers(request.headers);
@@ -40,6 +46,7 @@ export async function middleware(request: NextRequest) {
             if (decoded.companyName) {
                 requestHeaders.set('x-user-company', decoded.companyName);
             }
+            console.log('📤 Headers iniettati nella richiesta\n');
 
             return NextResponse.next({
                 request: {
@@ -47,9 +54,13 @@ export async function middleware(request: NextRequest) {
                 },
             });
         } catch (error) {
+            console.log('❌ MIDDLEWARE: Token non valido o scaduto');
+            console.log('   Errore:', error instanceof Error ? error.message : String(error));
             // Invalid token, normally redirect to login, but for preview we continue
             // return NextResponse.redirect(new URL('/login', request.url));
         }
+    } else {
+        console.log('⚠️  MIDDLEWARE: Nessun token trovato per path:', pathname);
     }
 
     // No token or invalid token: continue without user headers (Guest mode)

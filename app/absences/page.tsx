@@ -185,8 +185,8 @@ export default function AbsencesPage() {
                     data: d,
                     tipo: f.tipo,
                     reason: f.reason,
-                    startTime: f.tipo === 'PARZIALE' ? f.startTime : null,
-                    endTime: f.tipo === 'PARZIALE' ? f.endTime : null
+                    start_time: f.tipo === 'PARZIALE' ? f.startTime : null,
+                    end_time: f.tipo === 'PARZIALE' ? f.endTime : null
                 });
             }
             alert(`✅ Inserite ${dates.length} assenze con successo!`);

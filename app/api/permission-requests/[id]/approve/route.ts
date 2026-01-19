@@ -43,7 +43,7 @@ export async function POST(
                 data: {
                     staffId: updated.staffId,
                     data: dt,
-                    tipo: 'TOTALE',
+                    tipo: (st && et) ? 'PARZIALE' : 'TOTALE',
                     reason: `Permesso Approvato: ${updated.tipo}`,
                     start_time: st,
                     end_time: et,

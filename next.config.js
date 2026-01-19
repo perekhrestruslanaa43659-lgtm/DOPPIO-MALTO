@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: false, // Disabled to prevent double-fetch in dev mode
   swcMinify: true,
   experimental: {
     serverActions: {

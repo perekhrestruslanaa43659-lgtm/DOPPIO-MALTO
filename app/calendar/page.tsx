@@ -58,6 +58,8 @@ export default function CalendarPage() {
     const [currentYear, setCurrentYear] = useState(2025);
     const [selectedWeek, setSelectedWeek] = useState(42);
     const [range, setRange] = useState(getWeekRange(42, 2025));
+    const [missingShifts, setMissingShifts] = useState<any[]>([]); // [NEW] Missing Shifts State
+    const [showMissingModal, setShowMissingModal] = useState(false); // [NEW] Modal State
 
     const [panarelloActive, setPanarelloActive] = useState(false);
     const [editingCell, setEditingCell] = useState<any>(null);
@@ -257,14 +259,28 @@ export default function CalendarPage() {
         return 0;
     };
 
+    // --- Missing Shifts UI State ---
     // --- Actions ---
     const generate = async () => {
         if (!confirm("Generare i turni sovrascriverà eventuali bozze. Continuare?")) return;
         try {
             setLoading(true);
             const res = await api.generateSchedule(range.start, range.end) as any;
-            alert(`Generati ${res.generated} turni.`);
-            loadData();
+
+            if (res.success) {
+                // Handle Missing Shifts
+                if (res.unassigned && res.unassigned.length > 0) {
+                    setMissingShifts(res.unassigned);
+                    alert(`Generazione Completata!\nTurni assegnati: ${res.count}\n⚠️ ATTENZIONE: ${res.unassigned.length} postazioni non coperte.`);
+                    setShowMissingModal(true);
+                } else {
+                    setMissingShifts([]);
+                    alert(`Generazione Completata! ${res.count} turni creati.`);
+                }
+                loadData();
+            } else {
+                alert('Errore Generazione: ' + res.error);
+            }
         } catch (e: any) {
             alert("Errore generazione: " + e.message);
         } finally {
@@ -406,6 +422,15 @@ export default function CalendarPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {missingShifts.length > 0 && (
+                        <button
+                            onClick={() => setShowMissingModal(true)}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white rounded hover:bg-amber-600 text-xs font-bold transition animate-pulse"
+                        >
+                            <AlertTriangle size={14} />
+                            {missingShifts.length} Mancanti
+                        </button>
+                    )}
                     <button onClick={generate} className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-xs font-bold transition">
                         <Wand2 size={14} /> AI Expert
                     </button>
@@ -729,6 +754,54 @@ export default function CalendarPage() {
                     </tfoot>
                 </table>
             </div>
+
+            {/* Missing Shifts Modal */}
+            {showMissingModal && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowMissingModal(false)}>
+                    <div className="bg-white rounded-xl shadow-2xl p-6 w-[600px] max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-4 border-b pb-2">
+                            <h3 className="text-lg font-bold text-amber-600 flex items-center gap-2">
+                                <AlertTriangle size={24} />
+                                Postazioni Mancanti
+                            </h3>
+                            <button onClick={() => setShowMissingModal(false)} className="text-gray-400 hover:text-gray-600">
+                                <Trash2 size={20} className="transform rotate-45" /> {/* Use X icon if available, reusing Trash2 rotated for close X */}
+                            </button>
+                        </div>
+
+                        <div className="overflow-y-auto flex-1">
+                            {missingShifts.length === 0 ? (
+                                <p className="text-gray-500 text-center py-8">Nessuna postazione mancante.</p>
+                            ) : (
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-gray-50 text-gray-500 font-bold uppercase text-xs sticky top-0">
+                                        <tr>
+                                            <th className="p-2">Data</th>
+                                            <th className="p-2">Orario</th>
+                                            <th className="p-2">Postazione</th>
+                                            <th className="p-2">Motivo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {missingShifts.map((m, i) => (
+                                            <tr key={i} className="hover:bg-amber-50">
+                                                <td className="p-2 font-medium">{new Date(m.date).toLocaleDateString()}</td>
+                                                <td className="p-2 font-mono text-xs">{m.start} - {m.end}</td>
+                                                <td className="p-2 font-bold text-gray-700">{m.station}</td>
+                                                <td className="p-2 text-xs text-gray-500 italic">{m.reason}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+
+                        <div className="mt-4 pt-4 border-t text-xs text-gray-400 text-center">
+                            Questi turni richiedono attenzione manuale poiché nessun dipendente idoneo è stato trovato dalle regole automatiche.
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Editing Modal */}
             {editingCell && (

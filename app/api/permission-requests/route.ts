@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
                     data: {
                         staffId: parseInt(body.staffId),
                         data: dt,
-                        tipo: 'TOTALE',
+                        tipo: (st && et) ? 'PARZIALE' : 'TOTALE',
                         reason: `${body.tipo} - ${body.motivo}`,
                         start_time: st,
                         end_time: et,
