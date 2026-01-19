@@ -48,7 +48,7 @@ export async function generateSmartSchedule(startDate: string, endDate: string, 
     const queryStart = new Date(startD);
     queryStart.setDate(queryStart.getDate() - 2);
 
-    const [staffList, coverageRows, existingAssignments, recurringShifts, approvedPermissions] = await Promise.all([
+    const [staffListRaw, coverageRows, existingAssignments, recurringShifts, approvedPermissions] = await Promise.all([
         prisma.staff.findMany({
             where: { tenantKey },
             include: { unavailabilities: true }
@@ -79,6 +79,26 @@ export async function generateSmartSchedule(startDate: string, endDate: string, 
             }
         })
     ]);
+
+    // Parse postazioni from JSON string to array (same fix as in /api/staff)
+    const staffList = staffListRaw.map(member => {
+        let postazioni: string[] = [];
+        try {
+            if (typeof member.postazioni === 'string') {
+                if (member.postazioni.trim().startsWith('[')) {
+                    postazioni = JSON.parse(member.postazioni);
+                } else if (member.postazioni.trim()) {
+                    postazioni = member.postazioni.split(',').map(s => s.trim()).filter(s => s);
+                }
+            } else if (Array.isArray(member.postazioni)) {
+                postazioni = member.postazioni;
+            }
+        } catch (error) {
+            console.error(`⚠️ Error parsing postazioni for staff ${member.id}:`, error);
+            postazioni = [];
+        }
+        return { ...member, postazioni };
+    });
 
     // Load Constraints (Affinity/Blacklist)
     const constraints = await prisma.constraint.findMany({ where: { tenantKey } });
