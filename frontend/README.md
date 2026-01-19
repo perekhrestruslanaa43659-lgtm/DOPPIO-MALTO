@@ -5,7 +5,7 @@ Setup locale
 1. Installa dipendenze:
 
 ```bash
-cd scheduling/frontend
+cd frontend
 npm install
 ```
 

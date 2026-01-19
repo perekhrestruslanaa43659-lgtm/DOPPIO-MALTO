@@ -8,7 +8,25 @@ const { login, register, initAdmin, authenticateToken, getAllUsers, deleteUser, 
 
 const prisma = new PrismaClient();
 const app = express();
-app.use(cors());
+const allowedOrigins = [
+  'https://www.scheduling.my',
+  'https://scheduling.my',
+  'http://localhost:5173'  // Frontend dev server
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 app.use(bodyParser.json());
 const PORT = process.env.PORT || 4000;
 
@@ -18,15 +36,29 @@ app.use((req, res, next) => {
 });
 
 // Init Admin
+<<<<<<< HEAD
+// initAdmin(); // Commented out - causes SQLite error on Vercel because runs before DATABASE_URL loaded
+
+
+// Auth Routes
+app.post('/api/login', login);
+app.post('/api/register', register); // Public registration
+
+=======
 //initAdmin();
 
 // Auth Routes
+>>>>>>> 687bb2814cf4672555eb35e12a837bf64ddb8814
 // Health Check Endpoint
 app.get('/api/health', async (req, res) => {
   try {
     // Test database connection
     await prisma.$queryRaw`SELECT 1`;
+<<<<<<< HEAD
+
+=======
     
+>>>>>>> 687bb2814cf4672555eb35e12a837bf64ddb8814
     res.json({
       status: 'ok',
       database: 'connected',
@@ -44,7 +76,11 @@ app.get('/api/health', async (req, res) => {
     });
   }
 });
+<<<<<<< HEAD
+
+=======
 // Public registration
+>>>>>>> 687bb2814cf4672555eb35e12a837bf64ddb8814
 // Original register was public? No, user management page uses it. 
 // Ideally registration should be restricted or separate public signup provided. 
 // For now, I'll leave register as public for simplicity or check if I protected it before?
@@ -148,16 +184,18 @@ async function ensureSeckCodouConstraints() {
 app.get('/api/staff', async (req, res) => {
   const staff = await prisma.staff.findMany({
     include: { unavailabilities: true },
-    orderBy: { listIndex: 'asc' }
+    orderBy: { listIndex: 'asc' } // RESTORED: To enforce custom order
   });
   // Convert postazioni string -> array for frontend
   // Convert fixedShifts string -> object for frontend
   const clean = staff.map(s => ({
     ...s,
-    // Convert postazioni from string to array (SQLite compatibility)
-    postazioni: (s.postazioni && typeof s.postazioni === 'string' && s.postazioni.trim())
-      ? s.postazioni.split(',').map(p => p.trim()).filter(p => p)
-      : [],
+    // Convert postazioni: It might be String[] (Postgres) or String (SQLite legacy)
+    postazioni: Array.isArray(s.postazioni)
+      ? s.postazioni
+      : (s.postazioni && typeof s.postazioni === 'string' && s.postazioni.trim())
+        ? s.postazioni.split(',').map(p => p.trim()).filter(p => p)
+        : [],
     fixedShifts: s.fixedShifts && typeof s.fixedShifts === 'string' ? JSON.parse(s.fixedShifts) : (s.fixedShifts || {})
   }));
   res.json(clean);
@@ -166,20 +204,33 @@ app.get('/api/staff', async (req, res) => {
 app.post('/api/staff', async (req, res) => {
   const { nome, cognome, email, ruolo, oreMinime, oreMassime, costoOra, postazioni } = req.body;
   try {
+    // Calculate listIndex (append to end)
+    const count = await prisma.staff.count();
+
+    // Parse postazioni (Handle "A,B" string from frontend)
+    let postazioniArr = [];
+    if (Array.isArray(postazioni)) {
+      postazioniArr = postazioni;
+    } else if (typeof postazioni === 'string' && postazioni.trim().length > 0) {
+      postazioniArr = postazioni.split(',').map(p => p.trim()).filter(p => p);
+    }
+
     const newStaff = await prisma.staff.create({
       data: {
         nome,
         cognome,
-        email,
+        email: email || undefined, // Avoid empty strings for Unique constraint
         ruolo,
         oreMinime: Number(oreMinime),
         oreMassime: Number(oreMassime),
         costoOra: Number(costoOra),
-        postazioni: Array.isArray(postazioni) ? postazioni : (postazioni ? [postazioni] : [])
+        postazioni: postazioniArr,
+        listIndex: count // Assign next index
       }
     });
     res.json(newStaff);
   } catch (e) {
+    console.error("POST /api/staff error:", e);
     res.status(400).json({ error: e.message });
   }
 });
@@ -189,7 +240,7 @@ app.post('/api/staff/bulk', async (req, res) => {
   if (!Array.isArray(items)) return res.status(400).json({ error: "Expected array" });
   try {
     const result = await prisma.staff.createMany({
-      data: items.map(i => ({
+      data: items.map((i, idx) => ({
         nome: i.nome,
         cognome: i.cognome || '',
         email: i.email || null,
@@ -197,7 +248,10 @@ app.post('/api/staff/bulk', async (req, res) => {
         oreMinime: Number(i.oreMinime) || 0,
         oreMassime: Number(i.oreMassime) || 40,
         costoOra: Number(i.costoOra) || 0,
-        postazioni: Array.isArray(i.postazioni) ? i.postazioni : (i.postazioni ? [i.postazioni] : [])
+        postazioni: Array.isArray(i.postazioni)
+          ? i.postazioni
+          : (typeof i.postazioni === 'string' && i.postazioni.length > 0 ? i.postazioni.split(',').map(p => p.trim()) : []),
+        listIndex: idx // Simple index for bulk
       })),
       skipDuplicates: true
     });
@@ -211,25 +265,30 @@ app.put('/api/staff/:id', async (req, res) => {
   const { id } = req.params;
   const body = req.body;
 
-  console.log(`PUT /api/staff/${id}`, body); // DEBUG LOG
+  console.log(`PUT /api/staff/${id}`, body);
 
-  // Build dynamic data object
   const data = {};
   if (body.nome !== undefined) data.nome = body.nome;
   if (body.cognome !== undefined) data.cognome = body.cognome;
-  if (body.email !== undefined) data.email = body.email;
+  if (body.email !== undefined) data.email = body.email || null; // Allow clearing email
   if (body.ruolo !== undefined) data.ruolo = body.ruolo;
   if (body.oreMinime !== undefined) data.oreMinime = Number(body.oreMinime);
   if (body.oreMassime !== undefined) data.oreMassime = Number(body.oreMassime);
   if (body.costoOra !== undefined) data.costoOra = Number(body.costoOra);
-  if (body.postazioni !== undefined) data.postazioni = Array.isArray(body.postazioni) ? body.postazioni : (body.postazioni ? [body.postazioni] : []);
 
-  // JSON Stringify for SQLite
+  if (body.postazioni !== undefined) {
+    if (Array.isArray(body.postazioni)) {
+      data.postazioni = body.postazioni;
+    } else if (typeof body.postazioni === 'string') {
+      data.postazioni = body.postazioni.split(',').map(p => p.trim()).filter(p => p);
+    }
+  }
+
+  // JSON Stringify for SQLite (Legacy field, kept for safety)
   if (body.fixedShifts !== undefined) {
     data.fixedShifts = typeof body.fixedShifts === 'string' ? body.fixedShifts : JSON.stringify(body.fixedShifts);
   }
 
-  // Handle moving listIndex if provided
   if (body.listIndex !== undefined) {
     data.listIndex = Number(body.listIndex);
   }
@@ -241,6 +300,7 @@ app.put('/api/staff/:id', async (req, res) => {
     });
     res.json(updated);
   } catch (e) {
+    console.error("PUT /api/staff error:", e);
     res.status(400).json({ error: e.message });
   }
 });
@@ -666,13 +726,17 @@ app.get('/api/schedule', async (req, res) => {
     where.status = true;
   }
 
-  const schedule = await prisma.assignment.findMany({
-    where,
-    include: { staff: true, shiftTemplate: true }
-  });
-
-  // Also return templates so frontend can map IDs
-  res.json(schedule);
+  try {
+    const schedule = await prisma.assignment.findMany({
+      where,
+      include: { staff: true, shiftTemplate: true }
+    });
+    // Also return templates so frontend can map IDs
+    res.json(schedule);
+  } catch (e) {
+    console.error("GET /api/schedule error:", e);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.post('/api/assignment', async (req, res) => {
@@ -1056,51 +1120,6 @@ app.post('/api/coverage', async (req, res) => {
   }
 });
 
-// --- FORECAST ---
-app.get('/api/forecast', async (req, res) => {
-  try {
-    const rows = await prisma.forecastRow.findMany();
-    const parsed = rows.map(r => ({
-      ...r,
-      data: typeof r.data === 'string' ? JSON.parse(r.data) : r.data
-    }));
-    res.json(parsed);
-  } catch (e) {
-    console.error('[FORECAST] GET Error:', e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.post('/api/forecast', async (req, res) => {
-  try {
-    const { rows } = req.body;
-    if (!rows || !Array.isArray(rows)) {
-      return res.status(400).json({ error: 'Invalid rows data' });
-    }
-
-    // Clear existing forecast
-    await prisma.forecastRow.deleteMany();
-    console.log('[FORECAST] Cleared existing forecast');
-
-    // Insert new forecast
-    let count = 0;
-    for (const row of rows) {
-      await prisma.forecastRow.create({
-        data: {
-          weekStart: row.weekStart || '2025-10-13',
-          data: typeof row.data === 'string' ? row.data : JSON.stringify(row.data || {})
-        }
-      });
-      count++;
-    }
-
-    console.log(`[FORECAST] Saved ${count} forecast rows`);
-    res.json({ saved: count });
-  } catch (e) {
-    console.error('[FORECAST] POST Error:', e);
-    res.status(500).json({ error: e.message });
-  }
-});
 
 
 
@@ -1646,27 +1665,56 @@ app.get('/api/assignments', authenticateToken, async (req, res) => {
 
 // ==================== END ASSIGNMENT ENDPOINTS ====================
 
-// Export app for Vercel serverless functions
-module.exports = app;
+// --- BUDGET (NEW) ---
+app.get('/api/budget', async (req, res) => {
+  try {
+    const items = await prisma.budget.findMany();
+    res.json(items);
+  } catch (e) {
+    console.error("GET /api/budget error:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
 
-// Start server only if not in Vercel environment
-if (process.env.VERCEL !== '1' && require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
-}
-
-
+app.post('/api/budget', async (req, res) => {
+  try {
+    const { data, value, hoursLunch, hoursDinner } = req.body;
+    const b = await prisma.budget.upsert({
+      where: { data: data },
+      update: {
+        value: value !== undefined ? Number(value) : undefined,
+        hoursLunch: hoursLunch !== undefined ? Number(hoursLunch) : undefined,
+        hoursDinner: hoursDinner !== undefined ? Number(hoursDinner) : undefined
+      },
+      create: {
+        data,
+        value: Number(value) || 0,
+        hoursLunch: Number(hoursLunch) || 0,
+        hoursDinner: Number(hoursDinner) || 0
+      }
+    });
+    res.json(b);
+  } catch (e) {
+    console.error("POST /api/budget error:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // --- FORECAST ---
 app.get('/api/forecast', async (req, res) => {
   const { start, end } = req.query;
-  const where = {};
-  if (start && end) {
-    where.weekStart = { gte: start, lte: end };
+  try {
+    const where = {};
+    if (start && end) {
+      where.weekStart = { gte: start, lte: end };
+    }
+    const data = await prisma.forecastRow.findMany({ where });
+    // TurniPage expects { data: [...] }
+    res.json({ data });
+  } catch (e) {
+    console.error("GET /api/forecast error:", e);
+    res.status(500).json({ error: e.message });
   }
-  const data = await prisma.forecastRow.findMany({ where });
-  res.json(data);
 });
 
 app.get('/api/forecast/history', async (req, res) => {
@@ -1689,23 +1737,18 @@ app.post('/api/forecast', async (req, res) => {
   try {
     const results = [];
     for (const r of rows) {
-      // Upsert logic manually with findFirst/create/update if SQLite doesn't support upsert cleanly on non-unique fields? 
-      // WeekStart IS NOT unique in schema? Let's check schema.
-      // Schema: model ForecastRow { id Int @id.., weekStart String, data String, createdAt... }
-      // weekStart is NOT @unique in schema.prisma showed earlier.
-      // BUT logic should treat it as unique per week.
-      // We will delete existing for that week and create new, OR findFirst and update.
-
       const existing = await prisma.forecastRow.findFirst({ where: { weekStart: r.weekStart } });
+      const dataStr = typeof r.data === 'string' ? r.data : JSON.stringify(r.data);
+
       if (existing) {
         const updated = await prisma.forecastRow.update({
           where: { id: existing.id },
-          data: { data: r.data }
+          data: { data: dataStr }
         });
         results.push(updated);
       } else {
         const created = await prisma.forecastRow.create({
-          data: { weekStart: r.weekStart, data: r.data }
+          data: { weekStart: r.weekStart, data: dataStr }
         });
         results.push(created);
       }
@@ -1715,3 +1758,14 @@ app.post('/api/forecast', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+
+// Export app for Vercel serverless functions
+module.exports = app;
+
+// Start server only if not in Vercel environment
+if (process.env.VERCEL !== '1' && require.main === module) {
+  const PORT = 4000;
+  app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+  });
+}

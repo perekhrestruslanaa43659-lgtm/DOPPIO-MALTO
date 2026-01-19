@@ -1,0 +1,28 @@
+{
+  "name": "scheduling-mock-backend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "postinstall": "prisma generate",
+    "prebuild": "rm -rf node_modules/.prisma && rm -rf node_modules/@prisma/client",
+    "vercel-build": "npm run prebuild && prisma generate",
+    "dev": "nodemon server.js",
+    "build": "prisma generate && prisma migrate deploy && vite build"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.1.0",
+    "@prisma/client": "5.10.0",
+    "bcrypt": "^6.0.0",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^7.0.12"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22",
+    "prisma": "6.1.0"
+  }
+}
