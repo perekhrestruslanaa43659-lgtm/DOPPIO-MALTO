@@ -100,9 +100,10 @@ export const api = {
     // --- Forecast & Budget ---
     getForecast: (start: string, end: string) => request(`/forecast?start=${start}&end=${end}`),
     saveForecast: (data: any) => request('/forecast', { method: 'POST', body: JSON.stringify(data) }),
-    deleteForecast: (weekStart: string) => request(`/forecast?start=${weekStart}`, { method: 'DELETE' }),
+    deleteForecast: (weekStart: string) => request(`/forecast?weekStart=${weekStart}`, { method: 'DELETE' }),
 
     getBudget: (start: string, end: string) => request(`/budget?start=${start}&end=${end}`),
+    saveBudget: (data: any) => request('/budget', { method: 'POST', body: JSON.stringify(data) }),
     upsertBudget: (data: any) => request('/budget', { method: 'POST', body: JSON.stringify(data) }),
 
     // --- Deployment / Coverage ---
