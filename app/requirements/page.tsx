@@ -510,10 +510,10 @@ function RequirementsContent() {
                                 <React.Fragment key={d}>
                                     <th className="border-r w-12 text-center text-blue-600">IN (P)</th>
                                     <th className="border-r w-12 text-center text-blue-600">OUT (P)</th>
-                                    <th className="border-r w-16 text-center text-blue-700 bg-blue-50">Staff P</th>
+                                    <th className="border-r w-24 text-center text-blue-700 bg-blue-50">Staff P</th>
                                     <th className="border-r w-12 text-center text-indigo-600">IN (C)</th>
                                     <th className="border-r w-12 text-center text-indigo-600">OUT (C)</th>
-                                    <th className="border-r w-16 text-center text-indigo-700 bg-indigo-50">Staff C</th>
+                                    <th className="border-r w-24 text-center text-indigo-700 bg-indigo-50">Staff C</th>
                                 </React.Fragment>
                             ))}
                             <th></th>
@@ -567,12 +567,12 @@ function RequirementsContent() {
                                                     <button
                                                         onClick={() => openAssignModal(d, row.station, 'lunch', { start: s.lIn, end: s.lOut })}
                                                         disabled={!isActive || !s.lIn || !s.lOut}
-                                                        className="w-full h-8 flex items-center justify-center gap-1 hover:bg-blue-100 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                                                        className="w-full h-8 flex items-center justify-center gap-1.5 hover:bg-blue-100 disabled:opacity-30 disabled:cursor-not-allowed transition"
                                                         title={`Assegna staff pranzo (${lunchAssignments.length} assegnati)`}
                                                     >
-                                                        <ChevronRight size={14} className="text-blue-600" />
+                                                        <ChevronRight size={16} className="text-blue-600" />
                                                         {lunchAssignments.length > 0 && (
-                                                            <span className="text-[10px] font-bold text-blue-700">
+                                                            <span className="text-xs font-bold text-blue-700">
                                                                 {lunchAssignments.length}
                                                             </span>
                                                         )}
@@ -587,12 +587,12 @@ function RequirementsContent() {
                                                     <button
                                                         onClick={() => openAssignModal(d, row.station, 'dinner', { start: s.dIn, end: s.dOut })}
                                                         disabled={!isActive || !s.dIn || !s.dOut}
-                                                        className="w-full h-8 flex items-center justify-center gap-1 hover:bg-indigo-100 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                                                        className="w-full h-8 flex items-center justify-center gap-1.5 hover:bg-indigo-100 disabled:opacity-30 disabled:cursor-not-allowed transition"
                                                         title={`Assegna staff cena (${dinnerAssignments.length} assegnati)`}
                                                     >
-                                                        <ChevronRight size={14} className="text-indigo-600" />
+                                                        <ChevronRight size={16} className="text-indigo-600" />
                                                         {dinnerAssignments.length > 0 && (
-                                                            <span className="text-[10px] font-bold text-indigo-700">
+                                                            <span className="text-xs font-bold text-indigo-700">
                                                                 {dinnerAssignments.length}
                                                             </span>
                                                         )}
