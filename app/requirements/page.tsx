@@ -497,7 +497,7 @@ function RequirementsContent() {
                             <th className="p-2 border-r w-[40px] sticky left-0 bg-gray-100 z-10 text-center">#</th>
                             <th className="p-2 border-r w-[150px] sticky left-[40px] bg-gray-100 z-10">Postazione</th>
                             {days.map((d, i) => (
-                                <th key={d} colSpan={4} className="p-1 border-r text-center border-b-2 border-gray-300">
+                                <th key={d} colSpan={6} className="p-1 border-r text-center border-b-2 border-gray-300">
                                     <div className="text-gray-900 font-bold">{dayNames[i]} {d.split('-')[2]}</div>
                                 </th>
                             ))}
@@ -510,8 +510,10 @@ function RequirementsContent() {
                                 <React.Fragment key={d}>
                                     <th className="border-r w-12 text-center text-blue-600">IN (P)</th>
                                     <th className="border-r w-12 text-center text-blue-600">OUT (P)</th>
+                                    <th className="border-r w-20 text-center text-blue-700 bg-blue-50">Staff P</th>
                                     <th className="border-r w-12 text-center text-indigo-600">IN (C)</th>
                                     <th className="border-r w-12 text-center text-indigo-600">OUT (C)</th>
+                                    <th className="border-r w-20 text-center text-indigo-700 bg-indigo-50">Staff C</th>
                                 </React.Fragment>
                             ))}
                             <th></th>
@@ -537,12 +539,89 @@ function RequirementsContent() {
                                     </td>
                                     {days.map((d) => {
                                         const s = row.slots[d] || { lIn: '', lOut: '', dIn: '', dOut: '' };
+
+                                        // Get assignments for this day and station
+                                        const dayAssignments = assignments.filter(a =>
+                                            a.data === d &&
+                                            a.postazione === row.station
+                                        );
+
+                                        // Split by lunch/dinner based on time
+                                        const lunchAssignments = dayAssignments.filter(a => {
+                                            const start = a.start_time || a.shiftTemplate?.oraInizio || '';
+                                            return start < '16:00';
+                                        });
+
+                                        const dinnerAssignments = dayAssignments.filter(a => {
+                                            const start = a.start_time || a.shiftTemplate?.oraInizio || '';
+                                            return start >= '16:00';
+                                        });
+
                                         return (
                                             <React.Fragment key={d}>
                                                 <td className="p-0 border-r"><input disabled={!isActive} className="w-full h-8 text-center bg-transparent outline-none focus:bg-blue-50 disabled:bg-gray-50" value={s.lIn} onChange={e => updateSlot(rIdx, d, 'lIn', e.target.value)} /></td>
                                                 <td className="p-0 border-r"><input disabled={!isActive} className="w-full h-8 text-center bg-transparent outline-none focus:bg-blue-50 disabled:bg-gray-50" value={s.lOut} onChange={e => updateSlot(rIdx, d, 'lOut', e.target.value)} /></td>
+
+                                                {/* Staff Pranzo Cell */}
+                                                <td className="p-1 border-r bg-blue-50">
+                                                    <div className="flex flex-col gap-1">
+                                                        <button
+                                                            onClick={() => openAssignModal(d, row.station, 'lunch', { start: s.lIn, end: s.lOut })}
+                                                            disabled={!isActive || !s.lIn || !s.lOut}
+                                                            className="text-xs px-1 py-0.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                                                            title="Assegna staff pranzo"
+                                                        >
+                                                            <Plus size={10} /> Staff
+                                                        </button>
+                                                        {lunchAssignments.map(a => {
+                                                            const staffMember = staff.find(st => st.id === a.staffId);
+                                                            return (
+                                                                <div key={a.id} className="text-[9px] bg-white px-1 py-0.5 rounded flex items-center justify-between gap-1">
+                                                                    <span className="truncate">{staffMember?.name || 'N/A'}</span>
+                                                                    <button
+                                                                        onClick={() => removeAssignment(a.id)}
+                                                                        className="text-red-500 hover:text-red-700"
+                                                                        title="Rimuovi"
+                                                                    >
+                                                                        <X size={10} />
+                                                                    </button>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </td>
+
                                                 <td className="p-0 border-r"><input disabled={!isActive} className="w-full h-8 text-center bg-transparent outline-none focus:bg-indigo-50 disabled:bg-gray-50" value={s.dIn} onChange={e => updateSlot(rIdx, d, 'dIn', e.target.value)} /></td>
                                                 <td className="p-0 border-r"><input disabled={!isActive} className="w-full h-8 text-center bg-transparent outline-none focus:bg-indigo-50 disabled:bg-gray-50" value={s.dOut} onChange={e => updateSlot(rIdx, d, 'dOut', e.target.value)} /></td>
+
+                                                {/* Staff Cena Cell */}
+                                                <td className="p-1 border-r bg-indigo-50">
+                                                    <div className="flex flex-col gap-1">
+                                                        <button
+                                                            onClick={() => openAssignModal(d, row.station, 'dinner', { start: s.dIn, end: s.dOut })}
+                                                            disabled={!isActive || !s.dIn || !s.dOut}
+                                                            className="text-xs px-1 py-0.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                                                            title="Assegna staff cena"
+                                                        >
+                                                            <Plus size={10} /> Staff
+                                                        </button>
+                                                        {dinnerAssignments.map(a => {
+                                                            const staffMember = staff.find(st => st.id === a.staffId);
+                                                            return (
+                                                                <div key={a.id} className="text-[9px] bg-white px-1 py-0.5 rounded flex items-center justify-between gap-1">
+                                                                    <span className="truncate">{staffMember?.name || 'N/A'}</span>
+                                                                    <button
+                                                                        onClick={() => removeAssignment(a.id)}
+                                                                        className="text-red-500 hover:text-red-700"
+                                                                        title="Rimuovi"
+                                                                    >
+                                                                        <X size={10} />
+                                                                    </button>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </td>
                                             </React.Fragment>
                                         );
                                     })}
@@ -560,7 +639,7 @@ function RequirementsContent() {
                             <td className="sticky left-0 bg-blue-50 z-10 p-2"></td>
                             <td className="p-2 text-right sticky left-[40px] bg-blue-50 z-10 text-blue-700">FABBISOGNO PRANZO</td>
                             {dailyLunchTotals.map((tot, i) => (
-                                <td key={i} colSpan={4} className="p-2 text-center border-r text-blue-700 font-bold">
+                                <td key={i} colSpan={6} className="p-2 text-center border-r text-blue-700 font-bold">
                                     {tot.toFixed(1)} h
                                 </td>
                             ))}
@@ -577,7 +656,7 @@ function RequirementsContent() {
                                 const diff = assigned - required;
                                 const color = diff >= 0 ? 'text-green-700' : 'text-red-700';
                                 return (
-                                    <td key={i} colSpan={4} className={`p-2 text-center border-r ${color} font-bold`}>
+                                    <td key={i} colSpan={6} className={`p-2 text-center border-r ${color} font-bold`}>
                                         {assigned.toFixed(1)} h
                                     </td>
                                 );
@@ -590,7 +669,7 @@ function RequirementsContent() {
                             <td className="sticky left-0 bg-indigo-50 z-10 p-2"></td>
                             <td className="p-2 text-right sticky left-[40px] bg-indigo-50 z-10 text-indigo-700">FABBISOGNO CENA</td>
                             {dailyDinnerTotals.map((tot, i) => (
-                                <td key={i} colSpan={4} className="p-2 text-center border-r text-indigo-700 font-bold">
+                                <td key={i} colSpan={6} className="p-2 text-center border-r text-indigo-700 font-bold">
                                     {tot.toFixed(1)} h
                                 </td>
                             ))}
@@ -607,7 +686,7 @@ function RequirementsContent() {
                                 const diff = assigned - required;
                                 const color = diff >= 0 ? 'text-green-700' : 'text-red-700';
                                 return (
-                                    <td key={i} colSpan={4} className={`p-2 text-center border-r ${color} font-bold`}>
+                                    <td key={i} colSpan={6} className={`p-2 text-center border-r ${color} font-bold`}>
                                         {assigned.toFixed(1)} h
                                     </td>
                                 );
@@ -620,7 +699,7 @@ function RequirementsContent() {
                             <td className="sticky left-0 bg-gray-100 z-10 p-2"></td>
                             <td className="p-2 text-right sticky left-[40px] bg-gray-100 z-10">TOTALE FABBISOGNO</td>
                             {dailyTotals.map((tot, i) => (
-                                <td key={i} colSpan={4} className="p-2 text-center border-r text-gray-700 bg-gray-100">
+                                <td key={i} colSpan={6} className="p-2 text-center border-r text-gray-700 bg-gray-100">
                                     {tot.toFixed(1)} h
                                 </td>
                             ))}
@@ -637,7 +716,7 @@ function RequirementsContent() {
                             {days.map((d, i) => {
                                 const budgetLunch = budgetLunchHours[d] || 0;
                                 return (
-                                    <td key={i} colSpan={4} className="p-2 text-center border-r">
+                                    <td key={i} colSpan={6} className="p-2 text-center border-r">
                                         {budgetLunch > 0 ? `${budgetLunch.toFixed(1)} h` : '-'}
                                     </td>
                                 );
@@ -652,7 +731,7 @@ function RequirementsContent() {
                             {days.map((d, i) => {
                                 const budgetDinner = budgetDinnerHours[d] || 0;
                                 return (
-                                    <td key={i} colSpan={4} className="p-2 text-center border-r">
+                                    <td key={i} colSpan={6} className="p-2 text-center border-r">
                                         {budgetDinner > 0 ? `${budgetDinner.toFixed(1)} h` : '-'}
                                     </td>
                                 );
@@ -667,7 +746,7 @@ function RequirementsContent() {
                             {days.map((d, i) => {
                                 const b = budgetHours[d] || 0;
                                 return (
-                                    <td key={i} colSpan={4} className="p-2 text-center border-r font-bold">
+                                    <td key={i} colSpan={6} className="p-2 text-center border-r font-bold">
                                         {b > 0 ? `${b.toFixed(1)} h` : '-'}
                                     </td>
                                 );
@@ -682,12 +761,12 @@ function RequirementsContent() {
                             {dailyTotals.map((tot, i) => {
                                 const b = budgetHours[days[i]] || 0;
                                 if (b === 0) {
-                                    return <td key={i} colSpan={4} className="p-2 text-center border-r text-gray-400">-</td>;
+                                    return <td key={i} colSpan={6} className="p-2 text-center border-r text-gray-400">-</td>;
                                 }
                                 const diff = b - tot;
                                 const color = diff >= 0 ? 'text-green-600' : 'text-red-600';
                                 return (
-                                    <td key={i} colSpan={4} className={`p-2 text-center border-r ${color}`}>
+                                    <td key={i} colSpan={6} className={`p-2 text-center border-r ${color}`}>
                                         {diff > 0 ? '+' : ''}{diff.toFixed(1)} h
                                     </td>
                                 );
@@ -697,6 +776,24 @@ function RequirementsContent() {
                     </tbody>
                 </table>
             </div>
+
+            {/* Staff Selection Modal */}
+            {modalContext && (
+                <StaffSelectionModal
+                    isOpen={modalOpen}
+                    onClose={() => {
+                        setModalOpen(false);
+                        setModalContext(null);
+                    }}
+                    onSelect={handleStaffSelect}
+                    date={modalContext.date}
+                    postazione={modalContext.postazione}
+                    shift={modalContext.shift}
+                    orari={modalContext.orari}
+                    staff={staff}
+                    existingAssignments={assignments}
+                />
+            )}
         </div>
     );
 }
