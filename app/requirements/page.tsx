@@ -142,6 +142,50 @@ function RequirementsContent() {
         setRange(getWeekRange(w, currentYear));
     };
 
+    // --- Staff Assignment Functions ---
+    const openAssignModal = (date: string, postazione: string, shift: 'lunch' | 'dinner', orari: { start: string; end: string }) => {
+        setModalContext({ date, postazione, shift, orari });
+        setModalOpen(true);
+    };
+
+    const handleStaffSelect = async (staffId: number) => {
+        if (!modalContext) return;
+
+        try {
+            const { date, postazione, orari } = modalContext;
+
+            // Create assignment via API
+            await api.createAssignment({
+                data: date,
+                staffId,
+                start_time: orari.start,
+                end_time: orari.end,
+                postazione,
+                status: false
+            });
+
+            // Reload data to refresh assignments
+            await loadData();
+            setModalOpen(false);
+            setModalContext(null);
+        } catch (error) {
+            console.error('Error assigning staff:', error);
+            alert('Errore durante l\'assegnazione del turno');
+        }
+    };
+
+    const removeAssignment = async (assignmentId: number) => {
+        if (!confirm('Rimuovere questo turno?')) return;
+
+        try {
+            await api.deleteAssignment(assignmentId);
+            await loadData();
+        } catch (error) {
+            console.error('Error removing assignment:', error);
+            alert('Errore durante la rimozione del turno');
+        }
+    };
+
     // --- API ---
     const loadData = async () => {
         setLoading(true);
