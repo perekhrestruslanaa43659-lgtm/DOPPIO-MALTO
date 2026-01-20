@@ -510,10 +510,10 @@ function RequirementsContent() {
                                 <React.Fragment key={d}>
                                     <th className="border-r w-12 text-center text-blue-600">IN (P)</th>
                                     <th className="border-r w-12 text-center text-blue-600">OUT (P)</th>
-                                    <th className="border-r w-20 text-center text-blue-700 bg-blue-50">Staff P</th>
+                                    <th className="border-r w-32 text-center text-blue-700 bg-blue-50">Staff Pranzo</th>
                                     <th className="border-r w-12 text-center text-indigo-600">IN (C)</th>
                                     <th className="border-r w-12 text-center text-indigo-600">OUT (C)</th>
-                                    <th className="border-r w-20 text-center text-indigo-700 bg-indigo-50">Staff C</th>
+                                    <th className="border-r w-32 text-center text-indigo-700 bg-indigo-50">Staff Cena</th>
                                 </React.Fragment>
                             ))}
                             <th></th>
@@ -563,27 +563,27 @@ function RequirementsContent() {
                                                 <td className="p-0 border-r"><input disabled={!isActive} className="w-full h-8 text-center bg-transparent outline-none focus:bg-blue-50 disabled:bg-gray-50" value={s.lOut} onChange={e => updateSlot(rIdx, d, 'lOut', e.target.value)} /></td>
 
                                                 {/* Staff Pranzo Cell */}
-                                                <td className="p-1 border-r bg-blue-50">
-                                                    <div className="flex flex-col gap-1">
+                                                <td className="p-1 border-r bg-blue-50 min-w-[120px]">
+                                                    <div className="flex flex-col gap-1 min-w-[110px]">
                                                         <button
                                                             onClick={() => openAssignModal(d, row.station, 'lunch', { start: s.lIn, end: s.lOut })}
                                                             disabled={!isActive || !s.lIn || !s.lOut}
-                                                            className="text-xs px-1 py-0.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                                                            className="text-[10px] px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-1 whitespace-nowrap"
                                                             title="Assegna staff pranzo"
                                                         >
-                                                            <Plus size={10} /> Staff
+                                                            <Plus size={12} /> Staff
                                                         </button>
                                                         {lunchAssignments.map(a => {
                                                             const staffMember = staff.find(st => st.id === a.staffId);
                                                             return (
-                                                                <div key={a.id} className="text-[9px] bg-white px-1 py-0.5 rounded flex items-center justify-between gap-1">
-                                                                    <span className="truncate">{staffMember?.name || 'N/A'}</span>
+                                                                <div key={a.id} className="text-[10px] bg-white px-1.5 py-1 rounded flex items-center justify-between gap-1">
+                                                                    <span className="truncate flex-1">{staffMember?.name || 'N/A'}</span>
                                                                     <button
                                                                         onClick={() => removeAssignment(a.id)}
-                                                                        className="text-red-500 hover:text-red-700"
+                                                                        className="text-red-500 hover:text-red-700 flex-shrink-0"
                                                                         title="Rimuovi"
                                                                     >
-                                                                        <X size={10} />
+                                                                        <X size={12} />
                                                                     </button>
                                                                 </div>
                                                             );
@@ -595,27 +595,27 @@ function RequirementsContent() {
                                                 <td className="p-0 border-r"><input disabled={!isActive} className="w-full h-8 text-center bg-transparent outline-none focus:bg-indigo-50 disabled:bg-gray-50" value={s.dOut} onChange={e => updateSlot(rIdx, d, 'dOut', e.target.value)} /></td>
 
                                                 {/* Staff Cena Cell */}
-                                                <td className="p-1 border-r bg-indigo-50">
-                                                    <div className="flex flex-col gap-1">
+                                                <td className="p-1 border-r bg-indigo-50 min-w-[120px]">
+                                                    <div className="flex flex-col gap-1 min-w-[110px]">
                                                         <button
                                                             onClick={() => openAssignModal(d, row.station, 'dinner', { start: s.dIn, end: s.dOut })}
                                                             disabled={!isActive || !s.dIn || !s.dOut}
-                                                            className="text-xs px-1 py-0.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                                                            className="text-[10px] px-2 py-1 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-1 whitespace-nowrap"
                                                             title="Assegna staff cena"
                                                         >
-                                                            <Plus size={10} /> Staff
+                                                            <Plus size={12} /> Staff
                                                         </button>
                                                         {dinnerAssignments.map(a => {
                                                             const staffMember = staff.find(st => st.id === a.staffId);
                                                             return (
-                                                                <div key={a.id} className="text-[9px] bg-white px-1 py-0.5 rounded flex items-center justify-between gap-1">
-                                                                    <span className="truncate">{staffMember?.name || 'N/A'}</span>
+                                                                <div key={a.id} className="text-[10px] bg-white px-1.5 py-1 rounded flex items-center justify-between gap-1">
+                                                                    <span className="truncate flex-1">{staffMember?.name || 'N/A'}</span>
                                                                     <button
                                                                         onClick={() => removeAssignment(a.id)}
-                                                                        className="text-red-500 hover:text-red-700"
+                                                                        className="text-red-500 hover:text-red-700 flex-shrink-0"
                                                                         title="Rimuovi"
                                                                     >
-                                                                        <X size={10} />
+                                                                        <X size={12} />
                                                                     </button>
                                                                 </div>
                                                             );
