@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Save, Plus, Trash2, ChevronLeft, ChevronRight, X, Upload, BarChart, Eye, EyeOff, LayoutGrid } from 'lucide-react';
-import * as api from '@/lib/api';
+import { api } from '@/lib/api';
 import * as XLSX from 'xlsx';
 import Link from 'next/link';
 import StaffSelectionModal from '@/components/StaffSelectionModal';
