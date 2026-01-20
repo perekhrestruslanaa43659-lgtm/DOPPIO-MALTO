@@ -1,12 +1,12 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { api } from '@/lib/api';
+import { useSearchParams } from 'next/navigation';
+import { Save, Plus, Trash2, ChevronLeft, ChevronRight, X, Upload, BarChart, Eye, EyeOff, LayoutGrid } from 'lucide-react';
+import * as api from '@/lib/api';
 import * as XLSX from 'xlsx';
-import { Save, Upload, BarChart, Trash2, Eye, EyeOff, LayoutGrid } from 'lucide-react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation'; // Added useSearchParams
+import StaffSelectionModal from '@/components/StaffSelectionModal';
 import { DEFAULT_STATIONS } from '@/lib/constants';
 
 // --- Types ---
@@ -84,6 +84,17 @@ function RequirementsContent() {
     const [assignedLunchHours, setAssignedLunchHours] = useState<Record<string, number>>({});
     const [assignedDinnerHours, setAssignedDinnerHours] = useState<Record<string, number>>({});
     const [loading, setLoading] = useState(false);
+
+    // Staff assignment state
+    const [staff, setStaff] = useState<any[]>([]);
+    const [assignments, setAssignments] = useState<any[]>([]);
+    const [modalOpen, setModalOpen] = useState(false);
+    const [modalContext, setModalContext] = useState<{
+        date: string;
+        postazione: string;
+        shift: 'lunch' | 'dinner';
+        orari: { start: string; end: string };
+    } | null>(null);
 
     const days = getDatesInRange(range.start, range.end);
     const dayNames = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
