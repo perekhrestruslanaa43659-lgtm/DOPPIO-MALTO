@@ -157,6 +157,10 @@ function RequirementsContent() {
 
             const [data, budgetData, assignments, staffList] = await Promise.all([reqProm, budgetProm, assignProm, staffProm]);
 
+            // Store staff list
+            setStaff(staffList || []);
+            setAssignments(assignments || []);
+
             // 1. Setup Rows
             let loadedRows: CoverageRow[] = [];
             if (Array.isArray(data) && data.length > 0) {
