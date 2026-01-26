@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import * as XLSX from 'xlsx';
-import { Save, Upload, Download, Trash2, LineChart, ChefHat, ChevronLeft, ChevronRight, Clock, Target, DollarSign, Activity } from 'lucide-react'; // Added icons
+import { Save, Upload, Download, Trash2, LineChart, ChefHat, ChevronLeft, ChevronRight, Clock, Target, DollarSign, Activity, ShieldCheck, AlertTriangle } from 'lucide-react'; // Added icons
 
 // Helpers
 function getWeekRange(d = new Date()) {
@@ -136,6 +136,10 @@ export default function ForecastPage() {
     const [estimatedCost, setEstimatedCost] = useState(0);
     const [isAutoSaving, setIsAutoSaving] = useState(false);
     const [debugLogs, setDebugLogs] = useState<string[]>([]); // [NEW] Debug Logs
+
+    // Validation State
+    const [validationErrors, setValidationErrors] = useState<any[]>([]);
+    const [showValidation, setShowValidation] = useState(false);
 
     const addLog = (msg: string) => {
         const timestamp = new Date().toLocaleTimeString();
@@ -512,7 +516,94 @@ export default function ForecastPage() {
         await saveToDb(template);
     };
 
+    const handleValidate = async () => {
+        setLoading(true);
+        try {
+            const startStr = selectedWeek.start;
+            const endStr = selectedWeek.end;
+            addLog(`🔍 Validating schedule ${startStr} - ${endStr}`);
+            const res = await api.validateSchedule(startStr, endStr);
+            if (res && res.errors) {
+                setValidationErrors(res.errors);
+                setShowValidation(true);
+                addLog(`🔍 Validation complete: ${res.errors.length} errors`);
+                if (res.errors.length === 0) alert('✅ Nessun errore rilevato!');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Errore durante la validazione');
+        } finally {
+            setLoading(false);
+        }
+    };
 
+
+
+    // --- EXCEL FEATURES ---
+    const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>, startR: number, startC: number) => {
+        e.preventDefault();
+        const clipboardData = e.clipboardData.getData('text');
+        if (!clipboardData) return;
+
+        const rows = clipboardData.split(/\r\n|\n|\r/).filter(row => row.trim() !== '');
+        const newData = [...data];
+        let changesCount = 0;
+
+        rows.forEach((rowStr, rOffset) => {
+            const cells = rowStr.split('\t');
+            cells.forEach((cellVal, cOffset) => {
+                const targetR = startR + rOffset;
+                const targetC = startC + cOffset;
+
+                if (targetR < newData.length && targetC < newData[targetR].length) {
+                    if (targetC >= 1 && targetC <= 7) {
+                        let val = cellVal.trim();
+                        val = val.replace(/[^0-9.,-\s]/g, '').trim();
+                        if (val) {
+                            if (val.includes(',') && val.includes('.')) {
+                                val = val.replace(/\./g, '').replace(',', '.');
+                            } else if (val.includes(',')) {
+                                val = val.replace(',', '.');
+                            }
+                            newData[targetR][targetC] = val;
+                            changesCount++;
+                        }
+                    }
+                }
+            });
+        });
+
+        if (changesCount > 0) {
+            const finalData = applyFormulas(newData);
+            setData(finalData);
+            if (autoSaveTimeout.current) clearTimeout(autoSaveTimeout.current);
+            setIsAutoSaving(true);
+            autoSaveTimeout.current = setTimeout(async () => {
+                await saveToDb(finalData);
+                setIsAutoSaving(false);
+            }, 2000);
+            addLog(`📋 Pasted ${changesCount} cells starting at [${startR},${startC}]`);
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, r: number, c: number) => {
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter'].includes(e.key)) {
+            e.preventDefault();
+            let nextR = r;
+            let nextC = c;
+
+            if (e.key === 'ArrowUp') nextR = r - 1;
+            if (e.key === 'ArrowDown' || e.key === 'Enter') nextR = r + 1;
+            if (e.key === 'ArrowLeft') nextC = c - 1;
+            if (e.key === 'ArrowRight') nextC = c + 1;
+
+            const nextId = `cell-${nextR}-${nextC}`;
+            const el = document.getElementById(nextId);
+            if (el) {
+                el.focus();
+            }
+        }
+    };
 
     return (
         <div className="max-w-full mx-auto p-6 bg-gray-50 min-h-screen">
@@ -798,27 +889,69 @@ export default function ForecastPage() {
 
                         <button onClick={async () => {
                             if (confirm('Sei sicuro di voler ELIMINARE TUTTO il forecast di questa settimana?')) {
-                                try {
-                                    setLoading(true);
-                                    await api.deleteForecast(selectedWeek.start);
-                                    setData([]); // Clear UI immediately
-                                    alert("✅ Forecast Eliminato.");
-                                } catch (e: any) {
-                                    alert("Errore eliminazione: " + e.message);
-                                } finally {
-                                    setLoading(false);
-                                }
+                                await api.saveForecast([{ weekStart: selectedWeek.start, data: JSON.stringify([]) }]);
+                                setData([]);
+                                alert('Eliminato.');
                             }
-                        }} className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition font-medium">
-                            <Trash2 size={18} /> Elimina
+                        }} className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition">
+                            <Trash2 size={18} />
+                        </button>
+
+                        <button
+                            onClick={handleValidate}
+                            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium shadow-sm ml-auto"
+                        >
+                            <ShieldCheck size={18} /> Verifica
                         </button>
                     </>
-                ) : (
-                    <button onClick={handleManualInit} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-bold shadow-md">
-                        ➕ Inizializza Tabella Vuota
-                    </button>
-                )}
+                ) : null}
             </div>
+
+            {/* Validation Modal/Panel */}
+            {showValidation && validationErrors.length > 0 && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[80vh] flex flex-col">
+                        <div className="p-6 border-b flex justify-between items-center bg-gray-50 rounded-t-xl">
+                            <h2 className="text-xl font-bold flex items-center gap-2 text-red-600">
+                                <AlertTriangle /> Errori Rilevati ({validationErrors.length})
+                            </h2>
+                            <button onClick={() => setShowValidation(false)} className="text-gray-500 hover:text-gray-700 text-2xl font-bold">&times;</button>
+                        </div>
+                        <div className="p-6 overflow-y-auto flex-1">
+                            <div className="space-y-4">
+                                {validationErrors.map((err, i) => (
+                                    <div key={i} className={`p-4 rounded-lg border-l-4 ${err.level === 'WARNING' ? 'bg-yellow-50 border-yellow-500' : 'bg-red-50 border-red-500'} shadow-sm`}>
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                                                    {err.ruleId}
+                                                    {err.staffId > 0 && <span className="text-sm font-normal text-gray-500">(Staff ID: {err.staffId})</span>}
+                                                </h3>
+                                                <p className="text-gray-700 mt-1">{err.message}</p>
+                                                <p className="text-xs text-gray-400 mt-2 font-mono">Data: {err.date}</p>
+                                            </div>
+                                            <span className={`px-2 py-1 rounded text-xs font-bold ${err.level === 'WARNING' ? 'bg-yellow-200 text-yellow-800' : 'bg-red-200 text-red-800'}`}>
+                                                {err.level}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="p-4 border-t bg-gray-50 rounded-b-xl flex justify-end">
+                            <button onClick={() => setShowValidation(false)} className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-bold">
+                                Chiudi
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {data.length === 0 && (
+                <button onClick={handleManualInit} className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-bold shadow-md">
+                    ➕ Inizializza Tabella Vuota
+                </button>
+            )}
 
             {/* KPI */}
             {
@@ -864,9 +997,12 @@ export default function ForecastPage() {
                                                 return (
                                                     <td key={cIdx} className="p-0 border border-gray-100 relative">
                                                         <input
+                                                            id={`cell-${rIdx + 1}-${cIdx}`}
                                                             type="text"
                                                             value={cell}
                                                             onChange={(e) => handleUpdate(rIdx + 1, cIdx, e.target.value)}
+                                                            onPaste={(e) => handlePaste(e, rIdx + 1, cIdx)}
+                                                            onKeyDown={(e) => handleKeyDown(e, rIdx + 1, cIdx)}
                                                             className="w-full h-full p-3 text-right bg-transparent outline-none focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500 font-mono text-blue-700 font-bold"
                                                         />
                                                     </td>

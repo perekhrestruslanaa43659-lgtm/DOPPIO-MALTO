@@ -1,10 +1,11 @@
-
 'use client';
 
 import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import * as XLSX from 'xlsx';
-import { Trash2, Edit2, Upload, Plus, X, Save, Grid3x3, List } from 'lucide-react';
+import { Trash2, Edit2, Upload, Plus, X, Save, Grid3x3, List, Eraser, Settings, Clock } from 'lucide-react';
+import StationsManagerModal from '@/components/StationsManagerModal';
+import AvailabilityManager from '@/components/AvailabilityManager';
 
 interface Staff {
     id: number;
@@ -17,6 +18,7 @@ interface Staff {
     costoOra: number;
     postazioni: string[];
     skillLevel?: string;
+    contractType?: string;
 }
 
 export default function StaffPage() {
@@ -35,10 +37,25 @@ export default function StaffPage() {
         oreMassime: 40,
         costoOra: 0,
         postazioni: [] as string[],
-        skillLevel: 'MEDIUM'
+        skillLevel: 'MEDIUM',
+        contractType: 'STANDARD'
     });
 
-    const availableStations = ['BAR SU', "BAR GIU'", 'B/S', 'PASS', 'CDR', 'ACC', 'CUCINA'];
+    const [availableStations, setAvailableStations] = useState(['BAR SU', "BAR GIU'", 'B/S', 'PASS', 'CDR', 'ACC', 'CUCINA']);
+    const [newStation, setNewStation] = useState('');
+    const [showStationsManager, setShowStationsManager] = useState(false);
+    const [managingAvailability, setManagingAvailability] = useState<{ id: number; nome: string } | null>(null);
+
+    const handleAddStation = (e?: any) => {
+        if (e) e.preventDefault();
+        if (!newStation) return;
+        const up = newStation.trim().toUpperCase();
+        if (!availableStations.includes(up)) {
+            setAvailableStations([...availableStations, up]);
+            setForm({ ...form, postazioni: [...form.postazioni, up] });
+        }
+        setNewStation('');
+    };
 
     // Helper function to capitalize names properly
     const capitalizeName = (name: string) => {
@@ -60,9 +77,13 @@ export default function StaffPage() {
             const data = await api.getStaff();
             data.sort((a: any, b: any) => (a.listIndex ?? 999) - (b.listIndex ?? 999));
             setStaff(data);
-        } catch (e) {
+
+            // Merge custom stations found in existing staff
+            const used = new Set(data.flatMap((s: any) => (s.postazioni || []) as string[]));
+            setAvailableStations(prev => Array.from(new Set([...prev, ...used])) as string[]);
+        } catch (e: any) {
             console.error(e);
-            alert('Errore caricamento staff');
+            alert('Errore caricamento staff: ' + (e.message || JSON.stringify(e)));
         } finally {
             setLoading(false);
         }
@@ -70,7 +91,19 @@ export default function StaffPage() {
 
     async function handleSubmit() {
         try {
-            const payload: any = { ...form };
+            const payload: any = {
+                ...form,
+                oreMinime: parseInt(String(form.oreMinime)) || 0,
+                oreMassime: parseInt(String(form.oreMassime)) || 40,
+                costoOra: parseFloat(String(form.costoOra)) || 0,
+                email: form.email && form.email.trim() !== '' ? form.email.trim() : null,
+                postazioni: Array.isArray(form.postazioni) ? form.postazioni : []
+            };
+
+            // Remove properties that might be misinterpreted or read-only if present
+            // (Though ...form usually matches state)
+
+            // If email is null, delete it to match previous logic logic (if logic relied on missing key)?
             if (!payload.email) delete payload.email;
 
             if (editing) {
@@ -100,7 +133,8 @@ export default function StaffPage() {
             oreMassime: 40,
             costoOra: 0,
             postazioni: [],
-            skillLevel: 'MEDIUM'
+            skillLevel: 'MEDIUM',
+            contractType: 'STANDARD'
         });
         setEditing(null);
     }
@@ -116,7 +150,8 @@ export default function StaffPage() {
             oreMassime: s.oreMassime,
             costoOra: s.costoOra,
             postazioni: Array.isArray(s.postazioni) ? s.postazioni : [],
-            skillLevel: s.skillLevel || 'MEDIUM'
+            skillLevel: s.skillLevel || 'MEDIUM',
+            contractType: s.contractType || 'STANDARD'
         });
         setShowForm(true);
     }
@@ -227,6 +262,8 @@ export default function StaffPage() {
         reader.readAsBinaryString(file);
     }
 
+
+
     // UI Components
     return (
         <div className="p-6 max-w-7xl mx-auto">
@@ -264,6 +301,14 @@ export default function StaffPage() {
                         Importa Excel
                         <input type="file" className="hidden" onChange={handleFileUpload} accept=".csv, .xlsx, .xls" />
                     </label>
+                    <button
+                        onClick={() => setShowStationsManager(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition font-medium"
+                        title="Gestisci elenco postazioni globalmente"
+                    >
+                        <Settings size={20} />
+                        Gestisci Postazioni
+                    </button>
                     <button
                         onClick={async () => {
                             if (confirm('⚠️ SEI SICURO? Questo cancellerà TUTTO lo staff esistente. Usa questa funzione se vuoi ricaricare da zero con l\'ordine corretto.')) {
@@ -330,11 +375,30 @@ export default function StaffPage() {
                                 <option value="SENIOR">Senior</option>
                             </select>
                         </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo Contratto</label>
+                            <select
+                                className="w-full p-2 border rounded-md bg-white"
+                                value={form.contractType}
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    const updates: any = { contractType: val };
+                                    if (val === 'CHIAMATA') {
+                                        updates.oreMassime = 0; // Auto-set 0 for On-Call
+                                    }
+                                    setForm({ ...form, ...updates });
+                                }}
+                            >
+                                <option value="STANDARD">Standard (Fisso)</option>
+                                <option value="TIROCINANTE">Tirocinante</option>
+                                <option value="CHIAMATA">A Chiamata</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div className="mb-6">
                         <label className="block text-sm font-medium text-gray-700 mb-2">Postazioni Abilitate</label>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 items-center">
                             {availableStations.map(p => (
                                 <label key={p} className={`px-3 py-1 rounded-full border cursor-pointer text-sm transition ${form.postazioni.includes(p) ? 'bg-indigo-100 border-indigo-300 text-indigo-800' : 'bg-gray-50 border-gray-200 text-gray-600'
                                     }`}>
@@ -352,6 +416,18 @@ export default function StaffPage() {
                                     {p}
                                 </label>
                             ))}
+                            <div className="flex items-center gap-1 ml-2">
+                                <input
+                                    className="border rounded px-2 py-1 text-xs w-24 outline-indigo-500 bg-gray-50 focus:bg-white transition"
+                                    placeholder="Nuova..."
+                                    value={newStation}
+                                    onChange={e => setNewStation(e.target.value.toUpperCase())}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddStation(e); }}
+                                />
+                                <button onClick={handleAddStation} className="p-1.5 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 transition" title="Aggiungi Postazione">
+                                    <Plus size={14} />
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -416,6 +492,13 @@ export default function StaffPage() {
                                                             {s.skillLevel}
                                                         </span>
                                                     )}
+                                                    {s.contractType && s.contractType !== 'STANDARD' && (
+                                                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${s.contractType === 'CHIAMATA' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+                                                            'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                                            }`}>
+                                                            {s.contractType === 'CHIAMATA' ? 'A CHIAMATA' : 'TIROCINANTE'}
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -468,6 +551,14 @@ export default function StaffPage() {
                                         >
                                             <Edit2 size={14} />
                                             Modifica
+                                        </button>
+                                        <button
+                                            onClick={() => setManagingAvailability({ id: s.id, nome: `${s.nome} ${s.cognome}` })}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md transition text-sm font-medium"
+                                            title="Disponibilità"
+                                        >
+                                            <Clock size={14} />
+                                            Orari
                                         </button>
                                         <button
                                             onClick={() => removeRow(s.id, s.nome)}
@@ -539,6 +630,13 @@ export default function StaffPage() {
                                                     <Edit2 size={16} />
                                                 </button>
                                                 <button
+                                                    onClick={() => setManagingAvailability({ id: s.id, nome: `${s.nome} ${s.cognome}` })}
+                                                    className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-md transition"
+                                                    title="Disponibilità"
+                                                >
+                                                    <Clock size={16} />
+                                                </button>
+                                                <button
                                                     onClick={() => removeRow(s.id, s.nome)}
                                                     className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition"
                                                     title="Elimina"
@@ -554,6 +652,21 @@ export default function StaffPage() {
                     </div>
                 )
             }
-        </div >
+            <StationsManagerModal
+                isOpen={showStationsManager}
+                onClose={() => setShowStationsManager(false)}
+                staff={staff}
+                onRefresh={loadStaff}
+                availableStations={availableStations}
+                onUpdateStations={setAvailableStations}
+            />
+            {managingAvailability && (
+                <AvailabilityManager
+                    staffId={managingAvailability.id}
+                    staffName={managingAvailability.nome}
+                    onClose={() => setManagingAvailability(null)}
+                />
+            )}
+        </div>
     );
 }

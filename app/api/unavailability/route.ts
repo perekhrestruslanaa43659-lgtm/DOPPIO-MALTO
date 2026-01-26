@@ -67,3 +67,32 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }
+
+export async function DELETE(request: NextRequest) {
+    try {
+        const tenantKey = request.headers.get('x-user-tenant-key');
+        if (!tenantKey) return NextResponse.json({ error: 'Tenant key required' }, { status: 400 });
+
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+        const all = searchParams.get('all'); // Handle delete all if needed
+
+        if (all === 'true') {
+            await prisma.unavailability.deleteMany({
+                where: { tenantKey }
+            });
+            return NextResponse.json({ message: 'All unavailability deleted' });
+        }
+
+        if (!id) return NextResponse.json({ error: 'ID required' }, { status: 400 });
+
+        await prisma.unavailability.delete({
+            where: { id: parseInt(id) }
+        });
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting unavailability:', error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+}

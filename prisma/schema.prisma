@@ -23,11 +23,14 @@ model Staff {
   postazioni        String              @default("[]")
   tenantKey         String              @default("default-tenant")
   skillLevel        String              @default("MEDIUM") // JUNIOR, MEDIUM, SENIOR
+  contractType      String              @default("STANDARD") // TIROCINANTE, STANDARD, CHIAMATA
   incompatibilityId String?             // If set, staff with same ID invalid to work together
   assignments       Assignment[]
   PermissionRequest PermissionRequest[]
   recurringShifts   RecurringShift[]
   unavailabilities  Unavailability[]
+  availability      Availability[]
+
 
   @@unique([email, tenantKey])
   @@index([tenantKey])
@@ -55,6 +58,19 @@ model Unavailability {
   reason     String?
   start_time String?
   end_time   String?
+  tenantKey  String  @default("default-tenant")
+  staff      Staff   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([tenantKey])
+}
+
+model Availability {
+  id         Int     @id @default(autoincrement())
+  staffId    Int
+  dayOfWeek  Int?    // 0=Sun, 1=Mon, etc. (for recurring)
+  date       String? // YYYY-MM-DD (for specific)
+  startTime  String
+  endTime    String
   tenantKey  String  @default("default-tenant")
   staff      Staff   @relation(fields: [staffId], references: [id], onDelete: Cascade)
 

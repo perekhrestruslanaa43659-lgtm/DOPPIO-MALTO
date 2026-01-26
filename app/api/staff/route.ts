@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
                 email: body.email || null,
                 ruolo: body.ruolo,
                 oreMinime: parseInt(body.oreMinime) || 0,
-                oreMassime: parseInt(body.oreMassime) || 40,
+                oreMassime: !isNaN(parseInt(body.oreMassime)) ? parseInt(body.oreMassime) : 40,
                 costoOra: parseFloat(body.costoOra) || 0,
                 moltiplicatore: parseFloat(body.moltiplicatore) || 1.0,
                 postazioni: JSON.stringify(postazioni),
@@ -103,6 +103,7 @@ export async function POST(request: NextRequest) {
                 listIndex: 0, // Default to 0, or calculate max
                 tenantKey: tenantKey,
                 skillLevel: body.skillLevel || 'MEDIUM',
+                contractType: body.contractType || 'STANDARD',
                 incompatibilityId: body.incompatibilityId || null,
             },
         });
@@ -147,11 +148,12 @@ export async function PUT(request: NextRequest) {
                 email: body.email || null,
                 ruolo: body.ruolo,
                 oreMinime: parseInt(body.oreMinime) || 0,
-                oreMassime: parseInt(body.oreMassime) || 40,
+                oreMassime: !isNaN(parseInt(body.oreMassime)) ? parseInt(body.oreMassime) : 40,
                 costoOra: parseFloat(body.costoOra) || 0,
                 moltiplicatore: parseFloat(body.moltiplicatore) || 1.0,
                 postazioni: JSON.stringify(postazioni),
                 skillLevel: body.skillLevel || 'MEDIUM',
+                contractType: body.contractType || 'STANDARD',
                 incompatibilityId: body.incompatibilityId || null,
             },
         });
@@ -159,6 +161,41 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json(staff);
     } catch (error) {
         console.error('Error updating staff:', error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+}
+
+export async function PATCH(request: NextRequest) {
+    try {
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+        const tenantKey = request.headers.get('x-user-tenant-key');
+
+        if (!tenantKey) return NextResponse.json({ error: 'Tenant key required' }, { status: 400 });
+        if (!id) return NextResponse.json({ error: 'Staff ID required' }, { status: 400 });
+
+        const body = await request.json();
+        const data: any = {};
+
+        // Handle Postazioni
+        if (body.postazioni !== undefined) {
+            let postazioni: string[] = [];
+            if (typeof body.postazioni === 'string') {
+                postazioni = body.postazioni.split(',').map((s: string) => s.trim()).filter((s: string) => s !== '');
+            } else if (Array.isArray(body.postazioni)) {
+                postazioni = body.postazioni;
+            }
+            data.postazioni = JSON.stringify(postazioni);
+        }
+
+        const staff = await prisma.staff.update({
+            where: { id: parseInt(id), tenantKey },
+            data: data,
+        });
+
+        return NextResponse.json(staff);
+    } catch (error) {
+        console.error('Error patching staff:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }

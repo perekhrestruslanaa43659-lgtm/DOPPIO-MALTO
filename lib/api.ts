@@ -61,6 +61,7 @@ export const api = {
     // --- Staff ---
     getStaff: () => request('/staff'),
     updateStaff: (id: number, data: any) => request(`/staff?id=${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    patchStaff: (id: number, data: any) => request(`/staff?id=${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     upsertStaff: (data: any) => request('/staff', { method: 'POST', body: JSON.stringify(data) }),
     deleteStaff: (id: number) => request(`/staff?id=${id}`, { method: 'DELETE' }),
     deleteAllStaff: () => request('/staff?all=true', { method: 'DELETE' }),
@@ -70,6 +71,8 @@ export const api = {
     getSchedule: (start: string, end: string) => request(`/schedule?start=${start}&end=${end}`),
     generateSchedule: (start: string, end: string) => request(`/schedule/generate`, { method: 'POST', body: JSON.stringify({ start, end }) }),
     clearAssignments: (start: string, end: string) => request(`/schedule/clear`, { method: 'POST', body: JSON.stringify({ start, end }) }),
+    validateSchedule: (start: string, end: string) => request(`/schedule/validate?start=${start}&end=${end}`),
+    auditSchedule: (start: string, end: string) => request(`/schedule/audit?start=${start}&end=${end}`),
 
     createAssignment: (data: any) => request('/assignment', { method: 'POST', body: JSON.stringify(data) }),
     updateAssignment: (id: number | any, data?: any) => {
@@ -90,6 +93,11 @@ export const api = {
     getAbsences: () => request('/absences'),
     updateAbsence: (id: number, status: string) => request(`/absences`, { method: 'PUT', body: JSON.stringify({ id, status }) }),
 
+    // --- Availability ---
+    getAvailability: (staffId?: number) => request(`/availability${staffId ? `?staffId=${staffId}` : ''}`),
+    addAvailability: (data: any) => request('/availability', { method: 'POST', body: JSON.stringify(data) }),
+    deleteAvailability: (id: number) => request(`/availability?id=${id}`, { method: 'DELETE' }),
+
     // --- Recurring Shifts ---
     getRecurringShifts: () => request('/recurring-shifts'),
     addRecurringShift: (data: any) => request('/recurring-shifts/create', { method: 'POST', body: JSON.stringify(data) }),
@@ -107,7 +115,8 @@ export const api = {
     upsertBudget: (data: any) => request('/budget', { method: 'POST', body: JSON.stringify(data) }),
 
     // --- Deployment / Coverage ---
-    getCoverage: () => request('/requirements'),
+    getCoverage: (date?: string) => request(`/requirements${date ? `?date=${date}` : ''}`),
+    saveCoverage: (data: any) => request('/requirements', { method: 'POST', body: JSON.stringify(data) }),
 
     // --- Permissions Requests ---
     getPermissionRequests: () => request('/permission-requests'),

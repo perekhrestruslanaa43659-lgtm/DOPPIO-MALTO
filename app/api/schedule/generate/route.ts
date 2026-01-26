@@ -29,8 +29,10 @@ export async function POST(request: NextRequest) {
                 data: {
                     gte: start,
                     lte: end
-                }
+                },
                 // Removed status: false to ensure FULL OVERWRITE of the generated period.
+                // REVERTED: We MUST preserve status: true (Manual Assignments) to avoid overwriting user WORK.
+                status: false
             }
         });
 

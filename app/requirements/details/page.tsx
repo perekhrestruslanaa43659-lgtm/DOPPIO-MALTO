@@ -9,6 +9,8 @@ import { api } from '@/lib/api';
 import Link from 'next/link';
 import * as XLSX from 'xlsx';
 
+import { getWeekRange, getDatesInRange } from '@/lib/date-utils';
+
 const INTERVALS: string[] = [];
 let h = 6, m = 0;
 for (let i = 0; i < 96; i++) {
@@ -19,31 +21,15 @@ for (let i = 0; i < 96; i++) {
     if (m === 60) { m = 0; h = (h + 1) % 24; }
 }
 
-function getWeekRange(w: number, year: number) {
-    const d = new Date(Date.UTC(year, 0, 4));
-    const day = d.getUTCDay() || 7;
-    const sOfYear = new Date(d);
-    sOfYear.setUTCDate(d.getUTCDate() - day + 1);
-    const startD = new Date(sOfYear);
-    startD.setUTCDate(sOfYear.getUTCDate() + (w - 1) * 7);
-    return { start: startD.toISOString().slice(0, 10) };
-}
-
-function getDatesInRange(startDate: string) {
-    const dates = [];
-    let curr = new Date(startDate);
-    for (let i = 0; i < 7; i++) {
-        dates.push(curr.toISOString().split('T')[0]);
-        curr.setDate(curr.getDate() + 1);
-    }
-    return dates;
-}
-
 function isTimeInRange(time: string, start: string, end: string) {
     if (!start || !end) return false;
     const toMinds = (t: string) => {
-        const [hh, mm] = t.split(':').map(Number);
-        return hh * 60 + mm;
+        if (!t) return 0;
+        // Handle ISO (2023-01-01T17:00:00) or simple (17:00)
+        const timePart = t.includes('T') ? t.split('T')[1] : t;
+        const clean = timePart.replace(/[^\d:]/g, ''); // Remove non-digits/colons
+        const [hh, mm] = clean.split(':').map(Number);
+        return (hh || 0) * 60 + (mm || 0);
     }
     let tVal = toMinds(time);
     let sVal = toMinds(start);
@@ -92,21 +78,28 @@ function CoverageDetailsContent() {
         localStorage.setItem('calendar_year', currentYear.toString());
     }, [week, currentYear, isInitialized]);
 
-    const { start: weekStart } = getWeekRange(week, currentYear);
-    const days = getDatesInRange(weekStart);
+    const { start: weekStart, end: weekEnd } = getWeekRange(week, currentYear);
+    const days = getDatesInRange(weekStart, weekEnd);
     const currentDayDate = days[selectedDayIdx]; // e.g. "2025-10-13"
 
     // Load Data
     // Load Data
+    const [assignments, setAssignments] = useState<any[]>([]);
+    const [staffList, setStaffList] = useState<any[]>([]);
+
     const loadData = () => {
         if (!weekStart) return;
         setLoading(true);
 
+        const calcEnd = new Date(new Date(weekStart).getTime() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
         const p1 = fetch(`/api/requirements?date=${weekStart}`).then(r => r.json());
         const p2 = fetch(`/api/recurring-shifts`).then(r => r.json());
+        const p3 = api.getSchedule(weekStart, calcEnd);
+        const p4 = api.getStaff();
 
-        Promise.all([p1, p2])
-            .then(([reqData, shiftData]) => {
+        Promise.all([p1, p2, p3, p4])
+            .then(([reqData, shiftData, scheduleData, staffData]) => {
                 if (Array.isArray(reqData)) {
                     setRows(reqData.map((r: any) => ({
                         station: r.station,
@@ -115,9 +108,9 @@ function CoverageDetailsContent() {
                     })));
                 } else setRows([]);
 
-                if (Array.isArray(shiftData)) {
-                    setFixedShifts(shiftData);
-                }
+                if (Array.isArray(shiftData)) setFixedShifts(shiftData);
+                if (Array.isArray(scheduleData)) setAssignments(scheduleData);
+                if (Array.isArray(staffData)) setStaffList(staffData);
             })
             .catch(console.error)
             .finally(() => setLoading(false));
@@ -128,24 +121,15 @@ function CoverageDetailsContent() {
     }, [weekStart]);
 
     // Derived Date details
-    // selectedDayIdx: 0=Mon, 1=Tue ... 6=Sun
-    // JS Date.getDay(): 0=Sun, 1=Mon ...
-    // Map selectedDayIdx to JS getDay format for filtering?
-    // User Fixed Shifts uses: 1=Mon ... 6=Sat, 0=Sun. 
-    // My selectedDayIdx 0 is Mon (1), 6 is Sun (0).
-    // Derived Date details
-    // selectedDayIdx: 0=Mon, 1=Tue ... 6=Sun
-    // DB uses 1=Mon ... 7=Sun
     const currentDayOfWeek = selectedDayIdx + 1; // 1..7 (Mon..Sun)
 
     // Normalize helper
     const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
     // Filter shifts for this day and map by station
-    // Map<NormalizedStationName, Array<Intervals>>
-    // Map<NormalizedStationName, Array<{ staff: string, times: string[] }>>
     const shiftsByStation: Record<string, { staff: string, times: string[] }[]> = {};
 
+    // 1. Process Fixed Shifts (Simulation)
     fixedShifts.forEach(shift => {
         if (!showSimulation) return; // Skip if toggled off
         if (shift.dayOfWeek !== currentDayOfWeek) return;
@@ -157,10 +141,19 @@ function CoverageDetailsContent() {
         if (shift.startYear && currentYear < shift.startYear) return;
         if (shift.endYear && currentYear > shift.endYear) return;
 
+        // Check if there is an ACTUAL assignment for this staff on this day
+        // If so, the ACTUAL assignment should supersede the fixed shift (avoid double counting if they differ, or duplicate visual)
+        // However, usually Simulation shows "What should be".
+        // Let's decide: Show Union?
+        // Logic: If I manually assigned, I want to see THAT.
+        // If I haven't, I want to see Fixed.
+        // Let's check overlap later or just dump all.
+        // User complaint: "Manual 17:00 not showing".
+
         const normStation = normalize(shift.postazione);
         if (!shiftsByStation[normStation]) shiftsByStation[normStation] = [];
 
-        // Mark intervals covered by this shift
+        // Calculate Times
         const times: string[] = [];
         INTERVALS.forEach(time => {
             if (isTimeInRange(time, shift.start_time, shift.end_time)) {
@@ -170,6 +163,36 @@ function CoverageDetailsContent() {
 
         if (times.length > 0) {
             const staffName = shift.staff ? `${shift.staff.nome} ${shift.staff.cognome}` : 'N/A';
+            shiftsByStation[normStation].push({ staff: staffName + ' (Fixed)', times });
+        }
+    });
+
+    // 2. Process Actual Assignments
+    assignments.forEach(asn => {
+        if (asn.data !== currentDayDate) return;
+        if (!asn.postazione) return;
+
+        const normStation = normalize(asn.postazione);
+        if (!shiftsByStation[normStation]) shiftsByStation[normStation] = [];
+
+        // Resolve staff name
+        const stf = staffList.find(s => s.id === asn.staffId);
+        const staffName = stf ? `${stf.nome} ${stf.cognome}` : `Staff ${asn.staffId}`;
+
+        // Calculate Times
+        const times: string[] = [];
+        const start = asn.start_time || asn.shiftTemplate?.oraInizio;
+        const end = asn.end_time || asn.shiftTemplate?.oraFine;
+
+        if (start && end) {
+            INTERVALS.forEach(time => {
+                if (isTimeInRange(time, start, end)) {
+                    times.push(time);
+                }
+            });
+        }
+
+        if (times.length > 0) {
             shiftsByStation[normStation].push({ staff: staffName, times });
         }
     });
@@ -340,32 +363,75 @@ function CoverageDetailsContent() {
                             </tr>
                         </thead>
                         <tbody>
-                            {gridRows.map((row, idx) => (
-                                <tr key={idx} className="hover:bg-gray-50">
-                                    <td className="p-1 border font-bold bg-white sticky left-0 z-10 truncate text-[11px] h-8">{row.station}</td>
+                            {(() => {
+                                // 1. Define Categories
+                                const CUCINA_KEYWORDS = ['FRITTI', 'DOLCI', 'PREPARAZIONE', 'LAVAGGIO', 'GRIGLIA', 'CUCINA', 'PIRA', 'BURGER', 'PLONGE', 'CUOCO', 'CHEF', 'JOLLY'];
 
-                                    {row.cells.map((cell: any, cIdx: number) => {
-                                        let bg = '';
-                                        let text = '';
-                                        const val = cell.status;
-                                        if (val === 3) { bg = 'bg-green-300'; text = 'OK'; } // Req + Cov
-                                        else if (val === 1) { bg = 'bg-red-200 text-red-800'; text = 'REQ'; } // Req only
-                                        else if (val === 2) { bg = 'bg-blue-400 text-white'; text = '+'; } // Cov only (Extra) - BLUE
+                                const getCategory = (station: string) => {
+                                    const s = station.toUpperCase();
+                                    if (CUCINA_KEYWORDS.some(k => s.includes(k))) return 'CUCINA';
+                                    return 'SALA BAR';
+                                };
 
-                                        return (
-                                            <td
-                                                key={cIdx}
-                                                className={`border text-center text-[7px] p-0 ${bg}`}
-                                                title={cell.staff || ''} // Tooltip with staff names
-                                            >
-                                                {text}
+                                // 2. Deduplicate & Group Rows
+                                const categorizedRows: Record<string, any[]> = { 'SALA BAR': [], 'CUCINA': [] };
+                                const seenStations = new Set<string>();
+
+                                gridRows.forEach(row => {
+                                    const norm = row.station.trim().toUpperCase();
+                                    if (seenStations.has(norm)) return; // Skip duplicate
+                                    seenStations.add(norm);
+
+                                    const cat = getCategory(row.station);
+                                    if (!categorizedRows[cat]) categorizedRows[cat] = [];
+                                    categorizedRows[cat].push(row);
+                                });
+
+                                // 3. Render Groups
+                                const groups = ['SALA BAR', 'CUCINA'];
+
+                                return groups.map(groupName => (
+                                    <React.Fragment key={groupName}>
+                                        {/* Group Header */}
+                                        <tr className="bg-slate-200 border-b-2 border-slate-300">
+                                            <td className="p-2 font-bold text-slate-700 sticky left-0 bg-slate-200 z-10 text-[10px] uppercase tracking-wider" colSpan={1}>
+                                                {groupName}
                                             </td>
-                                        );
-                                    })}
-                                    <td className="p-1 border font-bold bg-yellow-50 text-center">{row.totalReq.toFixed(2)}</td>
-                                    <td className="p-1 border font-bold bg-green-50 text-center">{row.totalCov.toFixed(2)}</td>
-                                </tr>
-                            ))}
+                                            <td colSpan={INTERVALS.length + 2} className="bg-slate-100"></td>
+                                        </tr>
+
+                                        {/* Rows */}
+                                        {categorizedRows[groupName].map((row, idx) => (
+                                            <tr key={`${groupName}-${idx}`} className="hover:bg-gray-50 border-b border-gray-100">
+                                                <td className="p-1 border-r font-medium text-gray-700 bg-white sticky left-0 z-10 truncate text-[11px] h-8 pl-4 border-l-4 border-l-transparent hover:border-l-indigo-500 transition-all">
+                                                    {row.station}
+                                                </td>
+
+                                                {row.cells.map((cell: any, cIdx: number) => {
+                                                    let bg = '';
+                                                    let text = '';
+                                                    const val = cell.status;
+                                                    if (val === 3) { bg = 'bg-emerald-300 text-emerald-900'; text = 'OK'; } // Req + Cov
+                                                    else if (val === 1) { bg = 'bg-rose-100 text-rose-700 font-bold'; text = 'REQ'; } // Req only
+                                                    else if (val === 2) { bg = 'bg-sky-200 text-sky-800'; text = '+'; } // Cov only (Extra)
+
+                                                    return (
+                                                        <td
+                                                            key={cIdx}
+                                                            className={`border-r border-gray-100 text-center text-[8px] p-0 ${bg}`}
+                                                            title={cell.staff || ''} // Tooltip with staff names
+                                                        >
+                                                            {text}
+                                                        </td>
+                                                    );
+                                                })}
+                                                <td className="p-1 border font-bold bg-yellow-50 text-center text-yellow-700">{row.totalReq.toFixed(2)}</td>
+                                                <td className="p-1 border font-bold bg-emerald-50 text-center text-emerald-700">{row.totalCov.toFixed(2)}</td>
+                                            </tr>
+                                        ))}
+                                    </React.Fragment>
+                                ));
+                            })()}
                             <tr className="bg-gray-100 font-bold">
                                 <td className="p-2 border text-right sticky left-0 bg-gray-100 z-10">TOT REQ</td>
                                 {colTotalsReq.map((tot, i) => (

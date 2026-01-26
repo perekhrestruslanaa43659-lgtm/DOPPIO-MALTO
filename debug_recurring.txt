@@ -1,0 +1,12 @@
+Found 11 recurring shifts:
+Day 3: 18:00 - 00:00 (ACCSU)
+Day 2: 18:00 - 00:00 (ACCSU)
+Day 5: 18:00 - 00:00 (ACCSU)
+Day 4: 18:00 - 00:00 (ACCSU)
+Day 1: 18:00 - 00:00 (ACCSU)
+Day 2: 18:00 - 00:00 (ACCSU)
+Day 3: 18:00 - 00:00 (ACCSU)
+Day 4: 18:00 - 00:00 (ACCSU)
+Day 6: 18:00 - 02:00 (ACCSU)
+Day 7: 18:00 - 02:00 (ACCSU)
+Day 5: 18:00 - 02:00 (ACCSU)

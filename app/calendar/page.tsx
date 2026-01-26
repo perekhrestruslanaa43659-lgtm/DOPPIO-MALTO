@@ -5,47 +5,20 @@ import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import * as XLSX from 'xlsx';
 import QuarterTimeInput from '@/components/QuarterTimeInput';
-import { Calendar, Save, Trash2, Download, Upload, AlertTriangle, CheckCircle, Wand2, Paintbrush, Clock, DollarSign, TrendingUp, Target } from 'lucide-react';
+import { Calendar, Save, Trash2, Download, Upload, AlertTriangle, CheckCircle, Wand2, Paintbrush, Clock, DollarSign, TrendingUp, Target, UserPlus } from 'lucide-react';
 import { getWeekNumber, getWeekRange, getDatesInRange, getWeeksList } from '@/lib/date-utils';
+import StaffSelectionModal from '@/components/StaffSelectionModal';
+import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, DragEndEvent } from '@dnd-kit/core';
+import { DraggableShiftItem } from '@/components/DraggableShiftItem';
+import { DroppableCell } from '@/components/DroppableCell';
+import { ContextMenu } from '@/components/ShiftContextMenu';
 
 // --- Helpers ---
 
-// --- Interfaces ---
-interface Assignment {
-    id: number;
-    staffId: number;
-    data: string;
-    start_time: string | null;
-    end_time: string | null;
-    shiftTemplateId: number | null;
-    postazione: string;
-    status: boolean;
-    shiftTemplate?: any;
-}
-
-interface Staff {
-    id: number;
-    nome: string;
-    cognome: string;
-    listIndex: number;
-    oreMassime: number;
-    costoOra: number;
-    ruolo: string;
-    unavailabilities: any[];
-    fixedShifts: any;
-    postazioni: string[];
-    moltiplicatore?: number;
-}
-
-interface ShiftTemplate {
-    id: number;
-    nome: string;
-    oraInizio: string;
-    oraFine: string;
-    giorniValidi: any;
-}
+// ...
 
 export default function CalendarPage() {
+    // ... state ...
     const [schedule, setSchedule] = useState<Assignment[]>([]);
     const [staff, setStaff] = useState<Staff[]>([]);
     const [templates, setTemplates] = useState<ShiftTemplate[]>([]);
@@ -58,13 +31,88 @@ export default function CalendarPage() {
     const [currentYear, setCurrentYear] = useState(2025);
     const [selectedWeek, setSelectedWeek] = useState(42);
     const [range, setRange] = useState(getWeekRange(42, 2025));
-    const [missingShifts, setMissingShifts] = useState<any[]>([]); // [NEW] Missing Shifts State
-    const [showMissingModal, setShowMissingModal] = useState(false); // [NEW] Modal State
+    const [missingShifts, setMissingShifts] = useState<any[]>([]);
+    const [showMissingModal, setShowMissingModal] = useState(false);
+    const [manualAssignOpen, setManualAssignOpen] = useState(false);
+    const [manualAssignContext, setManualAssignContext] = useState<any>(null);
 
     const [panarelloActive, setPanarelloActive] = useState(false);
     const [editingCell, setEditingCell] = useState<any>(null);
     const [customTimes, setCustomTimes] = useState({ start: '', end: '' });
     const [loading, setLoading] = useState(false);
+
+    // DnD & Context Menu State
+    const [contextMenu, setContextMenu] = useState<{ x: number, y: number, assignment: Assignment } | null>(null);
+    const [clipboard, setClipboard] = useState<Assignment | null>(null);
+    const [dragActiveId, setDragActiveId] = useState<number | null>(null);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 5, // Prevent drag on click
+            },
+        })
+    );
+
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+        setDragActiveId(null);
+
+        if (!over) return;
+
+        const activeIdStr = active.id.toString();
+        // ID format: shift-123
+        const assignmentId = Number(activeIdStr.replace('shift-', ''));
+
+        const overIdStr = over.id.toString();
+        // ID format: cell-STAFFID|DATE|TYPE
+        const parts = overIdStr.split('|');
+        if (parts.length < 3) return;
+
+        const [staffIdRaw, dateStr, typeStr] = parts;
+        const cleanStaffId = staffIdRaw.replace('cell-', '');
+
+        const newStaffId = Number(cleanStaffId);
+        const newDate = dateStr; // YYYY-MM-DD
+        const newType = typeStr; // PRANZO | SERA
+
+        console.log('Dropped:', assignmentId, 'to', newStaffId, newDate, newType);
+
+        const currentAsn = schedule.find(a => a.id === assignmentId);
+        if (!currentAsn) return;
+
+        try {
+            await api.updateAssignment(assignmentId, {
+                staffId: newStaffId,
+                data: newDate,
+            });
+            loadData();
+        } catch (e: any) {
+            alert(e.message);
+        }
+    };
+
+    const handleContextMenu = (e: React.MouseEvent, asn: Assignment) => {
+        e.preventDefault();
+        setContextMenu({ x: e.clientX, y: e.clientY, assignment: asn });
+    };
+
+    const handleMenuAction = async (action: string) => {
+        if (!contextMenu) return;
+        const asn = contextMenu.assignment;
+
+        if (action === 'copy') {
+            setClipboard(asn);
+        } else if (action === 'paste') {
+            // Paste logic
+        } else if (action === 'delete') {
+            if (confirm('Eliminare turno?')) {
+                await api.deleteAssignment(asn.id);
+                loadData();
+            }
+        }
+        setContextMenu(null);
+    };
 
     // --- Persistence & Calculation ---
     useEffect(() => {
@@ -108,13 +156,14 @@ export default function CalendarPage() {
     async function loadData() {
         setLoading(true);
         try {
-            const [sch, stf, tmpl, unav, bdg, fcst] = await Promise.all([
+            const [sch, stf, tmpl, unav, bdg, fcst, audit] = await Promise.all([
                 api.getSchedule(range.start, range.end),
                 api.getStaff(),
                 api.getShiftTemplates(),
                 api.getUnavailability(range.start, range.end),
                 api.getBudget(range.start, range.end),
-                api.getForecast(range.start, range.start)
+                api.getForecast(range.start, range.start),
+                api.auditSchedule(range.start, range.end).catch(() => []) // Audit silently
             ]);
 
             const safeSch = Array.isArray(sch) ? sch : [];
@@ -159,6 +208,12 @@ export default function CalendarPage() {
                 m[asn.staffId][asn.data].push(asn);
             });
             setMatrix(m);
+
+            // Set Audit Result
+            if (Array.isArray(audit)) {
+                setMissingShifts(audit);
+                // Don't auto-open modal on load, just show the alert button
+            }
 
         } catch (e: any) {
             alert("Errore caricamento dati: " + e.message);
@@ -254,10 +309,18 @@ export default function CalendarPage() {
     const getForecastValue = (rowName: string, dayIndex: number): number => {
         if (!forecastData || forecastData.length === 0) return 0;
 
-        // Search in reverse to find the last occurrence (the one valid/visible in Forecast Page)
+        // Search in reverse to find the last occurrence
         for (let i = forecastData.length - 1; i >= 0; i--) {
             const row = forecastData[i];
-            if (String(row[0] || '').toLowerCase().includes(rowName.toLowerCase())) {
+            const label = String(row[0] || '').toLowerCase();
+
+            // Flexible matching:
+            // If rowName is 'ore budget', match if label has both 'ore' and 'budget'
+            // If rowName is 'budget pranzo', match if label has 'budget' and 'pranzo'
+            const keywords = rowName.toLowerCase().split(' ');
+            const match = keywords.every(k => label.includes(k));
+
+            if (match) {
                 if (!row[dayIndex + 1]) return 0;
                 return parseNumberIT(row[dayIndex + 1]);
             }
@@ -300,6 +363,44 @@ export default function CalendarPage() {
             await api.clearAssignments(range.start, range.end);
             loadData();
         } catch (e: any) { alert(e.message) }
+    };
+
+    const openManualAssign = (m: any, index: number) => {
+        // Determine shift type
+        const h = parseInt(m.start.split(':')[0]);
+        const shiftType = h < 17 ? 'lunch' : 'dinner';
+        setManualAssignContext({ ...m, index, shift: shiftType });
+        setManualAssignOpen(true);
+    };
+
+    const handleManualSelect = async (staffId: number) => {
+        if (!manualAssignContext) return;
+        try {
+            const { date, start, end, station, index } = manualAssignContext;
+
+            await api.createAssignment({
+                data: date,
+                staffId,
+                start_time: start,
+                end_time: end,
+                postazione: station,
+                status: true
+            });
+
+            // Remove from missing list locally
+            const newMissing = [...missingShifts];
+            newMissing.splice(index, 1);
+            setMissingShifts(newMissing);
+
+            // If empty, close missing modal
+            if (newMissing.length === 0) setShowMissingModal(false);
+
+            setManualAssignOpen(false);
+            setManualAssignContext(null);
+            loadData(); // Refresh calendar
+        } catch (e: any) {
+            alert("Errore assegnazione: " + e.message);
+        }
     };
 
     // --- Rendering Helpers ---
@@ -390,28 +491,27 @@ export default function CalendarPage() {
     return (
         <div className="flex flex-col h-screen overflow-hidden bg-gray-50">
             {/* Header Control Panel */}
-            <div className="bg-white shadow-sm p-4 flex flex-wrap gap-4 items-center justify-between z-30">
-                <div className="flex items-center gap-4">
-                    <h1 className="text-xl font-bold flex items-center gap-2 text-gray-800">
-                        <Calendar className="text-indigo-600" />
+            <div className="bg-white border-b border-gray-200 p-4 flex flex-wrap gap-4 items-center justify-between z-30 shadow-sm sticky top-0">
+                <div className="flex items-center gap-6">
+                    <h1 className="text-2xl font-bold flex items-center gap-3 text-gray-800 tracking-tight">
+                        <Calendar className="text-blue-600" size={28} />
                         Turni
                     </h1>
 
-                    <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg">
-                        <div className="flex flex-col px-2">
-                            <span className="text-[10px] uppercase text-gray-500 font-bold">Anno</span>
+                    <div className="flex items-center gap-0 bg-gray-50 p-1 rounded-xl border border-gray-200 shadow-sm">
+                        <div className="flex items-center gap-2 px-3 py-1 border-r border-gray-200">
+                            <span className="text-[10px] uppercase text-gray-400 font-bold tracking-wider">ANNO</span>
                             <input
                                 type="number"
-                                className="bg-transparent font-bold w-16 text-sm outline-none"
+                                className="bg-transparent font-bold w-12 text-sm outline-none text-gray-700"
                                 value={currentYear}
                                 onChange={e => changeWeek(selectedWeek, parseInt(e.target.value))}
                             />
                         </div>
-                        <div className="w-px h-8 bg-gray-300"></div>
-                        <div className="flex flex-col px-2">
-                            <span className="text-[10px] uppercase text-gray-500 font-bold">Settimana</span>
+                        <div className="flex items-center gap-2 px-3 py-1">
+                            <span className="text-[10px] uppercase text-gray-400 font-bold tracking-wider">SETTIMANA</span>
                             <select
-                                className="bg-transparent font-bold text-sm outline-none cursor-pointer"
+                                className="bg-transparent font-bold text-sm outline-none cursor-pointer text-gray-700"
                                 value={selectedWeek}
                                 onChange={e => changeWeek(parseInt(e.target.value))}
                             >
@@ -422,344 +522,183 @@ export default function CalendarPage() {
                         </div>
                     </div>
 
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-400 font-medium">
                         {range.start.split('-').reverse().join('/')} - {range.end.split('-').reverse().join('/')}
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     {missingShifts.length > 0 && (
                         <button
                             onClick={() => setShowMissingModal(true)}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white rounded hover:bg-amber-600 text-xs font-bold transition animate-pulse"
+                            className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 text-xs font-bold transition border border-red-100 animate-pulse"
                         >
-                            <AlertTriangle size={14} />
+                            <AlertTriangle size={16} />
                             {missingShifts.length} Mancanti
                         </button>
                     )}
-                    <button onClick={generate} className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-xs font-bold transition">
-                        <Wand2 size={14} /> AI Expert
+
+                    <button onClick={generate} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-bold shadow-md shadow-blue-200 transition">
+                        <Wand2 size={16} /> AI Expert
                     </button>
-                    <div className="h-6 w-px bg-gray-300 mx-1"></div>
+
+                    <div className="h-8 w-px bg-gray-200 mx-2"></div>
+
                     <button
                         onClick={() => setPanarelloActive(!panarelloActive)}
-                        className={`p-2 rounded transition ${panarelloActive ? 'bg-yellow-300 shadow-md ring-2 ring-yellow-400' : 'bg-gray-200 text-gray-600'}`}
+                        className={`p-2 rounded-lg transition border ${panarelloActive ? 'bg-yellow-50 border-yellow-200 text-yellow-700 shadow-sm' : 'bg-white border-gray-200 text-gray-400 hover:text-gray-600'}`}
                         title="Modalità Panarello (Conferma Rapida)"
                     >
-                        <Paintbrush size={16} />
+                        <Paintbrush size={18} />
                     </button>
-                    <button onClick={clearAll} className="p-2 bg-red-100 text-red-600 rounded hover:bg-red-200 transition" title="Cancella Tutto">
-                        <Trash2 size={16} />
+
+                    <button onClick={clearAll} className="p-2 bg-white border border-gray-200 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition" title="Cancella Tutto">
+                        <Trash2 size={18} />
                     </button>
-                    <div className="bg-gray-100 flex gap-4 px-3 py-1.5 rounded items-center text-xs">
-                        <div><span className="text-gray-500">Bdgt:</span> <strong>{stats.totalContractHours}h</strong></div>
-                        <div><span className="text-gray-500">Eff:</span> <strong>{stats.totalAssignedHours.toLocaleString(undefined, { maximumFractionDigits: 1 })}h</strong></div>
-                        <div className={`${stats.diff >= 0 ? 'text-green-600' : 'text-red-600'}`}><strong>Diff: {stats.diff.toFixed(1)}h</strong></div>
+
+                    <div className="flex gap-4 px-4 py-2 bg-white border border-gray-200 rounded-lg items-center text-xs shadow-sm ml-2">
+                        <div className="flex flex-col items-end">
+                            <span className="text-[10px] text-gray-400 uppercase font-bold">Budget</span>
+                            <span className="text-gray-800 font-bold">{stats.totalContractHours}h</span>
+                        </div>
+                        <div className="w-px h-6 bg-gray-100"></div>
+                        <div className="flex flex-col items-end">
+                            <span className="text-[10px] text-gray-400 uppercase font-bold">Effettivo</span>
+                            <span className="text-blue-600 font-bold">{stats.totalAssignedHours.toLocaleString(undefined, { maximumFractionDigits: 1 })}h</span>
+                        </div>
+                        <div className="w-px h-6 bg-gray-100"></div>
+                        <div className="flex flex-col items-end">
+                            <span className="text-[10px] text-gray-400 uppercase font-bold">Diff</span>
+                            <span className={`font-bold ${stats.diff >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{stats.diff.toFixed(1)}h</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* Calendar Grid */}
-            <div className="flex-1 overflow-auto relative">
-                <table className="w-full border-collapse text-xs min-w-[1800px]">
-                    <thead className="bg-white sticky top-0 z-20 shadow-sm text-gray-600">
-                        <tr>
-                            <th className="sticky left-0 bg-white border-b border-r p-2 min-w-[40px] z-30">#</th>
-                            <th className="sticky left-[40px] bg-white border-b border-r p-2 min-w-[150px] text-left z-30">Staff</th>
-                            <th className="sticky left-[190px] bg-white border-b border-r p-2 min-w-[50px] z-30">Ctr.</th>
-                            <th className="sticky left-[240px] bg-white border-b border-r p-2 min-w-[50px] z-30">Eff.</th>
-                            {days.map((d, i) => (
-                                <th key={d} colSpan={6} className="border-b border-r p-1 text-center bg-gray-50">
-                                    <div className="font-bold text-gray-800">{new Date(d).toLocaleDateString('it-IT', { weekday: 'short' })}</div>
-                                    <div className="text-[10px] text-gray-500">{d.split('-').slice(1).join('/')}</div>
-                                </th>
-                            ))}
-                        </tr>
-                        <tr>
-                            <th className="sticky left-0 bg-white border-b border-r z-30"></th>
-                            <th className="sticky left-[40px] bg-white border-b border-r z-30"></th>
-                            <th className="sticky left-[190px] bg-white border-b border-r z-30"></th>
-                            <th className="sticky left-[240px] bg-white border-b border-r z-30"></th>
-                            {days.map(d => (
-                                <React.Fragment key={d + '_sub'}>
-                                    <th className="bg-blue-50/50 border-b border-gray-200 text-[9px] w-10 text-center font-normal">IN</th>
-                                    <th className="bg-blue-50/50 border-b border-gray-200 text-[9px] w-10 text-center font-normal">OUT</th>
-                                    <th className="bg-blue-50/50 border-b border-r border-gray-200 text-[9px] w-12 text-center font-normal">POST</th>
-                                    <th className="bg-indigo-50/50 border-b border-gray-200 text-[9px] w-10 text-center font-normal">IN</th>
-                                    <th className="bg-indigo-50/50 border-b border-gray-200 text-[9px] w-10 text-center font-normal">OUT</th>
-                                    <th className="bg-indigo-50/50 border-b border-r-2 border-gray-300 text-[9px] w-12 text-center font-normal">POST</th>
-                                </React.Fragment>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white">
-                        {staff.map((s, idx) => {
-                            let totalHours = 0;
-                            // Calculate total for this row
-                            Object.values(matrix[s.id] || {}).flat().forEach(a => {
-                                const st = a.start_time || a.shiftTemplate?.oraInizio;
-                                const et = a.end_time || a.shiftTemplate?.oraFine;
-                                if (st && et) totalHours += calcHours(st, et);
-                            });
-
-                            // Budget checks
-                            const budgetDiff = totalHours - (s.oreMassime || 0);
-                            const budgetColor = budgetDiff > 2 ? 'bg-red-50 text-red-700' : (budgetDiff < -2 ? 'bg-blue-50 text-blue-700' : 'text-gray-600');
-
-                            return (
-                                <tr key={s.id} className="hover:bg-gray-50 border-b border-gray-100 group">
-                                    <td className="sticky left-0 bg-white border-r p-2 text-center text-gray-400 group-hover:bg-gray-50 z-10">{idx + 1}</td>
-                                    <td className="sticky left-[40px] bg-white border-r p-2 font-medium text-gray-800 text-left group-hover:bg-gray-50 z-10 truncate max-w-[150px]">{s.nome} {s.cognome}</td>
-                                    <td className="sticky left-[190px] bg-white border-r p-2 text-center text-gray-500 group-hover:bg-gray-50 z-10">{s.oreMassime}</td>
-                                    <td className={`sticky left-[240px] bg-white border-r p-2 text-center font-bold z-10 ${budgetColor} group-hover:bg-gray-50`}>{totalHours.toFixed(1)}</td>
-                                    {days.map(d => {
-                                        const lunch = getShift(s.id, d, 'PRANZO');
-                                        const dinner = getShift(s.id, d, 'SERA');
-
-                                        const renderCell = (asn: Assignment | undefined, type: string, bgColor: string) => {
-                                            // Check unavailability
-                                            const unavail = s.unavailabilities.find((u: any) => u.data.startsWith(d) && (u.tipo === 'TOTALE' || u.tipo === (type.includes('Pranzo') ? 'PRANZO' : 'SERA')));
-
-                                            if (unavail) {
-                                                return { bg: 'bg-red-100', text: 'N/A', disabled: true };
-                                            }
-
-                                            if (!asn) return { bg: bgColor, text: '', disabled: false };
-
-                                            let text = '';
-                                            if (type.includes('Post')) text = asn.postazione || '-';
-                                            else {
-                                                const st = asn.start_time || asn.shiftTemplate?.oraInizio;
-                                                const et = asn.end_time || asn.shiftTemplate?.oraFine;
-                                                if (type.includes('In')) text = st || '';
-                                                if (type.includes('Out')) text = et || '';
-                                            }
-
-                                            // Status Color
-                                            let bg = bgColor;
-                                            if (asn && type.includes('Post')) bg = asn.status ? 'bg-green-100 text-green-800 font-bold' : 'bg-yellow-50 text-yellow-800';
-
-                                            return { bg, text, disabled: false };
-                                        };
-
-                                        // Lunch Cells
-                                        const lIn = renderCell(lunch, 'Turno1_In', 'bg-white');
-                                        const lOut = renderCell(lunch, 'Turno1_Out', 'bg-white');
-                                        const lPost = renderCell(lunch, 'Turno1_Post', 'bg-white');
-
-                                        // Dinner Cells
-                                        const dIn = renderCell(dinner, 'Turno2_In', 'bg-gray-50/30');
-                                        const dOut = renderCell(dinner, 'Turno2_Out', 'bg-gray-50/30');
-                                        const dPost = renderCell(dinner, 'Turno2_Post', 'bg-gray-50/30');
-
-                                        return (
-                                            <React.Fragment key={d}>
-                                                <td onClick={() => !lIn.disabled && handleCellClick(s.id, d, 'Pranzo_In', lunch)} className={`border-r border-gray-100 p-1 text-center cursor-pointer hover:brightness-95 ${lIn.bg}`}>{lIn.text}</td>
-                                                <td onClick={() => !lOut.disabled && handleCellClick(s.id, d, 'Pranzo_Out', lunch)} className={`border-r border-gray-100 p-1 text-center cursor-pointer hover:brightness-95 ${lOut.bg}`}>{lOut.text}</td>
-                                                <td onClick={() => !lPost.disabled && handleCellClick(s.id, d, 'Pranzo_Post', lunch)} className={`border-r-2 border-gray-200 p-1 text-center cursor-pointer hover:brightness-95 ${lPost.bg} text-[10px]`}>{lPost.text}</td>
-
-                                                <td onClick={() => !dIn.disabled && handleCellClick(s.id, d, 'Sera_In', dinner)} className={`border-r border-gray-100 p-1 text-center cursor-pointer hover:brightness-95 ${dIn.bg}`}>{dIn.text}</td>
-                                                <td onClick={() => !dOut.disabled && handleCellClick(s.id, d, 'Sera_Out', dinner)} className={`border-r border-gray-100 p-1 text-center cursor-pointer hover:brightness-95 ${dOut.bg}`}>{dOut.text}</td>
-                                                <td onClick={() => !dPost.disabled && handleCellClick(s.id, d, 'Sera_Post', dinner)} className={`border-r-2 border-gray-300 p-1 text-center cursor-pointer hover:brightness-95 ${dPost.bg} text-[10px]`}>{dPost.text}</td>
-                                            </React.Fragment>
-                                        );
-                                    })}
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                    <tfoot className="bg-white sticky bottom-0 z-40 font-sans shadow-[0_-4px_20px_rgba(0,0,0,0.08)] border-t border-indigo-100">
-                        {(() => {
-                            // --- Calculation Logic for Footer ---
-                            const statsMap = days.map((d, dayIdx) => {
-                                const budget = budgets.find((b: any) => b.data === d);
-                                let realLunch = 0;
-                                let realDinner = 0;
-
-                                staff.forEach(s => {
-                                    const asns = matrix[s.id]?.[d] || [];
-                                    asns.forEach(a => {
-                                        const st = a.start_time || a.shiftTemplate?.oraInizio;
-                                        const et = a.end_time || a.shiftTemplate?.oraFine;
-                                        if (!st || !et) return;
-
-                                        // Safe time parsing
-                                        const parseTime = (timeStr: string) => {
-                                            const cleaned = timeStr.trim().split(' ')[0];
-                                            const parts = cleaned.split(':');
-                                            if (parts.length !== 2) return null;
-                                            const h = parseInt(parts[0]);
-                                            const m = parseInt(parts[1]);
-                                            if (isNaN(h) || isNaN(m)) return null;
-                                            return h + m / 60;
-                                        };
-
-                                        const starts = parseTime(st);
-                                        const ends = parseTime(et);
-
-                                        if (starts === null || ends === null) return;
-
-                                        let endsAdjusted = ends;
-                                        if (ends < starts) endsAdjusted = ends + 24;
-
-                                        const cutoff = 16.0;
-                                        const lunchEnd = Math.min(endsAdjusted, cutoff);
-                                        realLunch += Math.max(0, lunchEnd - starts);
-
-                                        const dinnerStart = Math.max(starts, cutoff);
-                                        realDinner += Math.max(0, endsAdjusted - dinnerStart);
-                                    });
+            {/* Calendar Grid */}
+            <DndContext sensors={sensors} onDragEnd={handleDragEnd} onDragStart={(e) => setDragActiveId(Number(e.active.id.toString().replace('shift-', '')))}>
+                <div className="flex-1 overflow-auto relative bg-white">
+                    <table className="w-full border-collapse text-xs min-w-[1500px]">
+                        <thead className="bg-[#f8fafc] sticky top-0 z-20 shadow-sm border-b border-gray-200">
+                            <tr>
+                                <th className="sticky left-0 bg-[#f8fafc] border-b border-r border-gray-200 p-3 min-w-[40px] z-30 text-gray-400 font-medium">#</th>
+                                <th className="sticky left-[40px] bg-[#f8fafc] border-b border-r border-gray-200 p-3 min-w-[150px] text-left z-30 text-gray-500 font-bold tracking-wide uppercase">STAFF</th>
+                                <th className="sticky left-[190px] bg-[#f8fafc] border-b border-r border-gray-200 p-3 min-w-[50px] z-30 text-gray-500 font-bold tracking-wide uppercase">CTR.</th>
+                                <th className="sticky left-[240px] bg-[#f8fafc] border-b border-r border-gray-200 p-3 min-w-[50px] z-30 text-gray-500 font-bold tracking-wide uppercase">EFF.</th>
+                                {days.map((d, i) => (
+                                    <th key={d} colSpan={2} className="border-b border-r border-gray-200 p-2 text-center bg-[#f8fafc]">
+                                        <div className="font-bold text-gray-700 uppercase tracking-wide">{new Date(d).toLocaleDateString('it-IT', { weekday: 'short' })}</div>
+                                        <div className="text-[10px] text-gray-400 font-medium">{d.split('-').slice(1).join('/')}</div>
+                                    </th>
+                                ))}
+                            </tr>
+                            <tr>
+                                <th className="sticky left-0 bg-white border-b border-r z-30"></th>
+                                <th className="sticky left-[40px] bg-white border-b border-r z-30"></th>
+                                <th className="sticky left-[190px] bg-white border-b border-r z-30"></th>
+                                <th className="sticky left-[240px] bg-white border-b border-r z-30"></th>
+                                {days.map(d => (
+                                    <React.Fragment key={d + '_sub'}>
+                                        <th className="bg-blue-50/50 border-b border-r border-gray-200 text-[10px] w-[140px] text-center font-semibold text-blue-800 py-1">PRANZO</th>
+                                        <th className="bg-indigo-50/50 border-b border-r border-gray-200 text-[10px] w-[140px] text-center font-semibold text-indigo-800 py-1">CENA</th>
+                                    </React.Fragment>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white">
+                            {staff.map((s, idx) => {
+                                let totalHours = 0;
+                                days.forEach(d => {
+                                    const l = getShift(s.id, d, 'PRANZO');
+                                    const dn = getShift(s.id, d, 'SERA');
+                                    if (l && l.start_time && l.end_time) totalHours += calcHours(l.start_time, l.end_time);
+                                    if (dn && dn.start_time && dn.end_time) totalHours += calcHours(dn.start_time, dn.end_time);
                                 });
+                                const budgetDiff = totalHours - (s.oreMassime || 0);
+                                const budgetColor = budgetDiff > 2 ? 'bg-red-50 text-red-700' : (budgetDiff < -2 ? 'bg-blue-50 text-blue-700' : 'text-gray-600');
 
-                                // Get forecast data for this day
-                                const budgetHours = getForecastValue('ore budget', dayIdx); // Total Daily Budget Hours
-                                const budgetLunch_Revenue = getForecastValue('budget pranzo', dayIdx);
-                                const budgetDinner_Revenue = getForecastValue('budget cena', dayIdx);
-                                const realLunch_Revenue = getForecastValue('real pranzo', dayIdx);
-                                const realDinner_Revenue = getForecastValue('real cena', dayIdx);
+                                return (
+                                    <tr key={s.id} className="hover:bg-gray-50 border-b border-gray-100 group h-[50px]">
+                                        <td className="sticky left-0 bg-white border-r p-2 text-center text-gray-400 group-hover:bg-gray-50 z-10">{idx + 1}</td>
+                                        <td className="sticky left-[40px] bg-white border-r p-2 font-medium text-gray-800 text-left group-hover:bg-gray-50 z-10 truncate max-w-[150px]">{s.nome} {s.cognome}</td>
+                                        <td className="sticky left-[190px] bg-white border-r p-2 text-center text-gray-500 group-hover:bg-gray-50 z-10">{s.oreMassime}</td>
+                                        <td className={`sticky left-[240px] bg-white border-r p-2 text-center font-bold z-10 ${budgetColor} group-hover:bg-gray-50`}>{totalHours.toFixed(1)}</td>
 
-                                // Use explicit day hours if available, otherwise split total
-                                // Ideally 'ore budget' is daily. We split by revenue weight.
-                                const totalBudgetRevenue = budgetLunch_Revenue + budgetDinner_Revenue;
+                                        {days.map((d) => {
+                                            const lunch = getShift(s.id, d, 'PRANZO');
+                                            const dinner = getShift(s.id, d, 'SERA');
 
-                                const budgetLunchHours = totalBudgetRevenue > 0
-                                    ? budgetHours * (budgetLunch_Revenue / totalBudgetRevenue)
-                                    : budgetHours * 0.5;
+                                            return (
+                                                <React.Fragment key={d}>
+                                                    <DroppableCell staffId={s.id} date={d} type="PRANZO">
+                                                        {lunch && (
+                                                            <DraggableShiftItem
+                                                                assignment={lunch}
+                                                                type="PRANZO"
+                                                                onUpdate={(id, val) => api.updateAssignment(id, val).then(loadData).catch(e => alert(e.message))}
+                                                                onContextMenu={handleContextMenu}
+                                                            />
+                                                        )}
+                                                    </DroppableCell>
+                                                    <DroppableCell staffId={s.id} date={d} type="SERA">
+                                                        {dinner && (
+                                                            <DraggableShiftItem
+                                                                assignment={dinner}
+                                                                type="SERA"
+                                                                onUpdate={(id, val) => api.updateAssignment(id, val).then(loadData).catch(e => alert(e.message))}
+                                                                onContextMenu={handleContextMenu}
+                                                            />
+                                                        )}
+                                                    </DroppableCell>
+                                                </React.Fragment>
+                                            );
+                                        })}
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                        <tfoot className="bg-white sticky bottom-0 z-40 font-sans shadow-[0_-4px_20px_rgba(0,0,0,0.08)] border-t border-indigo-100">
+                            {/* Simplified Footer for 2-col structure */}
+                            <tr className="bg-gray-50 font-bold border-t">
+                                <td className="sticky left-0 p-3 bg-gray-50" colSpan={4}>TOTALE ORE</td>
+                                {days.map((d, i) => {
+                                    // Calc stats
+                                    const stats = { l: 0, d: 0 };
+                                    staff.forEach(s => {
+                                        const l = getShift(s.id, d, 'PRANZO');
+                                        const dn = getShift(s.id, d, 'SERA');
+                                        if (l?.start_time && l?.end_time) stats.l += calcHours(l.start_time, l.end_time);
+                                        if (dn?.start_time && dn?.end_time) stats.d += calcHours(dn.start_time, dn.end_time);
+                                    });
+                                    return (
+                                        <React.Fragment key={i}>
+                                            <td className="p-2 text-center border-r text-blue-700">{stats.l > 0 ? stats.l.toFixed(1) : '-'}</td>
+                                            <td className="p-2 text-center border-r text-indigo-700">{stats.d > 0 ? stats.d.toFixed(1) : '-'}</td>
+                                        </React.Fragment>
+                                    )
+                                })}
+                            </tr>
+                        </tfoot>
+                    </table>
 
-                                const budgetDinnerHours = totalBudgetRevenue > 0
-                                    ? budgetHours * (budgetDinner_Revenue / totalBudgetRevenue)
-                                    : budgetHours * 0.5;
-
-                                return {
-                                    date: d,
-                                    realLunch: isFinite(realLunch) ? realLunch : 0,
-                                    realDinner: isFinite(realDinner) ? realDinner : 0,
-                                    budgetLunch: isFinite(budgetLunchHours) ? budgetLunchHours : 0,
-                                    budgetDinner: isFinite(budgetDinnerHours) ? budgetDinnerHours : 0,
-
-                                    // Revenues
-                                    revLunch_Real: realLunch_Revenue,
-                                    revDinner_Real: realDinner_Revenue,
-                                    revLunch_Budget: budgetLunch_Revenue,
-                                    revDinner_Budget: budgetDinner_Revenue,
-                                };
-                            });
-
-                            const SummaryRow = ({ label, icon: Icon, accessor, format, type, highlightDiff }: any) => (
-                                <tr className="group transition-colors hover:bg-indigo-50/30">
-                                    <td colSpan={4} className="py-3 px-4 text-right bg-white border-r border-indigo-50">
-                                        <div className="flex items-center justify-end gap-2 text-indigo-900 font-semibold text-xs uppercase tracking-wider">
-                                            {Icon && <Icon size={14} className="text-indigo-400" />}
-                                            {label}
-                                        </div>
-                                    </td>
-                                    {statsMap.map((s, i) => {
-                                        const valL = accessor({ ...s, type: 'LUNCH' });
-                                        const valD = accessor({ ...s, type: 'DINNER' });
-
-                                        // Dynamic Styling based on Row Type
-                                        let classL = "text-gray-600";
-                                        let classD = "text-gray-600";
-                                        let bgL = "";
-                                        let bgD = "";
-
-                                        if (highlightDiff) {
-                                            // Compare Real vs Budget
-                                            const bL = accessor({ ...s, type: 'LUNCH', mode: 'BUDGET' });
-                                            const bD = accessor({ ...s, type: 'DINNER', mode: 'BUDGET' });
-                                            const rL = valL; // Assumes valL is REAL
-                                            const rD = valD;
-
-                                            const diffL = bL ? rL - bL : 0;
-                                            const diffD = bD ? rD - bD : 0;
-
-                                            if (diffL > 2) { classL = "text-red-600 font-bold"; bgL = "bg-red-50"; }
-                                            if (diffL < -2 && bL) { classL = "text-emerald-600 font-bold"; bgL = "bg-emerald-50"; }
-
-                                            if (diffD > 2) { classD = "text-red-600 font-bold"; bgD = "bg-red-50"; }
-                                            if (diffD < -2 && bD) { classD = "text-emerald-600 font-bold"; bgD = "bg-emerald-50"; }
-                                        }
-
-                                        if (type === 'PROD') {
-                                            // Produttività formatting
-                                            classL = valL > 0 ? "text-indigo-700 font-bold" : "text-gray-300";
-                                            classD = valD > 0 ? "text-indigo-700 font-bold" : "text-gray-300";
-                                            if (valL > 0) bgL = "bg-indigo-50/50";
-                                            if (valD > 0) bgD = "bg-indigo-50/50";
-                                        }
-
-                                        if (type === 'MONEY') {
-                                            classL = valL > 0 ? "text-gray-700 font-medium" : "text-gray-300";
-                                            classD = valD > 0 ? "text-gray-700 font-medium" : "text-gray-300";
-                                        }
-
-                                        return (
-                                            <React.Fragment key={i}>
-                                                <td colSpan={3} className={`p-2 text-center border-r border-indigo-50 text-xs ${classL} ${bgL}`}>
-                                                    {format(valL)}
-                                                </td>
-                                                <td colSpan={3} className={`p-2 text-center border-r border-indigo-100/50 text-xs ${classD} ${bgD}`}>
-                                                    {format(valD)}
-                                                </td>
-                                            </React.Fragment>
-                                        )
-                                    })}
-                                </tr>
-                            );
-
-                            return (
-                                <>
-                                    <SummaryRow
-                                        label="Ore Reali"
-                                        icon={Clock}
-                                        type="REAL"
-                                        highlightDiff={true}
-                                        accessor={(ctx: any) => {
-                                            if (ctx.mode === 'BUDGET') return ctx.type === 'LUNCH' ? ctx.budgetLunch : ctx.budgetDinner;
-                                            return ctx.type === 'LUNCH' ? ctx.realLunch : ctx.realDinner;
-                                        }}
-                                        format={(v: number) => v.toFixed(1)}
-                                    />
-                                    <SummaryRow
-                                        label="Budget H."
-                                        icon={Target}
-                                        accessor={(ctx: any) => ctx.type === 'LUNCH' ? ctx.budgetLunch : ctx.budgetDinner}
-                                        format={(v: number) => v > 0 ? v.toFixed(1) : '-'}
-                                    />
-                                    <SummaryRow
-                                        label="Budget €"
-                                        icon={DollarSign}
-                                        type="MONEY"
-                                        accessor={(ctx: any) => ctx.type === 'LUNCH' ? ctx.revLunch_Budget : ctx.revDinner_Budget}
-                                        format={(v: number) => v > 0 ? `€ ${Math.round(v)}` : '-'}
-                                    />
-                                    <SummaryRow
-                                        label="Incasso Reale"
-                                        icon={TrendingUp}
-                                        type="MONEY"
-                                        accessor={(ctx: any) => ctx.type === 'LUNCH' ? ctx.revLunch_Real : ctx.revDinner_Real}
-                                        format={(v: number) => v > 0 ? `€ ${Math.round(v)}` : '-'}
-                                    />
-                                    <SummaryRow
-                                        label="Produttività"
-                                        icon={Wand2}
-                                        type="PROD"
-                                        accessor={(ctx: any) => {
-                                            // CALCULATED AUTOMATICALLY: Revenue / Real Hours
-                                            const rev = ctx.type === 'LUNCH' ? ctx.revLunch_Real : ctx.revDinner_Real;
-                                            const hours = ctx.type === 'LUNCH' ? ctx.realLunch : ctx.realDinner;
-
-                                            if (hours > 0 && rev > 0) return rev / hours;
-                                            return 0;
-                                        }}
-                                        format={(v: number) => v > 0 ? `€ ${v.toFixed(1)}` : '-'}
-                                    />
-                                </>
-                            );
-                        })()}
-                    </tfoot>
-                </table>
-            </div>
+                    {contextMenu && (
+                        <ContextMenu
+                            x={contextMenu.x}
+                            y={contextMenu.y}
+                            onClose={() => setContextMenu(null)}
+                            onAction={handleMenuAction}
+                        />
+                    )}
+                </div>
+                <DragOverlay>
+                    {dragActiveId ? (
+                        <div className="bg-white border-2 border-blue-500 shadow-2xl p-2 rounded w-[120px] h-[50px] flex items-center justify-center font-bold text-blue-600 opacity-90 rotate-3 cursor-grabbing">
+                            Spostamento...
+                        </div>
+                    ) : null}
+                </DragOverlay>
+            </DndContext>
 
             {/* Missing Shifts Modal */}
             {showMissingModal && (
@@ -786,6 +725,7 @@ export default function CalendarPage() {
                                             <th className="p-2">Orario</th>
                                             <th className="p-2">Postazione</th>
                                             <th className="p-2">Motivo</th>
+                                            <th className="p-2 text-right">Azioni</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
@@ -795,6 +735,14 @@ export default function CalendarPage() {
                                                 <td className="p-2 font-mono text-xs">{m.start} - {m.end}</td>
                                                 <td className="p-2 font-bold text-gray-700">{m.station}</td>
                                                 <td className="p-2 text-xs text-gray-500 italic">{m.reason}</td>
+                                                <td className="p-2 text-right">
+                                                    <button
+                                                        onClick={() => openManualAssign(m, i)}
+                                                        className="p-1 px-2 bg-indigo-100 text-indigo-700 rounded hover:bg-indigo-200 text-xs font-bold flex items-center gap-1 ml-auto"
+                                                    >
+                                                        <UserPlus size={14} /> Assegna
+                                                    </button>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -865,6 +813,39 @@ export default function CalendarPage() {
                         )}
                     </div>
                 </div>
+            )}
+
+            {/* Staff Selection Modal for Manual Assignment */}
+            {manualAssignContext && (
+                <StaffSelectionModal
+                    isOpen={manualAssignOpen}
+                    onClose={() => { setManualAssignOpen(false); setManualAssignContext(null); }}
+                    onSelect={handleManualSelect}
+                    date={manualAssignContext.date}
+                    postazione={manualAssignContext.station}
+                    shift={manualAssignContext.shift}
+                    orari={{ start: manualAssignContext.start, end: manualAssignContext.end }}
+                    staff={staff}
+                    existingAssignments={schedule}
+                    weeklyHours={(() => {
+                        const map: Record<number, number> = {};
+                        staff.forEach(s => {
+                            let total = 0;
+                            // Re-use logic from matrix or stats?
+                            // Matrix is faster
+                            const sMatrix = matrix[s.id] || {};
+                            Object.keys(sMatrix).forEach(d => {
+                                sMatrix[d].forEach(a => {
+                                    const sT = a.start_time || a.shiftTemplate?.oraInizio;
+                                    const eT = a.end_time || a.shiftTemplate?.oraFine;
+                                    if (sT && eT) total += calcHours(sT, eT);
+                                });
+                            });
+                            map[s.id] = total;
+                        });
+                        return map;
+                    })()}
+                />
             )}
 
             {loading && (

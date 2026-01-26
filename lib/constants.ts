@@ -1,6 +1,7 @@
 
 export const DEFAULT_STATIONS = [
     // Sala / Bar (from CSV)
+    'Jolly',
     'BARGIU', 'BARSU', 'ACCSU',
     'CDR', 'CDR_V', 'CDR_S', 'CDR_D',
     'ACCGIU_V', 'ACCGIU:S', 'ACCGIU:_D',

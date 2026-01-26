@@ -645,7 +645,13 @@ export default function AbsencesPage() {
                                     </div>
                                 </td>
                                 <td className="p-3 text-right">
-                                    <button onClick={() => handleDelete(it)} className="text-red-500 hover:bg-red-50 p-1 rounded"><Trash2 size={14} /></button>
+                                    <button
+                                        onClick={() => handleDelete(it)}
+                                        className="text-red-600 hover:text-red-800 hover:bg-red-100 p-2 rounded transition"
+                                        title="Elimina"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
                                 </td>
                             </tr>
                         ))}
