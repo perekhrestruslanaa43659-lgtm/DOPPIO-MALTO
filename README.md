@@ -10,7 +10,7 @@
 - **Migration Version**: This directory (Next.js + TypeScript)
 - **Status**: 🔄 Migration in progress
 
-## 🔧 Getting Started
+## 📦 Getting Started
 
 To clone this repository:
 
