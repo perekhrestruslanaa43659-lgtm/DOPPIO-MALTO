@@ -10,6 +10,14 @@
 - **Migration Version**: This directory (Next.js + TypeScript)
 - **Status**: 🔄 Migration in progress
 
+## 🔧 Getting Started
+
+To clone this repository:
+
+```bash
+git clone https://github.com/perekhrestruslanaa43659-lgtm/DOPPIO-MALTO.git
+```
+
 ## 🎯 Migration Goals
 
 1. ✅ **TypeScript** - Full type safety
