@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # --- IL CERVELLO (Cheshire Cat) ---
+  cheshire-cat-core:
+    image: ghcr.io/cheshire-cat-ai/core:latest
+    container_name: cheshire_cat_core
+    ports:
+      - "1866:80" # External 1866 (Widget config), Internal 80 (Cat default)
+    volumes:
+      - ./cat2/static:/app/cat/static
+      - ./cat2/plugins:/app/cat/plugins
+      - ./cat2/data:/app/cat/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      - WATCHFILES_FORCE_POLLING=true
+    networks:
+      - scheduflow-net
+    depends_on:
+      - ollama
+      - db
+
+  # --- IL MUSCOLO AI (Ollama) ---
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # networks:
+    #   - scheduflow-net
+    # (Implicitly added to default network if not specified, 
+    # but let's be explicit for bridge)
+    networks:
+      - scheduflow-net
+
+  # --- IL DATABASE (PostgreSQL) ---
+  db:
+    image: postgres:15
+    container_name: scheduflow_db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password_doppio_malto
+      POSTGRES_DB: staff_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    networks:
+      - scheduflow-net
+
+networks:
+  scheduflow-net:
+    driver: bridge
+
+volumes:
+  ollama_data:

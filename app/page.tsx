@@ -13,6 +13,7 @@ import {
 export default function Dashboard() {
     const [user, setUser] = useState<any>(null);
     const [pendingRequests, setPendingRequests] = useState(0);
+    const [usersCount, setUsersCount] = useState(0);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -22,13 +23,22 @@ export default function Dashboard() {
                 setUser(u);
 
                 // If admin/manager, load pending requests count
-                if (u.role === 'ADMIN' || u.role === 'MANAGER') {
+                if (u.role === 'ADMIN' || u.role === 'MANAGER' || u.role === 'OWNER') {
                     // We might not have a specific count endpoint in api.ts yet, 
                     // but we have getPermissionRequests we can filter or a specific one.
                     // Checking api.ts... we added getPendingRequestsCount!
                     try {
                         const count = await api.getPendingRequestsCount().catch(() => ({ count: 0 })) as any;
                         setPendingRequests(count.count || 0);
+
+                        // Fetch Users Count if Owner/Admin
+                        if (u.role === 'OWNER' || u.role === 'ADMIN') {
+                            const res = await fetch('/api/admin/users');
+                            if (res.ok) {
+                                const data = await res.json();
+                                setUsersCount(data.users?.length || 0);
+                            }
+                        }
                     } catch (e) {
                         // Fallback if endpoint fails
                     }
@@ -71,7 +81,16 @@ export default function Dashboard() {
             href: '/forecast',
             icon: <BarChart2 className="text-orange-600" size={24} />,
             color: 'bg-orange-50'
-        }
+        },
+        // Admin Only Card
+        ...(user?.role === 'OWNER' || user?.role === 'ADMIN' ? [{
+            title: 'Utenti',
+            desc: 'Gestione accessi e staff',
+            href: '/admin/users',
+            icon: <ShieldCheck className="text-indigo-600" size={24} />,
+            color: 'bg-indigo-50',
+            badge: usersCount > 0 ? usersCount : null
+        }] : [])
     ];
 
     if (loading) {
@@ -83,16 +102,16 @@ export default function Dashboard() {
     }
 
     return (
-        <div className="p-8 max-w-7xl mx-auto min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50">
+        <div className="p-8 max-w-7xl mx-auto min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 dark:from-slate-950 dark:via-slate-900 dark:to-indigo-950 transition-colors duration-300">
             <header className="mb-12 animate-fade-in-down">
                 <div className="flex justify-between items-end">
                     <div>
-                        <h1 className="text-4xl font-extrabold text-slate-900 flex items-center gap-3 tracking-tight">
-                            <Coffee className="text-indigo-600" size={40} />
+                        <h1 className="text-4xl font-extrabold text-slate-900 dark:text-white flex items-center gap-3 tracking-tight">
+                            <Coffee className="text-indigo-600 dark:text-indigo-400" size={40} />
                             ScheduFlow
                         </h1>
-                        <p className="text-slate-500 mt-2 text-lg font-light">
-                            Benvenuto, <span className="font-semibold text-indigo-600">{user?.name}</span>!
+                        <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg font-light">
+                            Benvenuto, <span className="font-semibold text-indigo-600 dark:text-indigo-400">{user?.name}</span>!
                         </p>
                     </div>
                 </div>
@@ -104,22 +123,23 @@ export default function Dashboard() {
                     <Link
                         key={card.href}
                         href={card.href}
-                        className="group relative block p-8 bg-white/80 backdrop-blur-md rounded-2xl shadow-xl shadow-indigo-100/50 border border-white/50 hover:shadow-2xl hover:shadow-indigo-200/50 hover:-translate-y-1 transition-all duration-300 ring-1 ring-slate-900/5"
+                        className="group relative block p-8 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-2xl shadow-xl shadow-indigo-100/50 dark:shadow-none border border-white/50 dark:border-slate-700 hover:shadow-2xl hover:shadow-indigo-200/50 dark:hover:shadow-indigo-900/20 hover:-translate-y-1 transition-all duration-300 ring-1 ring-slate-900/5 dark:ring-white/5"
                     >
-                        <div className={`w-14 h-14 rounded-2xl ${card.color} flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
-                            {card.icon}
+                        <div className={`w-14 h-14 rounded-2xl ${card.color} dark:bg-slate-700 flex items-center justify-center mb-6 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
+                            {/* Icon color needs adjustment for dark mode if not handled by parent class */}
+                            <div className="dark:text-indigo-300">{card.icon}</div>
                         </div>
                         <div className="flex justify-between items-start">
                             <div>
-                                <h3 className="font-bold text-slate-800 text-xl mb-2 group-hover:text-indigo-600 transition-colors">
+                                <h3 className="font-bold text-slate-800 dark:text-white text-xl mb-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                                     {card.title}
                                 </h3>
-                                <p className="text-sm text-slate-500 leading-relaxed font-medium">
+                                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
                                     {card.desc}
                                 </p>
                             </div>
                             {card.badge && (
-                                <span className="bg-rose-100 text-rose-600 text-xs font-bold px-3 py-1 rounded-full animate-pulse shadow-sm">
+                                <span className="bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 text-xs font-bold px-3 py-1 rounded-full animate-pulse shadow-sm">
                                     {card.badge}
                                 </span>
                             )}
@@ -133,27 +153,27 @@ export default function Dashboard() {
 
             {/* Recent Activity or Info Section */}
             <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-lg border border-slate-100">
-                    <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-3 text-lg">
+                <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm p-8 rounded-3xl shadow-lg border border-slate-100 dark:border-slate-700">
+                    <h3 className="font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-3 text-lg">
                         <ShieldCheck size={24} className="text-emerald-500" />
                         Stato Sistema
                     </h3>
                     <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                            <span className="text-sm font-medium text-slate-600">Ruolo Utente</span>
-                            <span className="font-mono text-xs font-bold bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full">{user?.role}</span>
+                        <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl border border-slate-100 dark:border-slate-600">
+                            <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Ruolo Utente</span>
+                            <span className="font-mono text-xs font-bold bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 px-3 py-1 rounded-full">{user?.role}</span>
                         </div>
-                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                            <span className="text-sm font-medium text-slate-600">Tenant ID</span>
-                            <span className="font-mono text-xs font-bold bg-slate-200 text-slate-600 px-3 py-1 rounded-full truncate max-w-[150px]">{user?.tenantKey || 'N/A'}</span>
+                        <div className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl border border-slate-100 dark:border-slate-600">
+                            <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Tenant ID</span>
+                            <span className="font-mono text-xs font-bold bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-200 px-3 py-1 rounded-full truncate max-w-[150px]">{user?.tenantKey || 'N/A'}</span>
                         </div>
-                        <div className="text-xs text-center text-slate-400 mt-6 font-medium uppercase tracking-widest">
-                            v2.2.0 • ScheduFlow
+                        <div className="text-xs text-center text-slate-400 dark:text-slate-500 mt-6 font-medium uppercase tracking-widest">
+                            v2.3.0 • ScheduFlow
                         </div>
                     </div>
                 </div>
 
-                <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 to-violet-700 p-8 rounded-3xl shadow-2xl text-white">
+                <div className="relative overflow-hidden bg-gradient-to-br from-indigo-600 to-violet-700 dark:from-indigo-900 dark:to-violet-950 p-8 rounded-3xl shadow-2xl text-white">
                     <div className="relative z-10">
                         <h3 className="font-bold text-2xl mb-2 flex items-center gap-2">AI Assistant <BotIcon /></h3>
                         <p className="text-indigo-100 text-base mb-8 max-w-sm leading-relaxed">

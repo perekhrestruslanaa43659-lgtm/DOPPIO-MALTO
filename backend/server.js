@@ -35,30 +35,17 @@ app.use((req, res, next) => {
   next();
 });
 
-// Init Admin
-<<<<<<< HEAD
 // initAdmin(); // Commented out - causes SQLite error on Vercel because runs before DATABASE_URL loaded
-
 
 // Auth Routes
 app.post('/api/login', login);
 app.post('/api/register', register); // Public registration
 
-=======
-//initAdmin();
-
-// Auth Routes
->>>>>>> 687bb2814cf4672555eb35e12a837bf64ddb8814
-// Health Check Endpoint
 app.get('/api/health', async (req, res) => {
   try {
     // Test database connection
     await prisma.$queryRaw`SELECT 1`;
-<<<<<<< HEAD
 
-=======
-    
->>>>>>> 687bb2814cf4672555eb35e12a837bf64ddb8814
     res.json({
       status: 'ok',
       database: 'connected',
@@ -76,11 +63,7 @@ app.get('/api/health', async (req, res) => {
     });
   }
 });
-<<<<<<< HEAD
 
-=======
-// Public registration
->>>>>>> 687bb2814cf4672555eb35e12a837bf64ddb8814
 // Original register was public? No, user management page uses it. 
 // Ideally registration should be restricted or separate public signup provided. 
 // For now, I'll leave register as public for simplicity or check if I protected it before?
@@ -1496,20 +1479,68 @@ app.get('/api/recurring-shifts', async (req, res) => {
 });
 
 app.post('/api/recurring-shifts', async (req, res) => {
-  const { staffId, dayOfWeek, start_time, end_time, shiftTemplateId, postazione } = req.body;
+  const { staffId, dayOfWeek, daysOfWeek, start_time, end_time, shiftTemplateId, postazione } = req.body;
   try {
-    const shift = await prisma.recurringShift.create({
-      data: {
-        staffId: Number(staffId),
-        dayOfWeek: Number(dayOfWeek),
-        start_time,
-        end_time,
-        shiftTemplateId: shiftTemplateId ? Number(shiftTemplateId) : null,
-        postazione
-      }
-    });
-    res.json(shift);
+    // Determine days to process
+    let daysToProcess = [];
+    if (Array.isArray(daysOfWeek)) {
+      daysToProcess = daysOfWeek;
+    } else if (dayOfWeek !== undefined) {
+      daysToProcess = [Number(dayOfWeek)];
+    } else {
+      // Return 400
+      return res.status(400).json({ error: "daysOfWeek or dayOfWeek is required" });
+    }
+
+    const createdShifts = [];
+    for (const d of daysToProcess) {
+      const shift = await prisma.recurringShift.create({
+        data: {
+          staffId: Number(staffId),
+          dayOfWeek: Number(d),
+          start_time,
+          end_time,
+          shiftTemplateId: shiftTemplateId ? Number(shiftTemplateId) : null,
+          postazione
+        }
+      });
+      createdShifts.push(shift);
+    }
+
+    // Return array of created shifts
+    res.json(createdShifts);
   } catch (e) {
+    console.error("Error creating recurring shift:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Alias for /create to match api.ts
+app.post('/api/recurring-shifts/create', async (req, res) => {
+  const { staffId, daysOfWeek, start_time, end_time, shiftTemplateId, postazione } = req.body;
+  try {
+    if (!Array.isArray(daysOfWeek)) {
+      return res.status(400).json({ error: "daysOfWeek expected as array at this endpoint" });
+    }
+
+    const createdShifts = [];
+    for (const d of daysOfWeek) {
+      const shift = await prisma.recurringShift.create({
+        data: {
+          staffId: Number(staffId),
+          dayOfWeek: Number(d),
+          start_time,
+          end_time,
+          shiftTemplateId: shiftTemplateId ? Number(shiftTemplateId) : null,
+          postazione
+        }
+      });
+      createdShifts.push(shift);
+    }
+    console.log(`[API] Created ${createdShifts.length} recurring shifts.`);
+    res.json(createdShifts);
+  } catch (e) {
+    console.error("Error creating recurring shifts (multi-day):", e);
     res.status(500).json({ error: e.message });
   }
 });
@@ -1519,6 +1550,39 @@ app.delete('/api/recurring-shifts/:id', async (req, res) => {
     await prisma.recurringShift.delete({ where: { id: Number(req.params.id) } });
     res.json({ success: true });
   } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Alias for delete using POST (from api.ts)
+app.post('/api/recurring-shifts/delete', async (req, res) => {
+  const { id } = req.body;
+  try {
+    await prisma.recurringShift.delete({ where: { id: Number(id) } });
+    res.json({ success: true });
+  } catch (e) {
+    console.error("Error deleting recurring shift:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Update route (from api.ts)
+app.post('/api/recurring-shifts/update', async (req, res) => {
+  const { id, start_time, end_time, shiftTemplateId, postazione } = req.body;
+  try {
+    // Validation?
+    const updated = await prisma.recurringShift.update({
+      where: { id: Number(id) },
+      data: {
+        start_time,
+        end_time,
+        shiftTemplateId: shiftTemplateId ? Number(shiftTemplateId) : null,
+        postazione
+      }
+    });
+    res.json(updated);
+  } catch (e) {
+    console.error("Error updating recurring shift:", e);
     res.status(500).json({ error: e.message });
   }
 });

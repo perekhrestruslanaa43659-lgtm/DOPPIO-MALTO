@@ -27,23 +27,44 @@ export async function GET(request: NextRequest) {
         }
 
         console.log('🔍 Ricerca assignments...');
-        const assignments = await prisma.assignment.findMany({
-            where: {
-                tenantKey,
-                data: {
-                    gte: start,
-                    lte: end,
+        const [assignments, requests, unavailabilities] = await prisma.$transaction([
+            prisma.assignment.findMany({
+                where: {
+                    tenantKey,
+                    data: {
+                        gte: start,
+                        lte: end,
+                    },
                 },
-            },
-            include: {
-                shiftTemplate: true,
-                staff: true,
-            },
-        });
+                include: {
+                    shiftTemplate: true,
+                    staff: true,
+                },
+            }),
+            prisma.permissionRequest.findMany({
+                where: {
+                    status: 'APPROVED',
+                    Staff: { tenantKey }, // Ensure tenant isolation via relation
+                    data: {
+                        gte: start,
+                        lte: end,
+                    },
+                },
+            }),
+            prisma.unavailability.findMany({
+                where: {
+                    tenantKey,
+                    data: {
+                        gte: start,
+                        lte: end,
+                    },
+                },
+            })
+        ]);
 
-        console.log(`✅ Trovati ${assignments.length} assignments`);
+        console.log(`✅ Trovati ${assignments.length} assignments, ${requests.length} richieste approvate, ${unavailabilities.length} indisponibilità`);
         console.log('=== SCHEDULE GET SUCCESS ===\n');
-        return NextResponse.json(assignments);
+        return NextResponse.json({ assignments, requests, unavailabilities });
     } catch (error) {
         console.error('\n❌ === SCHEDULE GET ERROR ===');
         console.error('Tipo errore:', error instanceof Error ? error.constructor.name : typeof error);

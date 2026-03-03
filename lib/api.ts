@@ -7,15 +7,18 @@ async function request(endpoint: string, options: RequestInit = {}) {
     console.log(`   Method: ${method}`);
     console.log(`   Endpoint: ${endpoint}`);
     if (options.body) {
-        const bodyPreview = String(options.body).substring(0, 200);
-        console.log(`   Body preview: ${bodyPreview}${String(options.body).length > 200 ? '...' : ''}`);
+        // SECURITY: Mask sensitive fields before logging
+        const bodyStr = String(options.body);
+        const maskedBody = bodyStr.replace(/"(password|apiKey|apiSecret|token|secret)":\s*"[^"]*"/g, '"$1": "***MASKED***"');
+        const bodyPreview = maskedBody.substring(0, 200);
+        console.log(`   Body preview: ${bodyPreview}${maskedBody.length > 200 ? '...' : ''}`);
     }
 
     const headers = { 'Content-Type': 'application/json', ...options.headers };
     const startTime = performance.now();
 
     try {
-        const res = await fetch(`${BASE_URL}${endpoint}`, { ...options, headers });
+        const res = await fetch(`${BASE_URL}${endpoint}`, { cache: 'no-store', ...options, headers });
         const duration = Math.round(performance.now() - startTime);
 
         console.log(`📡 API Response: ${res.status} ${res.statusText} (${duration}ms)`);
@@ -44,11 +47,14 @@ export const api = {
     // --- Auth & Users ---
     // CORRECTED PATHS based on actual file structure
     login: (creds: any) => request('/login', { method: 'POST', body: JSON.stringify(creds) }),
+    getClosingStats: (start: string, end: string) => request(`/stats/closings?start=${start}&end=${end}`),
     logout: () => request('/logout', { method: 'POST' }),
     getProfile: () => request('/profile'),
+    changePassword: (currentPassword: string, newPassword: string) => request('/profile/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
     register: (data: any) => request('/register', { method: 'POST', body: JSON.stringify(data) }),
 
     getUsers: () => request('/users'),
+    updateUser: (data: any) => request('/users', { method: 'PUT', body: JSON.stringify(data) }),
 
     createUser: (data: any) => request('/users', { method: 'POST', body: JSON.stringify(data) }),
 
@@ -68,7 +74,14 @@ export const api = {
     importStaff: (data: any[]) => request('/staff/import', { method: 'POST', body: JSON.stringify(data) }),
 
     // --- Schedule & Assignments ---
-    getSchedule: (start: string, end: string) => request(`/schedule?start=${start}&end=${end}`),
+    getSchedule: async (start: string, end: string) => {
+        const data = await request(`/schedule?start=${start}&end=${end}`);
+        // Handle legacy array response vs new object response
+        if (Array.isArray(data)) {
+            return { assignments: data, requests: [], unavailabilities: [] };
+        }
+        return data;
+    },
     generateSchedule: (start: string, end: string) => request(`/schedule/generate`, { method: 'POST', body: JSON.stringify({ start, end }) }),
     clearAssignments: (start: string, end: string) => request(`/schedule/clear`, { method: 'POST', body: JSON.stringify({ start, end }) }),
     validateSchedule: (start: string, end: string) => request(`/schedule/validate?start=${start}&end=${end}`),
@@ -110,6 +123,8 @@ export const api = {
     saveForecast: (data: any) => request('/forecast', { method: 'POST', body: JSON.stringify(data) }),
     deleteForecast: (weekStart: string) => request(`/forecast?weekStart=${weekStart}`, { method: 'DELETE' }),
 
+    notifyBroadcast: (weekRange: string, htmlTable: string) => request('/notifications/broadcast-schedule', { method: 'POST', body: JSON.stringify({ weekRange, htmlTable }) }),
+
     getBudget: (start: string, end: string) => request(`/budget?start=${start}&end=${end}`),
     saveBudget: (data: any) => request('/budget', { method: 'POST', body: JSON.stringify(data) }),
     upsertBudget: (data: any) => request('/budget', { method: 'POST', body: JSON.stringify(data) }),
@@ -126,6 +141,18 @@ export const api = {
     deletePermissionRequest: (id: string | number) => request(`/permission-requests/${id}`, { method: 'DELETE' }),
     getPendingRequestsCount: () => request('/permission-requests/count'),
 
-    // --- AI ---
+    // --- AI & Training ---
     chat: (message: string, history: any[], apiKey?: string) => request('/agent/chat', { method: 'POST', body: JSON.stringify({ message, history, apiKey }) }),
+
+    // Admin Training Data
+    trainAI: (data: any) => request('/training', { method: 'POST', body: JSON.stringify(data) }),
+    getTrainingData: () => request('/training'),
+
+    // --- Integrations ---
+    getIntegrations: () => request('/integrations'),
+    saveIntegration: (data: any) => request('/integrations', { method: 'POST', body: JSON.stringify(data) }),
+
+    // --- Closings ---
+    updateBudget: (date: string, data: any) => request(`/budget?date=${date}`, { method: 'PUT', body: JSON.stringify(data) }),
+    sendClosingReport: (start: string, end: string, recipient: string) => request('/email/summary', { method: 'POST', body: JSON.stringify({ start, end, recipient }) }),
 };

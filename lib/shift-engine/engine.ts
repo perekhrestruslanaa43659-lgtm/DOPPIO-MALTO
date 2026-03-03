@@ -1,12 +1,11 @@
 
 import { EngineContext, ShiftRule, ValidationResult } from './types';
-import { MinRestRule, MaxWeeklyHoursRule, ConsecutiveDaysRule, CoverageRule, MinimumShiftDurationRule, OrphanedHoursRule } from './rules';
+import { MinRestRule, MaxWeeklyHoursRule, ConsecutiveDaysRule, MinimumShiftDurationRule, OrphanedHoursRule } from './rules';
 
 const DEFAULT_RULES: ShiftRule[] = [
     MinRestRule,
     MaxWeeklyHoursRule,
     ConsecutiveDaysRule,
-    CoverageRule,
     MinimumShiftDurationRule,
     OrphanedHoursRule
 ];

@@ -4,7 +4,8 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import QuarterTimeInput from '@/components/QuarterTimeInput';
-import { CalendarOff, CalendarCheck, Trash2, Filter, AlertTriangle } from 'lucide-react';
+import SearchableSelect from '@/components/SearchableSelect';
+import { CalendarOff, CalendarCheck, Trash2, Filter, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
 
 interface Staff {
     id: number;
@@ -52,7 +53,13 @@ export default function AbsencesPage() {
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const [collapsedStaff, setCollapsedStaff] = useState<number[]>([]);
+
+    const toggleCollapse = (id: number) => {
+        setCollapsedStaff(prev =>
+            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+        );
+    };
 
     // Filters
     const [filterStart, setFilterStart] = useState('');
@@ -288,43 +295,16 @@ export default function AbsencesPage() {
         setF({ ...f, selectedDays: curr.includes(d) ? curr.filter((x: number) => x !== d) : [...curr, d] });
     };
 
-    // Multi-select handlers
-    const toggleSelectAll = () => {
-        const unavailItems = items.filter(it => it.activityType === 'UNAVAIL');
-        if (selectedIds.length === unavailItems.length) {
-            setSelectedIds([]);
-        } else {
-            setSelectedIds(unavailItems.map(it => it.id));
-        }
+    const toggleAllDays = (isUnavail: boolean) => {
+        const setF = isUnavail ? setUnavailForm : setAvailForm;
+        const f: any = isUnavail ? unavailForm : availForm;
+        const allDays = [1, 2, 3, 4, 5, 6, 0];
+        // If all selected, deselect all. Otherwise, select all.
+        const isAllSelected = allDays.every(d => f.selectedDays.includes(d));
+        setF({ ...f, selectedDays: isAllSelected ? [] : allDays });
     };
 
-    const toggleSelectItem = (id: number) => {
-        setSelectedIds(prev =>
-            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-        );
-    };
 
-    // Bulk delete handlers
-    const handleDeleteSelected = async () => {
-        if (selectedIds.length === 0) {
-            alert("⚠️ Seleziona almeno un'assenza da eliminare");
-            return;
-        }
-
-        if (!confirm(`Eliminare ${selectedIds.length} assenze selezionate?`)) return;
-
-        setDeleting(true);
-        try {
-            await api.deleteMultipleUnavailability(selectedIds);
-            alert(`✅ Eliminate ${selectedIds.length} assenze!`);
-            setSelectedIds([]);
-            await loadData(filterStart, filterEnd);
-        } catch (e: any) {
-            alert("❌ Errore: " + e.message);
-        } finally {
-            setDeleting(false);
-        }
-    };
 
     const handleDeleteAll = async () => {
         if (!confirm("⚠️ ATTENZIONE: Eliminare TUTTE le assenze?")) return;
@@ -334,7 +314,7 @@ export default function AbsencesPage() {
         try {
             const result = await api.deleteAllUnavailability();
             alert(`✅ ${result.message}`);
-            setSelectedIds([]);
+
             await loadData(filterStart, filterEnd);
         } catch (e: any) {
             alert("❌ Errore: " + e.message);
@@ -379,10 +359,12 @@ export default function AbsencesPage() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div>
                                 <label className="label block font-bold mb-1">Dipendente</label>
-                                <select className="input w-full p-2 border rounded" value={unavailForm.staffId} onChange={e => setUnavailForm({ ...unavailForm, staffId: e.target.value })}>
-                                    <option value="">Seleziona...</option>
-                                    {staffList.map(s => <option key={s.id} value={s.id}>{s.nome} {s.cognome}</option>)}
-                                </select>
+                                <SearchableSelect
+                                    options={staffList.map(s => ({ value: s.id, label: `${s.nome} ${s.cognome}` }))}
+                                    value={unavailForm.staffId}
+                                    onChange={(val) => setUnavailForm({ ...unavailForm, staffId: String(val) })}
+                                    placeholder="Cerca dipendente..."
+                                />
                             </div>
                             <div>
                                 <label className="label block font-bold mb-1">Periodo</label>
@@ -408,7 +390,10 @@ export default function AbsencesPage() {
                                         <div><label className="block font-bold mb-1">Sett. Fine</label><input type="number" className="p-2 border rounded w-full" value={unavailForm.endWeek} onChange={e => setUnavailForm({ ...unavailForm, endWeek: e.target.value })} /></div>
                                         <div>
                                             <label className="block font-bold mb-1">Giorni</label>
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-2 items-center flex-wrap">
+                                                <button onClick={() => toggleAllDays(true)} className="px-2 py-1 rounded text-sm border bg-gray-200 hover:bg-gray-300 font-bold">
+                                                    Tutti
+                                                </button>
                                                 {daysLabels.map(d => (
                                                     <button key={d.v} onClick={() => toggleDay(true, d.v)} className={`px-2 py-1 rounded text-sm border ${unavailForm.selectedDays.includes(d.v) ? 'bg-red-600 text-white border-red-600' : 'bg-gray-50'}`}>
                                                         {d.l}
@@ -487,10 +472,12 @@ export default function AbsencesPage() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div>
                                 <label className="label block font-bold mb-1">Dipendente</label>
-                                <select className="input w-full p-2 border rounded" value={availForm.staffId} onChange={e => setAvailForm({ ...availForm, staffId: e.target.value })}>
-                                    <option value="">Seleziona...</option>
-                                    {staffList.map(s => <option key={s.id} value={s.id}>{s.nome} {s.cognome}</option>)}
-                                </select>
+                                <SearchableSelect
+                                    options={staffList.map(s => ({ value: s.id, label: `${s.nome} ${s.cognome}` }))}
+                                    value={availForm.staffId}
+                                    onChange={(val) => setAvailForm({ ...availForm, staffId: String(val) })}
+                                    placeholder="Cerca dipendente..."
+                                />
                             </div>
                             <div>
                                 <label className="label block font-bold mb-1">Periodo</label>
@@ -516,7 +503,10 @@ export default function AbsencesPage() {
                                         <div><label className="block font-bold mb-1">Sett. Fine</label><input type="number" className="p-2 border rounded w-full" value={availForm.endWeek} onChange={e => setAvailForm({ ...availForm, endWeek: e.target.value })} /></div>
                                         <div>
                                             <label className="block font-bold mb-1">Giorni</label>
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-2 items-center flex-wrap">
+                                                <button onClick={() => toggleAllDays(false)} className="px-2 py-1 rounded text-sm border bg-gray-200 hover:bg-gray-300 font-bold">
+                                                    Tutti
+                                                </button>
                                                 {daysLabels.map(d => (
                                                     <button key={d.v} onClick={() => toggleDay(false, d.v)} className={`px-2 py-1 rounded text-sm border ${availForm.selectedDays.includes(d.v) ? 'bg-green-600 text-white border-green-600' : 'bg-gray-50'}`}>
                                                         {d.l}
@@ -558,105 +548,102 @@ export default function AbsencesPage() {
                 )}
             </div>
 
-            {/* List */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="p-4 border-b bg-gray-50">
-                    <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-bold text-gray-700">Cronologia Attività</h3>
-                        <div className="flex gap-2 text-sm">
-                            <input type="date" className="border rounded p-1" value={filterStart} onChange={e => setFilterStart(e.target.value)} />
-                            <span className="self-center">-</span>
-                            <input type="date" className="border rounded p-1" value={filterEnd} onChange={e => setFilterEnd(e.target.value)} />
-                            <button onClick={() => loadData(filterStart, filterEnd)} className="bg-gray-800 text-white px-3 py-1 rounded">Filtra</button>
-                        </div>
+            {/* Grouped View */}
+            <div className="space-y-6">
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-wrap gap-4 justify-between items-center">
+                    <div className="flex items-center gap-2">
+                        <Filter size={20} className="text-gray-500" />
+                        <span className="font-bold text-gray-700">Filtra Periodo:</span>
                     </div>
-                    {items.filter(it => it.activityType === 'UNAVAIL').length > 0 && (
-                        <div className="flex gap-2 items-center">
-                            <button
-                                onClick={handleDeleteSelected}
-                                disabled={selectedIds.length === 0 || deleting}
-                                className={`px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 ${selectedIds.length === 0 || deleting
-                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                    : 'bg-orange-600 hover:bg-orange-700 text-white'
-                                    }`}
-                            >
-                                <Trash2 size={16} />
-                                {deleting ? 'Eliminazione...' : `Elimina Selezionate (${selectedIds.length})`}
-                            </button>
-                            <button
-                                onClick={handleDeleteAll}
-                                disabled={deleting}
-                                className={`px-4 py-2 rounded-lg font-medium transition ${deleting
-                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                    : 'bg-red-600 hover:bg-red-700 text-white'
-                                    }`}
-                            >
-                                {deleting ? 'Eliminazione...' : 'Cancella Tutte le Assenze'}
-                            </button>
-                        </div>
+                    <div className="flex gap-2 items-center">
+                        <input type="date" className="border rounded p-2" value={filterStart} onChange={e => setFilterStart(e.target.value)} />
+                        <span className="text-gray-400">➜</span>
+                        <input type="date" className="border rounded p-2" value={filterEnd} onChange={e => setFilterEnd(e.target.value)} />
+                        <button onClick={() => loadData(filterStart, filterEnd)} className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition">
+                            Aggiorna
+                        </button>
+                    </div>
+                    {items.length > 0 && (
+                        <button
+                            onClick={handleDeleteAll}
+                            className="bg-red-50 text-red-600 px-4 py-2 rounded hover:bg-red-100 transition flex items-center gap-2 ml-auto"
+                        >
+                            <Trash2 size={16} /> Cancella Tutto
+                        </button>
                     )}
                 </div>
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-gray-100 text-gray-500 uppercase font-semibold">
-                        <tr>
-                            <th className="p-3 w-12">
-                                <input
-                                    type="checkbox"
-                                    checked={selectedIds.length > 0 && selectedIds.length === items.filter(it => it.activityType === 'UNAVAIL').length}
-                                    onChange={toggleSelectAll}
-                                    className="w-4 h-4 cursor-pointer"
-                                />
-                            </th>
-                            <th className="p-3">Staff</th>
-                            <th className="p-3">Data</th>
-                            <th className="p-3">Tipo / Orario</th>
-                            <th className="p-3">Motivo / Dettagli</th>
-                            <th className="p-3 text-right">Azioni</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {loading && <tr><td colSpan={6} className="p-4 text-center">Caricamento...</td></tr>}
-                        {!loading && items.length === 0 && <tr><td colSpan={6} className="p-4 text-center text-gray-400">Nessuna attività trovata</td></tr>}
-                        {items.map(it => (
-                            <tr key={`${it.activityType}-${it.id}`} className="hover:bg-gray-50">
-                                <td className="p-3">
-                                    {it.activityType === 'UNAVAIL' ? (
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedIds.includes(it.id)}
-                                            onChange={() => toggleSelectItem(it.id)}
-                                            className="w-4 h-4 cursor-pointer"
-                                        />
-                                    ) : (
-                                        <span className="w-4 h-4 inline-block"></span>
-                                    )}
-                                </td>
-                                <td className="p-3 font-medium">{it.staff?.nome} {it.staff?.cognome}</td>
-                                <td className="p-3">{it.data}</td>
-                                <td className="p-3">
-                                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${it.activityType === 'UNAVAIL' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                                        {it.activityType === 'UNAVAIL' ? 'ASSENZA' : 'TURNO'}
-                                    </span>
-                                </td>
-                                <td className="p-3">
-                                    <div className="flex flex-col">
-                                        <span className="font-mono text-xs">{it.tipo}</span>
-                                        {it.reason && <span className="text-gray-500 italic text-xs">{it.reason}</span>}
+
+                {loading && <div className="text-center py-10 text-gray-500">Caricamento attività...</div>}
+
+                {!loading && staffList.map(staff => {
+                    const staffItems = items.filter(it => it.staffId === staff.id);
+                    if (staffItems.length === 0) return null;
+
+                    return (
+                        <div key={staff.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div
+                                className="bg-gray-50 p-4 border-b border-gray-100 flex justify-between items-center cursor-pointer hover:bg-gray-100 transition"
+                                onClick={() => toggleCollapse(staff.id)}
+                            >
+                                <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
+                                    {collapsedStaff.includes(staff.id) ? <ChevronRight size={20} className="text-gray-400" /> : <ChevronDown size={20} className="text-gray-400" />}
+                                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-sm font-bold">
+                                        {staff.nome.charAt(0)}{staff.cognome.charAt(0)}
                                     </div>
-                                </td>
-                                <td className="p-3 text-right">
-                                    <button
-                                        onClick={() => handleDelete(it)}
-                                        className="text-red-600 hover:text-red-800 hover:bg-red-100 p-2 rounded transition"
-                                        title="Elimina"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                                    {staff.nome} {staff.cognome}
+                                    <span className="ml-2 text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full">{staffItems.length} voci</span>
+                                </h3>
+                            </div>
+
+                            {!collapsedStaff.includes(staff.id) && (
+                                <table className="w-full text-left text-sm">
+                                    <thead className="bg-white text-gray-500 uppercase font-semibold border-b border-gray-100">
+                                        <tr>
+                                            <th className="p-3 w-32">Data</th>
+                                            <th className="p-3 w-32">Tipo</th>
+                                            <th className="p-3">Dettagli</th>
+                                            <th className="p-3 text-right w-20">Azioni</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {staffItems.map(it => (
+                                            <tr key={`${it.activityType}-${it.id}`} className="hover:bg-gray-50/50">
+                                                <td className="p-3 font-medium text-gray-700">{it.data}</td>
+                                                <td className="p-3">
+                                                    <span className={`px-2 py-0.5 rounded text-xs font-bold ${it.activityType === 'UNAVAIL' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                                                        {it.activityType === 'UNAVAIL' ? 'ASSENZA' : 'TURNO'}
+                                                    </span>
+                                                </td>
+                                                <td className="p-3">
+                                                    <div className="flex flex-col">
+                                                        <span className="font-medium">{it.tipo}</span>
+                                                        {it.reason && <span className="text-gray-500 text-xs">{it.reason}</span>}
+                                                    </div>
+                                                </td>
+                                                <td className="p-3 text-right">
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); handleDelete(it); }}
+                                                        className="text-red-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded transition"
+                                                        title="Elimina"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    );
+                })}
+
+                {!loading && items.length === 0 && (
+                    <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300 text-gray-400">
+                        <CalendarCheck size={48} className="mx-auto mb-4 opacity-20" />
+                        Nessuna assenza o turno extra nel periodo selezionato.
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -2,13 +2,13 @@
 import React, { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { Clock, MapPin, Copy, Trash2, UserPlus, FileX } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface ShiftItemProps {
     assignment: any;
-    type: 'PRANZO' | 'SERA'; // Visual hint
-    onUpdate: (id: number, data: any) => void; // For Inline Edit
+    type: 'PRANZO' | 'SERA';
+    onUpdate: (id: number, data: any) => void;
     onContextMenu: (e: React.MouseEvent, asn: any) => void;
 }
 
@@ -20,8 +20,9 @@ export const DraggableShiftItem = ({ assignment, type, onUpdate, onContextMenu }
 
     const style = {
         transform: CSS.Translate.toString(transform),
-        opacity: isDragging ? 0.5 : 1,
+        opacity: isDragging ? 0.4 : 1,
         zIndex: isDragging ? 50 : 1,
+        touchAction: 'none',
     };
 
     const [isEditing, setIsEditing] = useState(false);
@@ -30,6 +31,18 @@ export const DraggableShiftItem = ({ assignment, type, onUpdate, onContextMenu }
     const startTime = assignment.start_time || assignment.shiftTemplate?.oraInizio || "";
     const endTime = assignment.end_time || assignment.shiftTemplate?.oraFine || "";
     const station = assignment.postazione || "";
+    const accent = assignment._groupAccent;
+
+    // Left accent border per group
+    const accentBorder =
+        accent === 'MANAGER' ? 'border-l-[3px] border-l-indigo-400' :
+            accent === 'SALA' ? 'border-l-[3px] border-l-sky-400' :
+                accent === 'CUCINA' ? 'border-l-[3px] border-l-amber-400' : '';
+
+    // Pastel palette: PRANZO = soft blue, SERA = soft violet
+    const colorScheme = type === 'PRANZO'
+        ? 'bg-sky-50 border-sky-200 text-sky-900 hover:bg-sky-100'
+        : 'bg-violet-50 border-violet-200 text-violet-900 hover:bg-violet-100';
 
     const handleDoubleClick = () => {
         setEditValue(`${startTime}-${endTime}`);
@@ -38,7 +51,6 @@ export const DraggableShiftItem = ({ assignment, type, onUpdate, onContextMenu }
 
     const handleBlur = () => {
         setIsEditing(false);
-        // Parse "HH:mm-HH:mm"
         const [start, end] = editValue.split('-');
         if (start && end && (start !== startTime || end !== endTime)) {
             onUpdate(assignment.id, { start_time: start.trim(), end_time: end.trim() });
@@ -51,7 +63,7 @@ export const DraggableShiftItem = ({ assignment, type, onUpdate, onContextMenu }
 
     if (isEditing) {
         return (
-            <div className="p-1 bg-white border border-blue-500 rounded shadow-md z-50">
+            <div className="p-1 bg-white border border-indigo-400 rounded-xl shadow-md z-50">
                 <input
                     autoFocus
                     className="w-full text-xs font-mono outline-none"
@@ -74,20 +86,28 @@ export const DraggableShiftItem = ({ assignment, type, onUpdate, onContextMenu }
             onDoubleClick={handleDoubleClick}
             onContextMenu={(e) => onContextMenu(e, assignment)}
             className={`
-                relative group rounded px-2 py-1 text-xs border cursor-grab active:cursor-grabbing
-                flex flex-col gap-0.5 hover:shadow-md transition-shadow select-none
-                ${type === 'PRANZO' ? 'bg-sky-100 border-sky-300 text-sky-900' : 'bg-amber-100 border-amber-300 text-amber-900'}
-                ${!assignment.status ? 'border-dashed opacity-80' : ''} 
+                relative group rounded-xl px-2 py-1.5 text-xs border cursor-grab active:cursor-grabbing
+                flex flex-col gap-0.5 shadow-sm hover:shadow-md transition-all duration-150 select-none
+                ${colorScheme}
+                ${!assignment.status ? '' : ''}
+                ${accentBorder}
             `}
         >
-            <div className="flex items-center justify-between font-bold leading-none">
-                <span>{startTime} - {endTime}</span>
+            {/* Row 1: time range + note icon */}
+            <div className="flex items-center justify-between gap-1 font-bold leading-none w-full">
+                <span className="whitespace-nowrap text-[11px] tracking-tight">{startTime}–{endTime}</span>
+                {assignment.note && (
+                    <span title={assignment.note} className="flex-shrink-0">
+                        <FileText size={8} className="opacity-50" />
+                    </span>
+                )}
             </div>
-            <div className="flex items-center gap-1 text-[10px] opacity-80 font-medium truncate">
-                <MapPin size={8} />
-                {station || <span className="italic text-gray-400">No Post.</span>}
-            </div>
-            {!assignment.status && <div className="absolute top-0 right-0 w-2 h-2 bg-yellow-400 rounded-full" title="Draft" />}
+            {/* Row 2: postazione */}
+            {station
+                ? <span className="text-[9px] font-semibold opacity-60 truncate leading-tight">{station}</span>
+                : <span className="text-[9px] italic opacity-25 leading-tight">—</span>
+            }
+            {!assignment.status && <div className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-amber-400 rounded-full" title="Draft" />}
         </div>
     );
 };

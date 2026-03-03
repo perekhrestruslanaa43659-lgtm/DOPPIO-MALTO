@@ -8,29 +8,30 @@ datasource db {
 }
 
 model Staff {
-  id                Int                 @id @default(autoincrement())
-  nome              String
-  cognome           String              @default("")
-  ruolo             String
-  email             String?
-  oreMinime         Int                 @default(0)
-  oreMassime        Int                 @default(40)
-  costoOra          Float               @default(0)
-  listIndex         Int
-  fixedShifts       String?             @default("{}")
-  createdAt         DateTime            @default(now())
-  moltiplicatore    Float               @default(1.0)
-  postazioni        String              @default("[]")
-  tenantKey         String              @default("default-tenant")
-  skillLevel        String              @default("MEDIUM") // JUNIOR, MEDIUM, SENIOR
-  contractType      String              @default("STANDARD") // TIROCINANTE, STANDARD, CHIAMATA
-  incompatibilityId String?             // If set, staff with same ID invalid to work together
-  assignments       Assignment[]
-  PermissionRequest PermissionRequest[]
-  recurringShifts   RecurringShift[]
-  unavailabilities  Unavailability[]
-  availability      Availability[]
-
+  id                 Int                 @id @default(autoincrement())
+  nome               String
+  cognome            String              @default("")
+  ruolo              String
+  email              String?
+  oreMinime          Int                 @default(0)
+  oreMassime         Int                 @default(40)
+  costoOra           Float               @default(0)
+  listIndex          Int
+  fixedShifts        String?             @default("{}")
+  createdAt          DateTime            @default(now())
+  moltiplicatore     Float               @default(1.0)
+  postazioni         String              @default("[]")
+  tenantKey          String              @default("default-tenant")
+  incompatibilityId  String?
+  skillLevel         String              @default("MEDIUM")
+  contractType       String              @default("STANDARD")
+  productivityWeight Float               @default(1.0)
+  assignments        Assignment[]
+  availability       Availability[]
+  PermissionRequest  PermissionRequest[]
+  recurringShifts    RecurringShift[]
+  unavailabilities   Unavailability[]
+  competencies       StaffCompetency[]
 
   @@unique([email, tenantKey])
   @@index([tenantKey])
@@ -65,14 +66,14 @@ model Unavailability {
 }
 
 model Availability {
-  id         Int     @id @default(autoincrement())
-  staffId    Int
-  dayOfWeek  Int?    // 0=Sun, 1=Mon, etc. (for recurring)
-  date       String? // YYYY-MM-DD (for specific)
-  startTime  String
-  endTime    String
-  tenantKey  String  @default("default-tenant")
-  staff      Staff   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  id        Int     @id @default(autoincrement())
+  staffId   Int
+  dayOfWeek Int?
+  date      String?
+  startTime String
+  endTime   String
+  tenantKey String  @default("default-tenant")
+  staff     Staff   @relation(fields: [staffId], references: [id], onDelete: Cascade)
 
   @@index([tenantKey])
 }
@@ -96,6 +97,7 @@ model Assignment {
   status          Boolean        @default(false)
   postazione      String?
   tenantKey       String         @default("default-tenant")
+  note            String?
   shiftTemplate   ShiftTemplate? @relation(fields: [shiftTemplateId], references: [id])
   staff           Staff          @relation(fields: [staffId], references: [id], onDelete: Cascade)
 
@@ -103,14 +105,24 @@ model Assignment {
 }
 
 model Budget {
-  id          Int    @id @default(autoincrement())
-  data        String
-  value       Float  @default(0)
-  hoursLunch  Float  @default(0)
-  hoursDinner Float  @default(0)
-  valueLunch  Float  @default(0)
-  valueDinner Float  @default(0)
-  tenantKey   String @default("default-tenant")
+  id                 Int    @id @default(autoincrement())
+  data               String
+  value              Float  @default(0)
+  hoursLunch         Float  @default(0)
+  hoursDinner        Float  @default(0)
+  valueLunch         Float  @default(0)
+  valueDinner        Float  @default(0)
+  tenantKey          String @default("default-tenant")
+  hoursDinnerHall    Float  @default(0)
+  hoursDinnerKitchen Float  @default(0)
+  hoursLunchHall     Float  @default(0)
+  hoursLunchKitchen  Float  @default(0)
+  budgetCoversDinner Int    @default(0)
+  budgetCoversLunch  Int    @default(0)
+  realCoversDinner   Int    @default(0)
+  realCoversLunch    Int    @default(0)
+  realValueDinner    Float  @default(0)
+  realValueLunch     Float  @default(0)
 
   @@unique([data, tenantKey])
   @@index([tenantKey])
@@ -149,11 +161,19 @@ model User {
   role              String              @default("OWNER")
   tenantKey         String              @default("default-tenant")
   companyName       String?
-  // SMTP Configuration (Optional)
   smtpHost          String?
+  smtpPassword      String?
   smtpPort          Int?
   smtpUser          String?
-  smtpPassword      String?
+  createdAt         DateTime            @default(now())
+  smtpProvider      String              @default("CUSTOM")
+  lastLogin         DateTime?
+  resetToken        String?             @unique
+  resetTokenExpiry  DateTime?
+  isVerified        Boolean             @default(false)
+  verificationToken String?             @unique
+  deviceTokens      DeviceToken[]
+  loginLogs         LoginLog[]
   PermissionRequest PermissionRequest[]
 
   @@index([tenantKey])
@@ -167,11 +187,11 @@ model RecurringShift {
   end_time        String?
   shiftTemplateId Int?
   postazione      String?
-  startWeek       Int?
-  endWeek         Int?
-  startYear       Int?
-  endYear         Int?
   tenantKey       String         @default("default-tenant")
+  endWeek         Int?
+  startWeek       Int?
+  endYear         Int?
+  startYear       Int?
   shiftTemplate   ShiftTemplate? @relation(fields: [shiftTemplateId], references: [id])
   staff           Staff          @relation(fields: [staffId], references: [id], onDelete: Cascade)
 
@@ -182,9 +202,6 @@ model PermissionRequest {
   id            Int       @id @default(autoincrement())
   staffId       Int
   data          String
-  endDate       String?   // For ranges
-  startTime     String?   // For partial days
-  endTime       String?   // For partial days
   tipo          String
   motivo        String?
   dettagli      String?
@@ -193,7 +210,94 @@ model PermissionRequest {
   processedAt   DateTime?
   processedBy   Int?
   createdAt     DateTime  @default(now())
-  updatedAt     DateTime
+  updatedAt     DateTime  @updatedAt
+  endDate       String?
+  endTime       String?
+  startTime     String?
   User          User?     @relation(fields: [processedBy], references: [id])
   Staff         Staff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+}
+
+model DeviceToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    Int
+  userAgent String?
+  lastUsed  DateTime @default(now())
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model LoginLog {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  eventType   String
+  ipAddress   String?
+  userAgent   String?
+  isNewDevice Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Integration {
+  id        Int      @id @default(autoincrement())
+  tenantKey String   @default("default-tenant")
+  provider  String
+  apiKey    String?
+  apiSecret String?
+  apiUrl    String?
+  status    String   @default("INACTIVE")
+  config    String   @default("{}")
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, tenantKey])
+  @@index([tenantKey])
+}
+
+model TrainingData {
+  id        Int      @id @default(autoincrement())
+  date      DateTime @default(now())
+  weekStart String
+  data      String
+  rating    Int      @default(5)
+  tenantKey String   @default("default-tenant")
+  source    String   @default("MANUAL")
+
+  @@index([tenantKey])
+}
+
+// ── Competency Rating System ─────────────────────────────────────────────────
+// score: 1 = Non abilitato | 2 = In formazione | 3 = Junior OPS | 4 = Senior OPS | 5 = Senior OPS (Esperto)
+model StaffCompetency {
+  id         Int    @id @default(autoincrement())
+  staffId    Int
+  postazione String
+  score      Int    @default(3)
+  note       String @default("")
+  tenantKey  String @default("default-tenant")
+  staff      Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, postazione])
+  @@index([tenantKey])
+  @@index([staffId])
+}
+
+// ── Scheduling Rules Engine ───────────────────────────────────────────────────
+// Each row represents one rule the auto-scheduler must respect.
+// Built-in rules are seeded automatically at first API call.
+// Custom rules added by managers are flagged with isBuiltin = false.
+model SchedulingRule {
+  id          Int      @id @default(autoincrement())
+  tenantKey   String
+  code        String
+  name        String
+  description String
+  enabled     Boolean  @default(true)
+  params      String   @default("{}") // JSON
+  isBuiltin   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantKey, code])
+  @@index([tenantKey])
 }

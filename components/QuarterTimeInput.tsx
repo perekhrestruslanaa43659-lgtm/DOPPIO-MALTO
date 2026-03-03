@@ -1,50 +1,124 @@
-
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface QuarterTimeInputProps {
     value: string;
     onChange: (value: string) => void;
     label?: string;
     id?: string;
+    onEnter?: () => void;
 }
 
-export default function QuarterTimeInput({ value, onChange, label, id }: QuarterTimeInputProps) {
-    // value is expected to be "HH:mm" or ""
-    const [h, m] = (value || '00:00').split(':');
+export default function QuarterTimeInput({ value, onChange, label, id, onEnter }: QuarterTimeInputProps) {
+    const [localValue, setLocalValue] = useState(value || '');
+    const inputRef = useRef<HTMLInputElement>(null);
 
-    const hours = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-    const minutes = ['00', '15', '30', '45'];
+    useEffect(() => {
+        setLocalValue(value || '');
+    }, [value]);
 
-    const handleHourChange = (newH: string) => {
-        onChange(`${newH}:${m || '00'}`);
+    const normalizeTime = (input: string): string => {
+        const clean = input.replace(/[^0-9:]/g, '');
+        if (!clean) return '';
+
+        let h = 0, m = 0;
+
+        if (clean.includes(':')) {
+            const parts = clean.split(':');
+            h = parseInt(parts[0] || '0');
+            m = parseInt(parts[1] || '0');
+        } else {
+            // "1200" -> 12:00, "9" -> 09:00, "930" -> 09:30
+            if (clean.length <= 2) {
+                h = parseInt(clean);
+            } else {
+                h = parseInt(clean.slice(0, -2));
+                m = parseInt(clean.slice(-2));
+            }
+        }
+
+        h = Math.min(23, Math.max(0, h));
+        m = Math.min(59, Math.max(0, m));
+
+        // Round to nearest 15? Or just allow any? 
+        // User asked for "QuarterTimeInput", implies 15m steps.
+        // But typing "12:10" might be valid? Let's stick to 15m steps on arrows, but allow typing any valid time on blur?
+        // Let's formatting HH:mm on blur. 
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     };
 
-    const handleMinuteChange = (newM: string) => {
-        onChange(`${h || '00'}:${newM}`);
+    const adjustTime = (deltaMinutes: number) => {
+        let current = normalizeTime(localValue || '00:00');
+        const [hStr, mStr] = current.split(':');
+        let totalMinutes = parseInt(hStr) * 60 + parseInt(mStr);
+
+        totalMinutes += deltaMinutes;
+
+        // Loop around day
+        if (totalMinutes < 0) totalMinutes += 24 * 60;
+        if (totalMinutes >= 24 * 60) totalMinutes -= 24 * 60;
+
+        const newH = Math.floor(totalMinutes / 60);
+        const newM = totalMinutes % 60;
+
+        const newVal = `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
+        setLocalValue(newVal);
+        onChange(newVal);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            adjustTime(15);
+        } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            adjustTime(-15);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            handleBlur();
+            if (onEnter) onEnter();
+        }
+    };
+
+    const handleBlur = () => {
+        const normalized = normalizeTime(localValue);
+        setLocalValue(normalized);
+        onChange(normalized);
     };
 
     return (
-        <div className="inline-flex items-center gap-2">
-            {label && <span className="text-sm font-medium text-gray-700">{label}</span>}
-            <div className="flex items-center border rounded-md overflow-hidden bg-white">
-                <select
-                    value={h || '00'}
-                    onChange={(e) => handleHourChange(e.target.value)}
-                    className="p-1 text-sm bg-transparent border-none focus:ring-0 outline-none w-14 text-center cursor-pointer"
-                >
-                    {hours.map(hr => <option key={hr} value={hr}>{hr}</option>)}
-                </select>
-                <span className="font-bold text-gray-400">:</span>
-                <select
-                    value={m || '00'}
-                    onChange={(e) => handleMinuteChange(e.target.value)}
-                    className="p-1 text-sm bg-transparent border-none focus:ring-0 outline-none w-14 text-center cursor-pointer"
-                >
-                    {minutes.map(min => <option key={min} value={min}>{min}</option>)}
-                </select>
+        <div className="flex flex-col gap-1">
+            {label && <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{label}</label>}
+            <div className="relative group">
+                <input
+                    ref={inputRef}
+                    id={id}
+                    type="text"
+                    value={localValue}
+                    onChange={(e) => setLocalValue(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    onBlur={handleBlur}
+                    placeholder="HH:MM"
+                    className="w-24 p-2 text-center border-2 border-gray-200 rounded-lg text-lg font-bold text-gray-800 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 outline-none transition-all"
+                />
+
+                {/* Visual Arrow Indicators (Clickable) */}
+                <div className="absolute right-0 top-0 bottom-0 flex flex-col border-l border-gray-200 w-6">
+                    <button
+                        tabIndex={-1}
+                        onClick={() => adjustTime(15)}
+                        className="flex-1 hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-indigo-600 transition-colors rounded-tr-md"
+                    >
+                        <svg width="10" height="6" viewBox="0 0 10 6" fill="currentColor"><path d="M5 0L0 5H10L5 0Z" /></svg>
+                    </button>
+                    <button
+                        tabIndex={-1}
+                        onClick={() => adjustTime(-15)}
+                        className="flex-1 hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-indigo-600 transition-colors rounded-br-md border-t border-gray-100"
+                    >
+                        <svg width="10" height="6" viewBox="0 0 10 6" fill="currentColor"><path d="M5 6L10 1H0L5 6Z" /></svg>
+                    </button>
+                </div>
             </div>
-            {/* Hidden input to maintain compatibility if needed */}
-            {id && <input type="hidden" id={id} value={`${h || '00'}:${m || '00'}`} />}
         </div>
     );
 }

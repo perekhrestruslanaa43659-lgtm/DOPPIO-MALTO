@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { sendRequestStatusEmail } from '@/lib/email';
 
 export async function POST(
     request: NextRequest,
@@ -37,35 +38,77 @@ export async function POST(
             }
         });
 
-        // Helper to create unavail
-        const createUnavail = async (dt: string, st: string | null, et: string | null) => {
-            await (prisma as any).unavailability.create({
-                data: {
-                    staffId: updated.staffId,
-                    data: dt,
-                    tipo: (st && et) ? 'PARZIALE' : 'TOTALE',
-                    reason: `Permesso Approvato: ${updated.tipo}`,
-                    start_time: st,
-                    end_time: et,
-                    tenantKey: tenantKey
-                }
-            });
-        };
+        if (updated.tipo === 'DISPONIBILITA') {
+            // Helper to create availability
+            const createAvail = async (dt: string, st: string, et: string) => {
+                await (prisma as any).availability.create({
+                    data: {
+                        staffId: updated.staffId,
+                        date: dt,
+                        startTime: st,
+                        endTime: et,
+                        tenantKey: tenantKey
+                    }
+                });
+            };
 
-        if (updated.endDate && updated.endDate > updated.data) {
-            // Period
-            let curr = new Date(updated.data);
-            const end = new Date(updated.endDate);
-            while (curr <= end) {
-                await createUnavail(curr.toISOString().split('T')[0], null, null);
-                curr.setDate(curr.getDate() + 1);
+            if (updated.endDate && updated.endDate > updated.data) {
+                // Period
+                let curr = new Date(updated.data);
+                const end = new Date(updated.endDate);
+                while (curr <= end) {
+                    await createAvail(curr.toISOString().split('T')[0], '00:00', '23:59');
+                    curr.setDate(curr.getDate() + 1);
+                }
+            } else if (updated.startTime && updated.endTime) {
+                // Hourly
+                await createAvail(updated.data, updated.startTime, updated.endTime);
+            } else {
+                // Single Day full
+                await createAvail(updated.data, '00:00', '23:59');
             }
-        } else if (updated.startTime && updated.endTime) {
-            // Hourly
-            await createUnavail(updated.data, updated.startTime, updated.endTime);
         } else {
-            // Single Day
-            await createUnavail(updated.data, null, null);
+            // Helper to create unavail
+            const createUnavail = async (dt: string, st: string | null, et: string | null) => {
+                await (prisma as any).unavailability.create({
+                    data: {
+                        staffId: updated.staffId,
+                        data: dt,
+                        tipo: (st && et) ? 'PARZIALE' : 'TOTALE',
+                        reason: `Permesso Approvato: ${updated.tipo}`,
+                        start_time: st,
+                        end_time: et,
+                        tenantKey: tenantKey
+                    }
+                });
+            };
+
+            if (updated.endDate && updated.endDate > updated.data) {
+                // Period
+                let curr = new Date(updated.data);
+                const end = new Date(updated.endDate);
+                while (curr <= end) {
+                    await createUnavail(curr.toISOString().split('T')[0], null, null);
+                    curr.setDate(curr.getDate() + 1);
+                }
+            } else if (updated.startTime && updated.endTime) {
+                // Hourly
+                await createUnavail(updated.data, updated.startTime, updated.endTime);
+            } else {
+                // Single Day
+                await createUnavail(updated.data, null, null);
+            }
+        }
+
+        if (updated.Staff?.email) {
+            await sendRequestStatusEmail(
+                updated.Staff.email,
+                updated.Staff.nome,
+                updated.tipo,
+                'APPROVED',
+                updated.adminResponse || null,
+                tenantKey
+            );
         }
 
         return NextResponse.json(updated);

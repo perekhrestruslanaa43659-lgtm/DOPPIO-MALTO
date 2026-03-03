@@ -36,7 +36,20 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        return NextResponse.json(user);
+        // Look up linked staff record by email (for USER role accounts)
+        const linkedStaff = await prisma.staff.findFirst({
+            where: {
+                email: userEmail,
+                tenantKey: user.tenantKey
+            },
+            select: { id: true, nome: true, cognome: true }
+        });
+
+        return NextResponse.json({
+            ...user,
+            staffId: linkedStaff?.id ?? null,
+            staffName: linkedStaff ? `${linkedStaff.nome} ${linkedStaff.cognome}` : null,
+        });
     } catch (error) {
         console.error('Profile error:', error);
         return NextResponse.json(

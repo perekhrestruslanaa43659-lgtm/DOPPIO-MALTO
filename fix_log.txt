@@ -1,0 +1,89 @@
+🔧 Fixing coverage for week 2026-02-02...
+Found 29 rows for week 2026-02-02
+Checking Jolly Sala (ID: 4686, Tenant: locale-test-doppio-malto)
+  Current Keys: 2026-02-02, 2026-02-03, 2026-02-04, 2026-02-05, 2026-02-06, 2026-02-07, 2026-02-08
+  No old Sunday data found.
+Checking B/S (ID: 4691, Tenant: locale-test-doppio-malto)
+  Current Keys: 2026-02-02, 2026-02-03, 2026-02-04, 2026-02-05, 2026-02-06, 2026-02-07, 2026-02-08
+  No old Sunday data found.
+Checking BARGIU (ID: 4696, Tenant: locale-test-doppio-malto)
+  Current Keys: 2026-02-02, 2026-02-03, 2026-02-04, 2026-02-05, 2026-02-07, 2026-02-06, 2026-02-08
+  No old Sunday data found.
+Checking BARSU (ID: 4697, Tenant: locale-test-doppio-malto)
+  Current Keys: 2026-02-02, 2026-02-03, 2026-02-04, 2026-02-05, 2026-02-07, 2026-02-06, 2026-02-08
+  No old Sunday data found.
+Checking PASS (ID: 4702, Tenant: locale-test-doppio-malto)
+  Current Keys: 2026-02-02, 2026-02-03, 2026-02-04, 2026-02-06, 2026-02-05, 2026-02-07, 2026-02-08
+  No old Sunday data found.
+Checking ACCGIU_V (ID: 4687, Tenant: locale-test-doppio-malto)
+  Current Keys: 2026-02-03
+  No old Sunday data found.
+Checking ACCGIU:_D (ID: 4688, Tenant: locale-test-doppio-malto)
+  Current Keys: 
+  No old Sunday data found.
+Checking ACCGIU:S (ID: 4689, Tenant: locale-test-doppio-malto)
+  Current Keys: 
+  No old Sunday data found.
+Checking ACCSU (ID: 4690, Tenant: locale-test-doppio-malto)
+  Current Keys: 
+  No old Sunday data found.
+Checking B/S_2 (ID: 4692, Tenant: locale-test-doppio-malto)
+  Current Keys: 2026-02-04, 2026-02-05, 2026-02-06, 2026-02-07
+  No old Sunday data found.
+Checking B/S_D (ID: 4693, Tenant: locale-test-doppio-malto)
+  Current Keys: 2026-02-06
+  No old Sunday data found.
+Checking B/S_S (ID: 4694, Tenant: locale-test-doppio-malto)
+  Current Keys: 
+  No old Sunday data found.
+Checking B/S_V (ID: 4695, Tenant: locale-test-doppio-malto)
+  Current Keys: 
+  No old Sunday data found.
+Checking CDR (ID: 4698, Tenant: locale-test-doppio-malto)
+  Current Keys: 
+  No old Sunday data found.
+Checking CDR_D (ID: 4699, Tenant: locale-test-doppio-malto)
+  Current Keys: 
+  No old Sunday data found.
+Checking CDR_S (ID: 4700, Tenant: locale-test-doppio-malto)
+  Current Keys: 
+  No old Sunday data found.
+Checking CDR_V (ID: 4701, Tenant: locale-test-doppio-malto)
+  Current Keys: 
+  No old Sunday data found.
+Checking Pulizia Sala (ID: 4703, Tenant: locale-test-doppio-malto)
+  Current Keys: 
+  No old Sunday data found.
+Checking SCARICO (ID: 4704, Tenant: locale-test-doppio-malto)
+  Current Keys: 
+  No old Sunday data found.
+Checking Jolly Cucina (ID: 4705, Tenant: locale-test-doppio-malto)
+  Current Keys: 2026-02-02, 2026-02-03, 2026-02-04, 2026-02-05, 2026-02-06, 2026-02-07
+  No old Sunday data found.
+Checking Dolci/Ins (ID: 4707, Tenant: locale-test-doppio-malto)
+  Current Keys: 
+  No old Sunday data found.
+Checking Lavaggio Cappa (ID: 4710, Tenant: locale-test-doppio-malto)
+  Current Keys: 2026-02-03
+  No old Sunday data found.
+Checking Pira (ID: 4711, Tenant: locale-test-doppio-malto)
+  Current Keys: 
+  No old Sunday data found.
+Checking Pulizia Cucina (ID: 4713, Tenant: locale-test-doppio-malto)
+  Current Keys: 
+  No old Sunday data found.
+Checking SCARICO_Cucina (ID: 4714, Tenant: locale-test-doppio-malto)
+  Current Keys: 
+  No old Sunday data found.
+Checking Burger (ID: 4706, Tenant: locale-test-doppio-malto)
+  Current Keys: 2026-02-02, 2026-02-03, 2026-02-04, 2026-02-05, 2026-02-06, 2026-02-07, 2026-02-08
+  No old Sunday data found.
+Checking Fritti (ID: 4708, Tenant: locale-test-doppio-malto)
+  Current Keys: 2026-02-02, 2026-02-03, 2026-02-04, 2026-02-05, 2026-02-06, 2026-02-07, 2026-02-08
+  No old Sunday data found.
+Checking Lavaggio (ID: 4709, Tenant: locale-test-doppio-malto)
+  Current Keys: 2026-02-02, 2026-02-03, 2026-02-04, 2026-02-05, 2026-02-06, 2026-02-07, 2026-02-08
+  No old Sunday data found.
+Checking Preparazione (ID: 4712, Tenant: locale-test-doppio-malto)
+  Current Keys: 2026-02-08
+  No old Sunday data found.

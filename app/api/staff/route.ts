@@ -22,6 +22,10 @@ export async function GET(request: NextRequest) {
             orderBy: { listIndex: 'asc' }, // Respect custom order (e.g. import order)
         });
 
+        const fs = require('fs');
+        const logData = `[${new Date().toISOString()}] TenantKey: ${tenantKey}, StaffFound: ${staff.length}\n`;
+        try { fs.appendFileSync('debug_staff.log', logData); } catch (e) { }
+
         console.log(`✅ Trovati ${staff.length} membri dello staff`);
         console.log('=== STAFF GET SUCCESS ===\n');
 
@@ -55,6 +59,8 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json(staffWithParsedPostazioni);
     } catch (error) {
+        const fs = require('fs');
+        try { fs.appendFileSync('debug_staff.log', `[${new Date().toISOString()}] ERROR: ${error}\n`); } catch (e) { }
         console.error('\n❌ === STAFF GET ERROR ===');
         console.error('Tipo errore:', error instanceof Error ? error.constructor.name : typeof error);
         console.error('Messaggio:', error instanceof Error ? error.message : String(error));
@@ -131,31 +137,41 @@ export async function PUT(request: NextRequest) {
         if (!id) return NextResponse.json({ error: 'Staff ID required' }, { status: 400 });
 
         const body = await request.json();
+        const data: any = {};
 
-        // Handle postazioni conversion (String -> String[])
-        let postazioni: string[] = [];
-        if (typeof body.postazioni === 'string') {
-            postazioni = body.postazioni.split(',').map((s: string) => s.trim()).filter((s: string) => s !== '');
-        } else if (Array.isArray(body.postazioni)) {
-            postazioni = body.postazioni;
+        // Helper to check if a key exists in body (even if null/empty)
+        const has = (key: string) => Object.prototype.hasOwnProperty.call(body, key);
+
+        if (has('nome')) data.nome = body.nome;
+        if (has('cognome')) data.cognome = body.cognome || '';
+        if (has('email')) data.email = body.email || null;
+        if (has('ruolo')) data.ruolo = body.ruolo;
+
+        if (has('oreMinime')) data.oreMinime = parseInt(body.oreMinime) || 0;
+        if (has('oreMassime')) data.oreMassime = !isNaN(parseInt(body.oreMassime)) ? parseInt(body.oreMassime) : 40;
+
+        if (has('costoOra')) data.costoOra = parseFloat(body.costoOra) || 0;
+        if (has('moltiplicatore')) data.moltiplicatore = parseFloat(body.moltiplicatore) || 1.0;
+
+        if (has('skillLevel')) data.skillLevel = body.skillLevel || 'MEDIUM';
+        if (has('contractType')) data.contractType = body.contractType || 'STANDARD';
+        if (has('incompatibilityId')) data.incompatibilityId = body.incompatibilityId || null;
+        if (has('listIndex')) data.listIndex = body.listIndex;
+
+        // Handle Postazioni
+        if (has('postazioni')) {
+            let postazioni: string[] = [];
+            if (typeof body.postazioni === 'string') {
+                postazioni = body.postazioni.split(',').map((s: string) => s.trim()).filter((s: string) => s !== '');
+            } else if (Array.isArray(body.postazioni)) {
+                postazioni = body.postazioni;
+            }
+            data.postazioni = JSON.stringify(postazioni);
         }
 
         const staff = await prisma.staff.update({
             where: { id: parseInt(id), tenantKey }, // Ensure tenant safety
-            data: {
-                nome: body.nome,
-                cognome: body.cognome || '',
-                email: body.email || null,
-                ruolo: body.ruolo,
-                oreMinime: parseInt(body.oreMinime) || 0,
-                oreMassime: !isNaN(parseInt(body.oreMassime)) ? parseInt(body.oreMassime) : 40,
-                costoOra: parseFloat(body.costoOra) || 0,
-                moltiplicatore: parseFloat(body.moltiplicatore) || 1.0,
-                postazioni: JSON.stringify(postazioni),
-                skillLevel: body.skillLevel || 'MEDIUM',
-                contractType: body.contractType || 'STANDARD',
-                incompatibilityId: body.incompatibilityId || null,
-            },
+            data: data,
         });
 
         return NextResponse.json(staff);

@@ -1,0 +1,11 @@
+PrismaClientInitializationError: 
+Invalid `prisma.coverageRow.findMany()` invocation in
+C:\scheduling\scheduling-nextjs\scripts\fix-sunday-coverage.ts:16:43
+
+  13 debugLog.push(`🔧 Fixing coverage for week ${weekStart}...`);
+  14 
+  15 // Fetch ALL rows for that week, ignoring tenant filter to be safe/thorough
+→ 16 const rows = await prisma.coverageRow.findMany(
+Can't reach database server at `ep-empty-meadow-a4opi0ya-pooler.us-east-1.aws.neon.tech:5432`
+
+Please make sure your database server is running at `ep-empty-meadow-a4opi0ya-pooler.us-east-1.aws.neon.tech:5432`.

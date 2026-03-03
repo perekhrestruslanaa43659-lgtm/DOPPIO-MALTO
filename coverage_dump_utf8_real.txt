@@ -1,0 +1,12 @@
+﻿Inspecting Coverage Rows...
+Found 59 rows.
+Counts by weekStart: { '2026-02-01': 29, '2026-02-02': 1, '2026-02-08': 29 }
+Sample Row: {
+  id: 4512,
+  weekStart: '2026-02-01',
+  station: 'Jolly Sala',
+  frequency: '',
+  slots: '{"2026-02-01":{"lIn":"10:30","lOut":"18:00","dIn":"18:00","dOut":"01:00"},"2026-02-02":{"lIn":"10:30","lOut":"18:00","dIn":"18:00","dOut":"01:00"},"2026-02-03":{"lIn":"10:30","lOut":"18:00","dIn":"18:00","dOut":"01:00"},"2026-02-04":{"lIn":"10:30","lOut":"18:00","dIn":"18:00","dOut":"01:00"},"2026-02-05":{"lIn":"10:30","lOut":"18:00","dIn":"18:00","dOut":"01:00"},"2026-02-06":{"lIn":"10:30","lOut":"18:00","dIn":"18:00","dOut":"01:00"},"2026-02-07":{"lIn":"10:30","lOut":"18:00","dIn":"18:00","dOut":"01:00"}}',
+  extra: '{"active":true}',
+  tenantKey: 'locale-test-doppio-malto'
+}

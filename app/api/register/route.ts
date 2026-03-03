@@ -7,7 +7,8 @@ import { getSMTPConfig } from '@/lib/smtp-providers';
 export async function POST(request: NextRequest) {
     try {
         const requestBody = await request.json();
-        const { email, password, name, role, companyName } = requestBody;
+        const { email: rawEmail, password, name, role, companyName } = requestBody;
+        const email = rawEmail?.toLowerCase().trim();
 
         if (!email || !password || !name) {
             return NextResponse.json(
@@ -56,6 +57,7 @@ export async function POST(request: NextRequest) {
                 role: role || 'OWNER',
                 tenantKey,
                 companyName,
+                isVerified: true, // App interna: verifica immediata senza email
                 // Save SMTP config
                 smtpHost: finalHost,
                 smtpPort: finalPort,

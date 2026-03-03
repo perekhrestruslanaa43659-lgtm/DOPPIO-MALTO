@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
                 end_time: body.end_time,
                 status: body.status || false,
                 postazione: body.postazione,
+                note: body.note,
                 tenantKey: tenantKey,
             },
         });
@@ -88,6 +89,10 @@ export async function PUT(request: NextRequest) {
                 end_time: body.end_time,
                 status: body.status !== undefined ? body.status : undefined,
                 postazione: body.postazione !== undefined ? body.postazione : undefined,
+                note: body.note !== undefined ? body.note : undefined,
+                // Allow moving assignment (DnD)
+                data: body.data !== undefined ? body.data : undefined,
+                staffId: body.staffId !== undefined ? parseInt(body.staffId) : undefined,
             },
         });
 

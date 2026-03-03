@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Edit2, Trash2, Save, X, Wand2 } from 'lucide-react';
+import { Edit2, Trash2, Save, X, Wand2, Plus } from 'lucide-react';
 import { api } from '@/lib/api';
 
 interface Props {
@@ -18,7 +18,36 @@ export default function StationsManagerModal({ isOpen, onClose, staff, available
     const [editValue, setEditValue] = useState('');
     const [loading, setLoading] = useState(false);
 
+    // Station creation state
+    const [isCreating, setIsCreating] = useState(false);
+    const [newStationName, setNewStationName] = useState('');
+
     const sortedStations = [...(availableStations || [])].sort((a, b) => a.localeCompare(b));
+
+    const handleCreate = () => {
+        const trimmed = newStationName.trim().toUpperCase();
+
+        // Validation
+        if (!trimmed) {
+            alert('Inserisci un nome valido per la postazione');
+            return;
+        }
+
+        if (availableStations.includes(trimmed)) {
+            alert(`La postazione "${trimmed}" esiste già`);
+            return;
+        }
+
+        // Add to global list
+        const updatedList = [...availableStations, trimmed].sort();
+        onUpdateStations(updatedList);
+
+        // Reset form
+        setIsCreating(false);
+        setNewStationName('');
+
+        alert(`✅ Postazione "${trimmed}" creata con successo!`);
+    };
 
     const handleRename = async (oldName: string) => {
         if (!editValue || editValue === oldName) {
@@ -165,11 +194,29 @@ export default function StationsManagerModal({ isOpen, onClose, staff, available
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[80vh] flex flex-col">
+        <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 outline-none"
+            onClick={onClose}
+        >
+            <div
+                className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[80vh] flex flex-col outline-none"
+                onClick={(e) => e.stopPropagation()}
+                tabIndex={-1}
+            >
                 <div className="p-4 border-b flex justify-between items-center bg-gray-50">
                     <h3 className="font-bold text-lg">Gestione Postazioni</h3>
                     <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => {
+                                setIsCreating(true);
+                                setEditing(null);
+                            }}
+                            className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg flex items-center gap-1.5 text-sm font-medium transition-colors"
+                            title="Crea nuova postazione"
+                        >
+                            <Plus size={16} />
+                            Nuova
+                        </button>
                         <button
                             onClick={handleConsolidate}
                             className="p-1.5 text-orange-600 hover:bg-orange-100 rounded-lg flex items-center gap-1 text-sm font-medium"
@@ -186,6 +233,45 @@ export default function StationsManagerModal({ isOpen, onClose, staff, available
                     {loading && <div className="text-center text-blue-600 mb-2">Elaborazione in corso...</div>}
 
                     <div className="space-y-2">
+                        {/* Create New Station Input */}
+                        {isCreating && (
+                            <div className="flex items-center gap-2 p-3 bg-green-50 border-2 border-green-500 rounded-lg shadow-sm">
+                                <input
+                                    autoFocus
+                                    className="border border-green-300 rounded px-3 py-2 text-sm w-full uppercase focus:outline-none focus:ring-2 focus:ring-green-500"
+                                    placeholder="NOME NUOVA POSTAZIONE"
+                                    value={newStationName}
+                                    onChange={e => setNewStationName(e.target.value)}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleCreate();
+                                        } else if (e.key === 'Escape') {
+                                            setIsCreating(false);
+                                            setNewStationName('');
+                                        }
+                                    }}
+                                />
+                                <button
+                                    onClick={handleCreate}
+                                    className="p-2 bg-green-600 text-white hover:bg-green-700 rounded transition-colors"
+                                    title="Salva"
+                                >
+                                    <Save size={18} />
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setIsCreating(false);
+                                        setNewStationName('');
+                                    }}
+                                    className="p-2 text-gray-500 hover:bg-gray-200 rounded transition-colors"
+                                    title="Annulla"
+                                >
+                                    <X size={18} />
+                                </button>
+                            </div>
+                        )}
+
                         {sortedStations.map(st => (
                             <div key={st} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded border">
                                 {editing === st ? (

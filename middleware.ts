@@ -35,14 +35,35 @@ export async function middleware(request: NextRequest) {
             console.log('✅ Token verificato per utente:', decoded.email);
             console.log('   - UserID:', decoded.userId);
             console.log('   - Role:', decoded.role);
-            console.log('   - TenantKey:', decoded.tenantKey);
+
+            // RBAC Logic
+            const role = (decoded.role || '').toUpperCase();
+            const isRestrictedUser = role !== 'ADMIN' && role !== 'MANAGER' && role !== 'OWNER';
+
+            // List of restricted paths for non-admin users
+            const restrictedPaths = [
+                '/staff',
+                '/fixed-shifts',
+                '/absences',
+                '/requirements',
+                '/forecast',
+                '/users',
+                '/settings'
+            ];
+
+            if (isRestrictedUser && restrictedPaths.some(path => pathname.startsWith(path))) {
+                console.log('⛔ Accesso negato per ruolo:', role, 'al path:', pathname);
+                return NextResponse.redirect(new URL('/calendar', request.url));
+            }
 
             // Add user info to headers for API routes
             const requestHeaders = new Headers(request.headers);
-            requestHeaders.set('x-user-id', decoded.userId.toString());
-            requestHeaders.set('x-user-email', decoded.email);
-            requestHeaders.set('x-user-role', decoded.role);
-            requestHeaders.set('x-user-tenant-key', decoded.tenantKey);
+
+            if (decoded.userId) requestHeaders.set('x-user-id', String(decoded.userId));
+            if (decoded.email) requestHeaders.set('x-user-email', decoded.email);
+            if (decoded.role) requestHeaders.set('x-user-role', decoded.role);
+            if (decoded.tenantKey) requestHeaders.set('x-user-tenant-key', decoded.tenantKey);
+
             if (decoded.companyName) {
                 requestHeaders.set('x-user-company', decoded.companyName);
             }

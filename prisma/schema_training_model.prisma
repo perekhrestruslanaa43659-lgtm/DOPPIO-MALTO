@@ -1,0 +1,11 @@
+
+model TrainingData {
+  id        Int      @id @default(autoincrement())
+  date      DateTime @default(now())
+  weekStart String
+  data      String   // JSON string of assignments snapshot
+  rating    Int      @default(5)
+  tenantKey String   @default("default-tenant")
+
+  @@index([tenantKey])
+}

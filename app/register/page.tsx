@@ -8,7 +8,9 @@ export default function RegisterPage() {
     const [formData, setFormData] = useState({
         nome: '',
         cognome: '',
-        email: ''
+        email: '',
+        password: '',
+        confirmPassword: ''
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -25,7 +27,7 @@ export default function RegisterPage() {
         setError('');
 
         // Validation
-        if (!formData.nome || !formData.cognome || !formData.email) {
+        if (!formData.nome || !formData.cognome || !formData.email || !formData.password || !formData.confirmPassword) {
             setError('Tutti i campi sono obbligatori');
             return;
         }
@@ -34,6 +36,17 @@ export default function RegisterPage() {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(formData.email)) {
             setError('Inserisci un indirizzo email valido');
+            return;
+        }
+
+        // Password matching validation
+        if (formData.password !== formData.confirmPassword) {
+            setError('Le password non coincidono');
+            return;
+        }
+
+        if (formData.password.length < 8) {
+            setError('La password deve essere di almeno 8 caratteri');
             return;
         }
 
@@ -46,7 +59,7 @@ export default function RegisterPage() {
                 body: JSON.stringify({
                     name: `${formData.nome} ${formData.cognome}`,
                     email: formData.email,
-                    password: Math.random().toString(36).slice(-8), // Generate random password
+                    password: formData.password,
                 }),
             });
 
@@ -59,7 +72,7 @@ export default function RegisterPage() {
             }
 
             // Show success message
-            alert('✅ Registrazione completata! Controlla la tua email per le credenziali di accesso.');
+            alert('✅ Registrazione completata! Ora puoi accedere con le tue credenziali.');
 
             // Redirect to login
             router.push('/login');
@@ -87,36 +100,37 @@ export default function RegisterPage() {
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label htmlFor="nome" className="block text-sm font-semibold mb-2 text-gray-700">
-                            Nome
-                        </label>
-                        <input
-                            type="text"
-                            id="nome"
-                            name="nome"
-                            value={formData.nome}
-                            onChange={handleChange}
-                            placeholder="Mario"
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                            required
-                        />
-                    </div>
-
-                    <div>
-                        <label htmlFor="cognome" className="block text-sm font-semibold mb-2 text-gray-700">
-                            Cognome
-                        </label>
-                        <input
-                            type="text"
-                            id="cognome"
-                            name="cognome"
-                            value={formData.cognome}
-                            onChange={handleChange}
-                            placeholder="Rossi"
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                            required
-                        />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label htmlFor="nome" className="block text-sm font-semibold mb-2 text-gray-700">
+                                Nome
+                            </label>
+                            <input
+                                type="text"
+                                id="nome"
+                                name="nome"
+                                value={formData.nome}
+                                onChange={handleChange}
+                                placeholder="Mario"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="cognome" className="block text-sm font-semibold mb-2 text-gray-700">
+                                Cognome
+                            </label>
+                            <input
+                                type="text"
+                                id="cognome"
+                                name="cognome"
+                                value={formData.cognome}
+                                onChange={handleChange}
+                                placeholder="Rossi"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                                required
+                            />
+                        </div>
                     </div>
 
                     <div>
@@ -130,6 +144,38 @@ export default function RegisterPage() {
                             value={formData.email}
                             onChange={handleChange}
                             placeholder="mario.rossi@esempio.it"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label htmlFor="password" className="block text-sm font-semibold mb-2 text-gray-700">
+                            Password
+                        </label>
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            value={formData.password}
+                            onChange={handleChange}
+                            placeholder="Min. 8 caratteri"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                            required
+                        />
+                    </div>
+
+                    <div>
+                        <label htmlFor="confirmPassword" className="block text-sm font-semibold mb-2 text-gray-700">
+                            Conferma Password
+                        </label>
+                        <input
+                            type="password"
+                            id="confirmPassword"
+                            name="confirmPassword"
+                            value={formData.confirmPassword}
+                            onChange={handleChange}
+                            placeholder="Ripeti la password"
                             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                             required
                         />

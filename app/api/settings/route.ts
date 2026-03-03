@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
                 role: 'OWNER'
             },
             select: {
+                smtpProvider: true,
                 smtpHost: true,
                 smtpPort: true,
                 smtpUser: true,
@@ -37,6 +38,7 @@ export async function GET(request: NextRequest) {
         }
 
         return NextResponse.json({
+            smtpProvider: owner.smtpProvider || 'CUSTOM',
             smtpHost: owner.smtpHost || '',
             smtpPort: owner.smtpPort || '',
             smtpUser: owner.smtpUser || '',
@@ -89,6 +91,7 @@ export async function PUT(request: NextRequest) {
         }
 
         const updateData: any = {
+            smtpProvider: provider || 'CUSTOM',
             smtpHost: finalHost,
             smtpPort: finalPort,
             smtpUser,

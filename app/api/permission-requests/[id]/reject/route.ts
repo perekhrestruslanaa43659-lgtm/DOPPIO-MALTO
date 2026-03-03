@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { sendRequestStatusEmail } from '@/lib/email';
 
 export async function POST(
     request: NextRequest,
@@ -34,6 +35,17 @@ export async function POST(
                 processedAt: new Date(),
             }
         });
+
+        if (updated.Staff?.email) {
+            await sendRequestStatusEmail(
+                updated.Staff.email,
+                updated.Staff.nome,
+                updated.tipo,
+                'REJECTED',
+                updated.adminResponse || null,
+                tenantKey
+            );
+        }
 
         return NextResponse.json(updated);
     } catch (error) {

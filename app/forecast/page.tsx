@@ -328,110 +328,108 @@ export default function ForecastPage() {
         let idxBudP = -1, idxRealP = -1;
         let idxBudS = -1, idxRealS = -1;
         let idxBudD = -1, idxRealD = -1;
+
         let idxOreBud = -1, idxOreReal = -1;
+        let idxOreBudK = -1, idxOreBudH = -1; // Kitchen / Hall
+        let idxOreRealK = -1, idxOreRealH = -1;
+
         let idxProdBud = -1, idxProdReal = -1;
         let idxDiff = -1;
 
-        // 1. SANITIZE ALL CELLS FIRST
-        // This ensures no #REF! or #DIV/0! remains in ANY cell (Input or Output)
+        // 1. SANITIZE & DETECT ROWS
         for (let r = 0; r < newGrid.length; r++) {
+            // Sanitize
             for (let c = 0; c < newGrid[r].length; c++) {
                 const val = String(newGrid[r][c] || '');
                 if (val.includes('#') || val.includes('Ð') || val.toLowerCase().includes('nan') || val.toLowerCase().includes('infinity')) {
                     newGrid[r][c] = '0';
                 }
             }
+
+            const row = newGrid[r]; // Define row
+
+            // Detect
+            const l = String(row[0] || '').toLowerCase();
+            if (l.includes('budget') && l.includes('pranzo') && !l.includes('ore')) idxBudP = r;
+            if (l.includes('real') && l.includes('pranzo') && !l.includes('ore')) idxRealP = r;
+            if (l.includes('budget') && l.includes('cena') && !l.includes('ore')) idxBudS = r;
+            if (l.includes('real') && l.includes('cena') && !l.includes('ore')) idxRealS = r;
+
+            if (l.includes('budget') && (l.includes('day') || l.includes('totale'))) idxBudD = r;
+            if (l.includes('real') && (l.includes('day') || l.includes('totale'))) idxRealD = r;
+
+            // Hours - Specific
+            if (l.includes('ore') && l.includes('budget') && l.includes('cucina')) idxOreBudK = r;
+            if (l.includes('ore') && l.includes('budget') && l.includes('sala')) idxOreBudH = r;
+            if (l.includes('ore') && (l.includes('real') || l.includes('lavorate')) && l.includes('cucina')) idxOreRealK = r;
+            if (l.includes('ore') && (l.includes('real') || l.includes('lavorate')) && l.includes('sala')) idxOreRealH = r;
+
+            // Hours - Total
+            if ((l.includes('ore') && l.includes('budget')) && !l.includes('cucina') && !l.includes('sala')) idxOreBud = r;
+            if ((l.includes('ore') && (l.includes('lavorate') || l.includes('real'))) && !l.includes('cucina') && !l.includes('sala')) idxOreReal = r;
+
+            if (l.includes('produttività') && l.includes('budget')) idxProdBud = r;
+            if (l.includes('produttività') && (l.includes('real') || l.includes('week'))) idxProdReal = r;
+            if (l.includes('differenza')) idxDiff = r;
         }
 
-        newGrid.forEach((row, rIdx) => {
-            const l = String(row[0] || '').toLowerCase();
-            if (l.includes('budget') && l.includes('pranzo')) idxBudP = rIdx;
-            if (l.includes('real') && l.includes('pranzo')) idxRealP = rIdx;
-            if (l.includes('budget') && l.includes('cena')) idxBudS = rIdx;
-            if (l.includes('real') && l.includes('cena')) idxRealS = rIdx;
-            if (l.includes('budget') && (l.includes('day') || l.includes('giornaliero') || l.includes('totale'))) idxBudD = rIdx;
-            if (l.includes('real') && (l.includes('day') || l.includes('giornaliero') || l.includes('totale'))) idxRealD = rIdx;
-            if ((l.includes('ore') && l.includes('budget')) || l.includes('ore previste')) idxOreBud = rIdx;
-            if (l.includes('ore') && (l.includes('lavorate') || l.includes('reali'))) idxOreReal = rIdx;
-            if (l.includes('produttività') && l.includes('budget')) idxProdBud = rIdx;
-            if (l.includes('produttività') && (l.includes('real') || l.includes('week'))) idxProdReal = rIdx;
-            if (l.includes('differenza')) idxDiff = rIdx;
-        });
-
         for (let col = 1; col <= 7; col++) {
-            // Smart getter that ignores Excel errors
             const get = (r: number) => {
                 if (r === -1 || !newGrid[r]) return 0;
                 return parseNumberIT(newGrid[r][col]);
             };
-
             const set = (r: number, val: number, isCurrency = false) => {
                 if (r !== -1 && newGrid[r]) {
-                    // Only set if value is valid (not NaN, not Infinity)
                     if (isFinite(val) && !isNaN(val)) {
                         newGrid[r][col] = formatNumberIT(val) + (isCurrency ? ' €' : '');
                     }
                 }
             };
 
+            // 1. Revenue Totals
             const bP = get(idxBudP), bS = get(idxBudS);
-            const bD = get(idxBudD);
-            // AGGRESSIVE CORRECTION: Only calculate Day if it's 0 or missing
-            // This prevents overwriting imported values
-            if (idxBudD !== -1 && idxBudP !== -1 && idxBudS !== -1 && bD === 0) {
-                set(idxBudD, bP + bS);
-            }
+            if (idxBudD !== -1) set(idxBudD, bP + bS); // Always recalc totals
 
             const rP = get(idxRealP), rS = get(idxRealS);
-            const rD = get(idxRealD);
-            // AGGRESSIVE CORRECTION: Only calculate Real Day if it's 0 or missing
-            if (idxRealD !== -1 && idxRealP !== -1 && idxRealS !== -1 && rD === 0) {
-                set(idxRealD, rP + rS);
+            if (idxRealD !== -1) set(idxRealD, rP + rS);
+
+            // 2. Hours Totals
+            // If Kitchen/Hall rows exist, SUM them into Total.
+            // If Total exists but Kitchen/Hall don't, manually entered Total is kept (as K/H will be 0)
+            const hBK = get(idxOreBudK);
+            const hBH = get(idxOreBudH);
+            if (idxOreBudK !== -1 || idxOreBudH !== -1) {
+                if (idxOreBud !== -1) set(idxOreBud, hBK + hBH);
             }
 
-            const fBD = get(idxBudD), fRD = get(idxRealD);
-            const hB = get(idxOreBud), hR = get(idxOreReal);
+            const hRK = get(idxOreRealK);
+            const hRH = get(idxOreRealH);
+            if (idxOreRealK !== -1 || idxOreRealH !== -1) {
+                if (idxOreReal !== -1) set(idxOreReal, hRK + hRH);
+            }
 
-            // SMART CALCULATION: Produttività Budget in EURO (€/ora)
+            // Get Final Totals for Productivity
+            const hB = idxOreBud !== -1 ? get(idxOreBud) : (hBK + hBH);
+            const hR = idxOreReal !== -1 ? get(idxOreReal) : (hRK + hRH); // But hR might be empty if no total row
+
+            // 3. Productivity
+            const fBD = get(idxBudD);
             if (idxProdBud !== -1) {
-                if (hB > 0 && fBD > 0) {
-                    set(idxProdBud, fBD / hB, true);
-                } else {
-                    newGrid[idxProdBud][col] = '0,00 €';
-                }
+                if (hB > 0 && fBD > 0) set(idxProdBud, fBD / hB, true);
+                else newGrid[idxProdBud][col] = '0,00 €';
             }
 
-            // SMART CALCULATION: Produttività Real / Produttività Week
-            // STRICT RULE: Productivity = Budget Day / Worked Hours
+            const fRD = get(idxRealD);
+            let revenue = (idxRealD !== -1 && fRD > 0) ? fRD : (idxBudD !== -1 ? fBD : 0);
+
             if (idxProdReal !== -1) {
-                let revenue = 0;
-                // Use BUDGET DAY as revenue basis for productivity target check? 
-                // Wait, "Produttività Real" usually implies REAL Revenue / REAL Hours.
-                // But previous code said "Determine Revenue: Prefer Budget Day"... that seems wrong for "Real Productivity".
-                // HOWEVER, if the user follows "Panarello" style, often they compare Budget Rev / Real Hours to see efficiency against target.
-                // Let's stick to the previous logic but ensure it's calculated.
-                // Actually, if it's "Produttività Real", it should be Real Revenue / Real Hours?
-                // The user said: "produttività va calcolata in euro".
-                // Logic preserved: Prefer Budget Day (target revenue) or Real Day?
-                // Standard: Produttività = Incasso / Ore.
-                // Let's use REAL revenue if available, otherwise Budget.
-
-                if (idxRealD !== -1 && fRD > 0) revenue = fRD;
-                else if (idxBudD !== -1 && fBD > 0) revenue = fBD;
-
-                const hours = hR > 0 ? hR : 0;
-
-                if (hours > 0) {
-                    set(idxProdReal, revenue / hours, true);
-                } else {
-                    set(idxProdReal, 0, true);
-                }
+                if (hR > 0) set(idxProdReal, revenue / hR, true);
+                else set(idxProdReal, 0, true);
             }
 
-            // SMART CALCULATION: Diff (Real Day - Budget Day)
+            // 4. Difference
             if (idxDiff !== -1 && idxBudD !== -1 && idxRealD !== -1) {
-                const diff = fRD - fBD;
-                set(idxDiff, diff, true);
+                set(idxDiff, fRD - fBD, true);
             }
         }
         return newGrid;
@@ -495,6 +493,7 @@ export default function ForecastPage() {
     const handleManualInit = async () => {
         const template = [
             ['Dettaglio', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'],
+            // Revenue
             ['Budget pranzo', '0', '0', '0', '0', '0', '0', '0'],
             ['Real pranzo', '0', '0', '0', '0', '0', '0', '0'],
             ['Budget cena', '0', '0', '0', '0', '0', '0', '0'],
@@ -502,15 +501,21 @@ export default function ForecastPage() {
             ['Budget day', '0', '0', '0', '0', '0', '0', '0'],
             ['Real day', '0', '0', '0', '0', '0', '0', '0'],
             ['Differenza', '0', '0', '0', '0', '0', '0', '0'],
-            ['Ore Budget', '0', '0', '0', '0', '0', '0', '0'],
-            ['Ore lavorate', '0', '0', '0', '0', '0', '0', '0'],
+
+            // Hours Breakdown (New)
+            ['Ore Budget Cucina', '0', '0', '0', '0', '0', '0', '0'],
+            ['Ore Budget Sala', '0', '0', '0', '0', '0', '0', '0'],
+            ['Ore Reali Cucina', '0', '0', '0', '0', '0', '0', '0'],
+            ['Ore Reali Sala', '0', '0', '0', '0', '0', '0', '0'],
+
+            // Hours Total
+            ['Ore Budget Totale', '0', '0', '0', '0', '0', '0', '0'], // Calculated
+            ['Ore lavorate Totale', '0', '0', '0', '0', '0', '0', '0'], // Calculated (Real)
+
+            // Prod
             ['Produttività Budget', '0', '0', '0', '0', '0', '0', '0'],
             ['Produttività Real', '0', '0', '0', '0', '0', '0', '0'],
         ];
-        // Fill up to row 36
-        for (let i = 12; i < 36; i++) template.push([`Riga ${i + 1}`, '', '', '', '', '', '', '']);
-        // Kitchen Rows
-
 
         setData(template);
         await saveToDb(template);

@@ -69,6 +69,10 @@ export default function FixedShiftsPage() {
         shiftTemplateId: 0
     });
 
+    const [staffSearch, setStaffSearch] = useState('');
+    const [focusedIndex, setFocusedIndex] = useState(-1);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
     const dayMap = [
         { id: 1, label: 'Lun' },
         { id: 2, label: 'Mar' },
@@ -99,6 +103,19 @@ export default function FixedShiftsPage() {
         }
     };
 
+    const filteredStaff = React.useMemo(() => {
+        if (!staffSearch) return [];
+        return staffList.filter(s => {
+            const fullName = `${s.nome || ''} ${s.cognome || ''}`.toLowerCase();
+            return fullName.includes(staffSearch.toLowerCase());
+        });
+    }, [staffList, staffSearch]);
+
+    // Reset focus when search changes
+    useEffect(() => {
+        setFocusedIndex(-1);
+    }, [staffSearch]);
+
     const handleEdit = (shift: RecurringShift) => {
         setEditMode(shift.id);
         setNewShift({
@@ -113,6 +130,7 @@ export default function FixedShiftsPage() {
             startYear: shift.startYear || undefined,
             endYear: shift.endYear || undefined,
         });
+        setStaffSearch(`${shift.staff.nome} ${shift.staff.cognome}`);
         // Scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -120,6 +138,7 @@ export default function FixedShiftsPage() {
     const handleCancelEdit = () => {
         setEditMode(null);
         setNewShift({ staffId: 0, daysOfWeek: [], start_time: '00:00', end_time: '00:00', postazione: '', shiftTemplateId: 0 });
+        setStaffSearch('');
     };
 
     const handleSave = async () => {
@@ -235,19 +254,84 @@ export default function FixedShiftsPage() {
                     <div className="flex flex-col gap-1">
                         <span className="text-gray-600 font-bold text-sm">Dipendente</span>
                         <div className="relative">
-                            <User className="absolute left-3 top-2.5 text-gray-400" size={18} />
-                            <select
+                            <User className="absolute left-3 top-2.5 text-gray-400 z-10" size={18} />
+                            <input
+                                type="text"
                                 className="w-full pl-10 p-2 border rounded shadow-sm focus:ring-2 focus:ring-blue-500 bg-white font-medium disabled:opacity-50"
-                                value={newShift.staffId}
-                                onChange={(e) => setNewShift({ ...newShift, staffId: Number(e.target.value) })}
-                                disabled={!!editMode} // Usually don't change staff in edit, but could allow
-                            >
-                                <option value={0}>Seleziona...</option>
-                                {staffList.map(s => (
-                                    <option key={s.id} value={s.id}>{s.nome} {s.cognome}</option>
-                                ))}
-                            </select>
+                                placeholder="Cerca dipendente..."
+                                value={staffSearch}
+                                onChange={(e) => {
+                                    setStaffSearch(e.target.value);
+                                    setIsDropdownOpen(true);
+                                }}
+                                onFocus={() => setIsDropdownOpen(true)}
+                                onBlur={() => {
+                                    // Delay to allow click event to fire
+                                    setTimeout(() => setIsDropdownOpen(false), 200);
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'ArrowDown') {
+                                        e.preventDefault();
+                                        setIsDropdownOpen(true);
+                                        setFocusedIndex(prev => (prev + 1) % filteredStaff.length);
+                                    } else if (e.key === 'ArrowUp') {
+                                        e.preventDefault();
+                                        setIsDropdownOpen(true);
+                                        setFocusedIndex(prev => (prev - 1 + filteredStaff.length) % filteredStaff.length);
+                                    } else if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        if (focusedIndex >= 0 && filteredStaff[focusedIndex]) {
+                                            const selected = filteredStaff[focusedIndex];
+                                            setNewShift({ ...newShift, staffId: selected.id });
+                                            setStaffSearch(`${selected.nome} ${selected.cognome}`);
+                                            setFocusedIndex(-1);
+                                            setIsDropdownOpen(false);
+                                        } else if (filteredStaff.length > 0) {
+                                            const selected = filteredStaff[0];
+                                            setNewShift({ ...newShift, staffId: selected.id });
+                                            setStaffSearch(`${selected.nome} ${selected.cognome}`);
+                                            setIsDropdownOpen(false);
+                                        }
+                                    } else if (e.key === 'Escape') {
+                                        setIsDropdownOpen(false);
+                                        setFocusedIndex(-1);
+                                    }
+                                }}
+                                disabled={!!editMode}
+                            />
                         </div>
+                        {isDropdownOpen && staffSearch && filteredStaff.length > 0 && (
+                            <div className="mt-1 max-h-48 overflow-y-auto border rounded shadow-lg bg-white absolute z-[100] w-full max-w-sm">
+                                {filteredStaff.map((s, index) => (
+                                    <button
+                                        key={s.id}
+                                        type="button"
+                                        className={`w-full text-left px-4 py-2 hover:bg-blue-50 transition flex items-center gap-2 ${index === focusedIndex ? 'bg-blue-100 ring-2 ring-inset ring-blue-300' : ''}`}
+                                        onClick={() => {
+                                            setNewShift({ ...newShift, staffId: s.id });
+                                            setStaffSearch(`${s.nome} ${s.cognome}`);
+                                            setIsDropdownOpen(false);
+                                        }}
+                                    >
+                                        <User size={14} className="text-gray-400" />
+                                        <span className="font-medium">{s.nome} {s.cognome}</span>
+                                    </button>
+                                ))
+                                }
+                            </div>
+                        )}
+                        {isDropdownOpen && staffSearch && filteredStaff.length === 0 && (
+                            <div className="mt-1 max-h-48 overflow-y-auto border rounded shadow-lg bg-white absolute z-50 w-full max-w-sm">
+                                <div className="px-4 py-3 text-gray-500 text-sm italic">
+                                    Nessun dipendente trovato
+                                </div>
+                            </div>
+                        )}
+                        {newShift.staffId > 0 && !staffSearch && (
+                            <div className="text-sm text-gray-600 mt-1">
+                                Selezionato: <strong>{staffList.find(s => s.id === newShift.staffId)?.nome} {staffList.find(s => s.id === newShift.staffId)?.cognome}</strong>
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex flex-col gap-1">
@@ -279,16 +363,20 @@ export default function FixedShiftsPage() {
                     <div className="flex flex-col gap-1 w-48">
                         <span className="text-gray-600 font-bold text-sm">Postazione</span>
                         <div className="relative">
-                            <MapPin className="absolute left-3 top-2.5 text-gray-400" size={18} />
-                            <select
-                                className="w-full pl-10 p-2 border rounded shadow-sm focus:ring-2 focus:ring-indigo-500 bg-white font-medium"
+                            <MapPin className="absolute left-3 top-2.5 text-gray-400 z-10" size={18} />
+                            <input
+                                type="text"
+                                className="w-full pl-10 p-2 border rounded shadow-sm focus:ring-2 focus:ring-indigo-500 bg-white font-medium uppercase"
+                                placeholder="Inserisci o cerca..."
                                 value={newShift.postazione}
-                                onChange={(e) => setNewShift({ ...newShift, postazione: e.target.value })}
-                            >
-                                <option value="">Seleziona...</option>
-                                {DEFAULT_STATIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
+                                onChange={(e) => setNewShift({ ...newShift, postazione: e.target.value.toUpperCase() })}
+                                list="stations-datalist"
+                            />
+                            <datalist id="stations-datalist">
+                                {DEFAULT_STATIONS.map(s => <option key={s} value={s} />)}
+                            </datalist>
                         </div>
+                        <span className="text-xs text-gray-500 italic">Puoi digitare un nome personalizzato</span>
                     </div>
                     <div className="flex flex-col gap-1 w-64">
                         <span className="text-gray-600 font-bold text-sm">Template</span>
@@ -365,74 +453,149 @@ export default function FixedShiftsPage() {
                             />
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 ml-auto">
-                        {editMode && (
-                            <button onClick={handleCancelEdit} className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-bold shadow-sm transition h-[42px]">
-                                <X size={20} /> Annulla
-                            </button>
-                        )}
-                        <button onClick={handleSave} className={`flex items-center gap-2 px-6 py-2 text-white rounded-lg font-bold shadow-md transition h-[42px] ${editMode ? 'bg-orange-500 hover:bg-orange-600' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
-                            {editMode ? <Save size={20} /> : <Plus size={20} />}
-                            {editMode ? 'Salva Modifiche' : 'Aggiungi Turni'}
-                        </button>
+                </div>
+
+                {/* Helper text for permanent shifts */}
+                <div className="mt-3 flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="text-blue-600 mt-0.5">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                        </svg>
                     </div>
+                    <div className="flex-1">
+                        <p className="text-sm font-semibold text-blue-900">💡 Turno Permanente</p>
+                        <p className="text-xs text-blue-700 mt-1">
+                            Lascia vuoti i campi <strong>Dal Week / Al Week</strong> per creare un turno <strong>permanente</strong> che rimane attivo per sempre, senza scadenza.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="mt-4 flex items-center gap-2 ml-auto">
+                    {editMode && (
+                        <button onClick={handleCancelEdit} className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-bold shadow-sm transition h-[42px]">
+                            <X size={20} /> Annulla
+                        </button>
+                    )}
+                    <button onClick={handleSave} className={`flex items-center gap-2 px-6 py-2 text-white rounded-lg font-bold shadow-md transition h-[42px] ${editMode ? 'bg-orange-500 hover:bg-orange-600' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+                        {editMode ? <Save size={20} /> : <Plus size={20} />}
+                        {editMode ? 'Salva Modifiche' : 'Aggiungi Turni'}
+                    </button>
                 </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
                 <table className="w-full text-left border-collapse">
                     <thead>
-                        <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider font-bold">
-                            <th className="p-4 border-b">Dipendente</th>
-                            <th className="p-4 border-b">Giorno</th>
-                            <th className="p-4 border-b">Orario / Template</th>
-                            <th className="p-4 border-b">Postazione</th>
-                            <th className="p-4 border-b text-right">Azioni</th>
+                        <tr className="bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700 text-xs uppercase tracking-wider font-bold border-b-2 border-gray-200">
+                            <th className="p-5 text-left">Dipendente</th>
+                            <th className="p-5 text-center">Giorno</th>
+                            <th className="p-5">Orario / Periodo</th>
+                            <th className="p-5">Postazione</th>
+                            <th className="p-5 text-right">Azioni</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {shifts.map(shift => (
-                            <tr key={shift.id} className={`hover:bg-gray-50 transition items-center ${editMode === shift.id ? 'bg-orange-50' : ''}`}>
-                                <td className="p-4 font-bold text-gray-700 flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold">
-                                        <User size={14} />
-                                    </div>
-                                    <div>
-                                        {shift.staff?.nome} {shift.staff?.cognome}
-                                    </div>
-                                </td>
-                                <td className="p-4 text-gray-600">
-                                    <span className="inline-block px-2 py-1 rounded bg-blue-50 text-blue-700 text-xs font-bold">
-                                        {dayMap.find(d => d.id === shift.dayOfWeek)?.label || '-'}
-                                    </span>
-                                </td>
-                                <td className="p-4 font-mono text-xs text-gray-600">
-                                    <span className="bg-gray-100 px-2 py-1 rounded border border-gray-200">
-                                        {shift.start_time} - {shift.end_time}
-                                    </span>
-                                    {(shift.startWeek || shift.endWeek) && (
-                                        <div className="mt-1 text-[10px] text-purple-600 font-bold">
-                                            W{shift.startWeek || 1} - W{shift.endWeek || 53}
-                                            {(shift.startYear || shift.endYear) && <span className="ml-1 text-gray-500">{shift.startYear || ''}-{shift.endYear || ''}</span>}
+                    <tbody>
+                        {shifts.map((shift, index) => {
+                            // Color-code days
+                            const dayColors = {
+                                1: 'bg-blue-100 text-blue-700 border-blue-200',    // Lun
+                                2: 'bg-green-100 text-green-700 border-green-200', // Mar
+                                3: 'bg-yellow-100 text-yellow-700 border-yellow-200', // Mer
+                                4: 'bg-purple-100 text-purple-700 border-purple-200', // Gio
+                                5: 'bg-pink-100 text-pink-700 border-pink-200',    // Ven
+                                6: 'bg-orange-100 text-orange-700 border-orange-200', // Sab
+                                7: 'bg-red-100 text-red-700 border-red-200'        // Dom
+                            };
+                            const dayColor = dayColors[shift.dayOfWeek as keyof typeof dayColors] || 'bg-gray-100 text-gray-700 border-gray-200';
+
+                            return (
+                                <tr
+                                    key={shift.id}
+                                    className={`
+                                        border-b border-gray-100 
+                                        hover:bg-blue-50 hover:shadow-sm
+                                        transition-all duration-150
+                                        ${editMode === shift.id ? 'bg-orange-50 border-l-4 border-l-orange-500' : ''}
+                                        ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}
+                                    `}
+                                >
+                                    <td className="p-5">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center text-sm font-bold shadow-md">
+                                                <User size={16} />
+                                            </div>
+                                            <div>
+                                                <div className="font-bold text-gray-800 text-sm">
+                                                    {shift.staff?.nome} {shift.staff?.cognome}
+                                                </div>
+                                            </div>
                                         </div>
-                                    )}
-                                </td>
-                                <td className="p-4 text-gray-600 font-medium">
-                                    {shift.postazione || '-'}
-                                </td>
-                                <td className="p-4 text-right flex justify-end gap-2">
-                                    <button onClick={() => handleEdit(shift)} className="text-blue-400 hover:text-blue-600 p-2 hover:bg-blue-50 rounded-full transition" title="Modifica">
-                                        <Pencil size={16} />
-                                    </button>
-                                    <button onClick={() => handleDelete(shift.id)} className="text-red-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-full transition" title="Elimina">
-                                        <Trash2 size={16} />
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
+                                    </td>
+                                    <td className="p-5 text-center">
+                                        <span className={`inline-flex items-center justify-center px-3 py-1.5 rounded-lg border-2 font-bold text-sm min-w-[60px] shadow-sm ${dayColor}`}>
+                                            {dayMap.find(d => d.id === shift.dayOfWeek)?.label || '-'}
+                                        </span>
+                                    </td>
+                                    <td className="p-5">
+                                        <div className="flex flex-col gap-1.5">
+                                            <div className="flex items-center gap-2">
+                                                <Clock size={14} className="text-gray-400" />
+                                                <span className="bg-gradient-to-r from-gray-100 to-gray-50 px-3 py-1.5 rounded-lg border border-gray-200 font-mono text-sm font-semibold text-gray-700 shadow-sm">
+                                                    {shift.start_time} - {shift.end_time}
+                                                </span>
+                                            </div>
+                                            {(shift.startWeek || shift.endWeek) && (
+                                                <div className="flex items-center gap-1.5 ml-5">
+                                                    <Calendar size={12} className="text-purple-500" />
+                                                    <span className="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                                                        W{shift.startWeek || 1} - W{shift.endWeek || 53}
+                                                        {(shift.startYear || shift.endYear) && (
+                                                            <span className="ml-1 text-gray-500">
+                                                                ({shift.startYear || ''}-{shift.endYear || ''})
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {!shift.startWeek && !shift.endWeek && (
+                                                <div className="flex items-center gap-1.5 ml-5">
+                                                    <Repeat size={12} className="text-green-500" />
+                                                    <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded border border-green-200">
+                                                        Permanente
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td className="p-5">
+                                        <span className="inline-block bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg font-semibold text-sm border border-indigo-200 shadow-sm">
+                                            {shift.postazione || '-'}
+                                        </span>
+                                    </td>
+                                    <td className="p-5">
+                                        <div className="flex justify-end gap-2">
+                                            <button
+                                                onClick={() => handleEdit(shift)}
+                                                className="p-2.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-all shadow-sm hover:shadow-md border border-transparent hover:border-blue-200"
+                                                title="Modifica"
+                                            >
+                                                <Pencil size={18} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(shift.id)}
+                                                className="p-2.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all shadow-sm hover:shadow-md border border-transparent hover:border-red-200"
+                                                title="Elimina"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
-        </div>
+        </div >
     );
 }

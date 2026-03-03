@@ -1,0 +1,13 @@
+🔍 Inspecting data for Sunday: 2026-02-08
+available models: staff, shiftTemplate, unavailability, availability, constraint, assignment, budget, coverageRow, forecastRow, user, recurringShift, permissionRequest, integration
+❌ Error: 
+Invalid `prisma.assignment.findMany()` invocation in
+C:\scheduling\scheduling-nextjs\scripts\inspect-sunday.ts:20:48
+
+  17 
+  18 try {
+  19     // Check Shifts (Assignments)
+→ 20     const shifts = await prisma.assignment.findMany(
+Can't reach database server at `ep-empty-meadow-a4opi0ya-pooler.us-east-1.aws.neon.tech:5432`
+
+Please make sure your database server is running at `ep-empty-meadow-a4opi0ya-pooler.us-east-1.aws.neon.tech:5432`.

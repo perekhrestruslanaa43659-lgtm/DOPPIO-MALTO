@@ -1,0 +1,1924 @@
+﻿
+> scheduling-nextjs@1.0.0 build
+> prisma generate && next build
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+
+Ô£ö Generated Prisma Client (v6.1.0) to .\node_modules\@prisma\client in 82ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Curious about the SQL queries Prisma ORM generates? Optimize helps you enhance your visibility: https://pris.ly/tip-2-optimize
+
+  Ôû▓ Next.js 14.2.35
+  - Environments: .env.local, .env.production, .env
+
+   Creating an optimized production build ...
+ Ô£ô Compiled successfully
+   Skipping validation of types
+   Skipping linting
+   Collecting page data ...
+   Generating static pages (0/28) ...
+   Generating static pages (7/28) 
+node.exe : 
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+In riga:1 car:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo        
+      : NotSpecified: (R  
+  eferenceError:... ini   
+ tialization:String) [    
+], RemoteException
+    + FullyQualifiedError 
+   Id : NativeCommandErr  
+  or
+ 
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681) {
+  digest: '4201915855'
+}
+
+Error occurred 
+prerendering page "/". 
+Read more: https://nextjs.
+org/docs/messages/prerende
+r-error
+
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681)
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681) {
+  digest: '4201915855'
+}
+
+Error occurred 
+prerendering page 
+"/absences". Read more: ht
+tps://nextjs.org/docs/mess
+ages/prerender-error
+
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681)
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681) {
+  digest: '4201915855'
+}
+
+Error occurred 
+prerendering page 
+"/_not-found". Read more: 
+https://nextjs.org/docs/me
+ssages/prerender-error
+
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681)
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681) {
+  digest: '4201915855'
+}
+
+Error occurred 
+prerendering page 
+"/login". Read more: https
+://nextjs.org/docs/message
+s/prerender-error
+
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681)
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681) {
+  digest: '4201915855'
+}
+
+Error occurred 
+prerendering page 
+"/budget". Read more: http
+s://nextjs.org/docs/messag
+es/prerender-error
+
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+   Generating static pages (14/28) 
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681)
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681) {
+  digest: '4201915855'
+}
+
+Error occurred 
+prerendering page 
+"/profile". Read more: htt
+ps://nextjs.org/docs/messa
+ges/prerender-error
+
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681)
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681) {
+  digest: '4201915855'
+}
+
+Error occurred 
+prerendering page 
+"/requests". Read more: ht
+tps://nextjs.org/docs/mess
+ages/prerender-error
+
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681)
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681) {
+  digest: '4201915855'
+}
+
+Error occurred 
+prerendering page 
+"/stats". Read more: https
+://nextjs.org/docs/message
+s/prerender-error
+
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681)
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681) {
+  digest: '4201915855'
+}
+
+Error occurred 
+prerendering page 
+"/fixed-shifts". Read 
+more: https://nextjs.org/d
+ocs/messages/prerender-err
+or
+
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681)
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681) {
+  digest: '4201915855'
+}
+
+Error occurred 
+prerendering page 
+"/settings". Read more: ht
+tps://nextjs.org/docs/mess
+ages/prerender-error
+
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681)
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681) {
+  digest: '4201915855'
+}
+
+Error occurred 
+prerendering page 
+"/calendar". Read more: ht
+tps://nextjs.org/docs/mess
+ages/prerender-error
+
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681)
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681) {
+  digest: '4201915855'
+}
+
+Error occurred 
+prerendering page 
+"/register". Read more: ht
+tps://nextjs.org/docs/mess
+ages/prerender-error
+
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681)
+   Generating static pages (21/28) 
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681) {
+  digest: '4201915855'
+}
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681) {
+  digest: '4201915855'
+}
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681) {
+  digest: '4201915855'
+}
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681) {
+  digest: '4201915855'
+}
+
+Error occurred 
+prerendering page 
+"/requirements/details". 
+Read more: https://nextjs.
+org/docs/messages/prerende
+r-error
+
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681)
+
+Error occurred 
+prerendering page 
+"/users". Read more: https
+://nextjs.org/docs/message
+s/prerender-error
+
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681)
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681) {
+  digest: '4201915855'
+}
+
+Error occurred 
+prerendering page 
+"/forecast". Read more: ht
+tps://nextjs.org/docs/mess
+ages/prerender-error
+
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681)
+
+Error occurred 
+prerendering page 
+"/staff". Read more: https
+://nextjs.org/docs/message
+s/prerender-error
+
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681)
+
+Error occurred 
+prerendering page 
+"/requirements". Read 
+more: https://nextjs.org/d
+ocs/messages/prerender-err
+or
+
+ReferenceError: Cannot 
+access 'A' before 
+initialization
+    at C:\scheduling\sched
+uling-nextjs\.next\server\
+chunks\5605.js:20:776
+    at Object.nr [as 
+useMemo] (C:\scheduling\sc
+heduling-nextjs\node_modul
+es\next\dist\compiled\next
+-server\app-page.runtime.p
+rod.js:12:39131)
+    at t.useMemo (C:\sched
+uling\scheduling-nextjs\no
+de_modules\next\dist\compi
+led\next-server\app-page.r
+untime.prod.js:12:109914)
+    at S (C:\scheduling\sc
+heduling-nextjs\.next\serv
+er\chunks\5605.js:20:762)
+    at nj (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:46252)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:47572)
+    at nM (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:61547)
+    at nL (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:64547)
+    at nB (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:67539)
+    at nD (C:\scheduling\s
+cheduling-nextjs\node_modu
+les\next\dist\compiled\nex
+t-server\app-page.runtime.
+prod.js:12:66681)
+ Ô£ô Generating static pages (28/28)
+
+> Export encountered 
+errors on following paths:
+	/_not-found/page: 
+/_not-found
+	/absences/page: /absences
+	/budget/page: /budget
+	/calendar/page: /calendar
+	/fixed-shifts/page: 
+/fixed-shifts
+	/forecast/page: /forecast
+	/login/page: /login
+	/page: /
+	/profile/page: /profile
+	/register/page: /register
+	/requests/page: /requests
+	/requirements/details/pag
+e: /requirements/details
+	/requirements/page: 
+/requirements
+	/settings/page: /settings
+	/staff/page: /staff
+	/stats/page: /stats
+	/users/page: /users
