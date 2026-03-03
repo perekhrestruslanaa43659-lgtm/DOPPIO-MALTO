@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useCurrentUser } from '@/components/CurrentUserProvider';
+import { api } from '@/lib/api';
 import {
     Shield, ToggleLeft, ToggleRight, Plus, Trash2, ChevronDown, ChevronUp,
     Settings, Info, AlertTriangle, CheckCircle2, Lock, Zap
@@ -345,7 +345,11 @@ function AddRuleModal({ onClose, onAdd }: { onClose: () => void; onAdd: (rule: P
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function RegolaPage() {
-    const { currentUser } = useCurrentUser();
+    const [currentUser, setCurrentUser] = useState<any>(null);
+
+    useEffect(() => {
+        api.getProfile().then(setCurrentUser).catch(console.error);
+    }, []);
     const [rules, setRules] = useState<Rule[]>([]);
     const [loading, setLoading] = useState(true);
     const [showAddModal, setShowAddModal] = useState(false);
