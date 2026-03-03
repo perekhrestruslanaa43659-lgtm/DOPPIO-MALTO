@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { X, Clock, MapPin, Check, Briefcase, User, FileText } from 'lucide-react';
+import { X, Clock, MapPin, Check, Briefcase, User, FileText, CalendarX } from 'lucide-react';
 import QuarterTimeInput from './QuarterTimeInput';
 
 interface ShiftTemplate {
@@ -15,6 +15,7 @@ interface ShiftEditorModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (shiftTemplateId: string | number, start: string, end: string, station: string, note: string) => void;
+    onAbsence?: (tipo: 'FERIE' | 'MALATTIA' | 'PERMESSO') => void;
     staffName: string;
     date: string; // YYYY-MM-DD
     type: string; // "PRANZO" or "SERA" or combined
@@ -25,6 +26,7 @@ interface ShiftEditorModalProps {
         postazione?: string;
         note?: string;
     };
+    existingAbsence?: { tipo: string } | null;
     templates: ShiftTemplate[];
 }
 
@@ -32,10 +34,12 @@ export const ShiftEditorModal: React.FC<ShiftEditorModalProps> = ({
     isOpen,
     onClose,
     onSave,
+    onAbsence,
     staffName,
     date,
     type,
     currentAssignment,
+    existingAbsence,
     templates
 }) => {
     const [selectedTemplateId, setSelectedTemplateId] = useState<string | number>('');
@@ -221,6 +225,42 @@ export const ShiftEditorModal: React.FC<ShiftEditorModalProps> = ({
                             rows={2}
                         />
                     </div>
+
+                    {/* Absence Section */}
+                    {onAbsence && (
+                        <div className="space-y-2 border-t pt-4">
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                                <CalendarX size={14} /> Segna Assenza Giornata
+                            </label>
+                            {existingAbsence ? (
+                                <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+                                    <CalendarX size={15} className="text-amber-600" />
+                                    <span className="text-sm font-semibold text-amber-800">Assenza registrata: {existingAbsence.tipo}</span>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-3 gap-2">
+                                    {(['FERIE', 'MALATTIA', 'PERMESSO'] as const).map(tipo => {
+                                        const colors: Record<string, string> = {
+                                            FERIE: 'bg-teal-50 border-teal-300 text-teal-700 hover:bg-teal-100',
+                                            MALATTIA: 'bg-red-50 border-red-300 text-red-700 hover:bg-red-100',
+                                            PERMESSO: 'bg-orange-50 border-orange-300 text-orange-700 hover:bg-orange-100',
+                                        };
+                                        const icons: Record<string, string> = { FERIE: '🏖️', MALATTIA: '🤒', PERMESSO: '📋' };
+                                        return (
+                                            <button
+                                                key={tipo}
+                                                onClick={() => { onAbsence(tipo); onClose(); }}
+                                                className={`py-2 px-1 rounded-lg border text-xs font-bold transition flex flex-col items-center gap-1 ${colors[tipo]}`}
+                                            >
+                                                <span className="text-base">{icons[tipo]}</span>
+                                                {tipo}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Action Button */}
                     <button

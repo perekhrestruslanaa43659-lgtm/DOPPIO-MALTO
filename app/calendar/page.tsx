@@ -1161,38 +1161,30 @@ Non è possibile assegnare Pranzo e Cena allo stesso dipendente.`);
                                                                 const isToday = d === today;
                                                                 const cellBg = isToday ? 'bg-indigo-50/20' : isWeekend ? 'bg-amber-50/20' : '';
 
-                                                                let absenceBadge = null;
+                                                                let absenceTint = '';
+                                                                let absenceLabel: string | null = null;
                                                                 if (!lunch && !dinner) {
                                                                     const req = requests.find((r: any) => r.staffId === s.id && r.data === d && r.status === 'APPROVED');
                                                                     if (req) {
-                                                                        const label = req.tipo === 'FERIE' ? 'FERIE' : req.tipo === 'MALATTIA' ? 'MALATTIA' : req.tipo === 'PERMESSO' ? 'PERMESSO' : 'ASSENZA';
-                                                                        const colorClass = req.tipo === 'FERIE' ? 'bg-teal-100 text-teal-800 border-teal-200' :
-                                                                            req.tipo === 'MALATTIA' ? 'bg-red-100 text-red-800 border-red-200' :
-                                                                                'bg-orange-100 text-orange-800 border-orange-200';
-                                                                        absenceBadge = (
-                                                                            <div className={`
-                                                                    absolute inset-x-2 top-1/2 -translate-y-1/2 
-                                                                    px-2 py-1 rounded-md border text-xs font-bold text-center shadow-sm uppercase tracking-wider
-                                                                    ${colorClass} z-20 pointer-events-none
-                                                                `}>
-                                                                                {label}
-                                                                            </div>
-                                                                        );
+                                                                        const colorMap: Record<string, string> = {
+                                                                            FERIE: 'bg-teal-50',
+                                                                            MALATTIA: 'bg-red-50',
+                                                                            PERMESSO: 'bg-orange-50',
+                                                                        };
+                                                                        absenceTint = colorMap[req.tipo] ?? 'bg-amber-50';
+                                                                        absenceLabel = req.tipo === 'FERIE' ? '🏖️' : req.tipo === 'MALATTIA' ? '🤒' : req.tipo === 'PERMESSO' ? '📋' : '📅';
                                                                     } else {
                                                                         const unav = unavailabilities.find((u: any) => u.staffId === s.id && u.data === d);
                                                                         if (unav) {
-                                                                            absenceBadge = (
-                                                                                <div className="absolute inset-x-2 top-1/2 -translate-y-1/2 px-2 py-1 rounded-md border bg-gray-100 text-gray-600 border-gray-200 text-xs font-bold text-center uppercase tracking-wider z-20 pointer-events-none">
-                                                                                    NON DISP.
-                                                                                </div>
-                                                                            );
+                                                                            absenceTint = 'bg-gray-100';
+                                                                            absenceLabel = '🚫';
                                                                         }
                                                                     }
                                                                 }
 
                                                                 return (
                                                                     <React.Fragment key={d}>
-                                                                        <DroppableCell staffId={s.id} date={d} type="PRANZO" className={cellBg}>
+                                                                        <DroppableCell staffId={s.id} date={d} type="PRANZO" className={`${cellBg} ${!lunch && absenceTint}`}>
                                                                             {lunch ? (
                                                                                 <DraggableShiftItem
                                                                                     assignment={{ ...lunch, _groupAccent: group.group.title }}
@@ -1201,16 +1193,17 @@ Non è possibile assegnare Pranzo e Cena allo stesso dipendente.`);
                                                                                     onContextMenu={handleContextMenu}
                                                                                 />
                                                                             ) : (
-                                                                                <>
-                                                                                    <div
-                                                                                        className={`w-full h-full min-h-[40px] cursor-pointer transition-colors group/empty flex items-center justify-center ${cellBg} hover:bg-indigo-100/40`}
-                                                                                        onClick={() => handleCellClick(s.id, d, 'PRANZO', undefined)}
-                                                                                        title="Clicca per aggiungere turno"
-                                                                                    >
+                                                                                <div
+                                                                                    className={`w-full h-full min-h-[40px] cursor-pointer transition-colors group/empty flex items-center justify-center ${cellBg} ${!lunch && absenceTint} hover:bg-indigo-100/40`}
+                                                                                    onClick={() => handleCellClick(s.id, d, 'PRANZO', undefined)}
+                                                                                    title="Clicca per aggiungere turno"
+                                                                                >
+                                                                                    {absenceLabel && !lunch && !dinner ? (
+                                                                                        <span className="text-sm opacity-60 select-none">{absenceLabel}</span>
+                                                                                    ) : (
                                                                                         <span className="opacity-0 group-hover/empty:opacity-30 text-indigo-400 text-lg leading-none font-thin select-none">+</span>
-                                                                                    </div>
-                                                                                    {absenceBadge}
-                                                                                </>
+                                                                                    )}
+                                                                                </div>
                                                                             )}
                                                                         </DroppableCell>
                                                                         <DroppableCell staffId={s.id} date={d} type="SERA" className={`border-r-2 border-gray-300 ${cellBg}`}>
@@ -1530,6 +1523,24 @@ Non è possibile assegnare Pranzo e Cena allo stesso dipendente.`);
                                 onClose={handleCloseEditor}
                                 currentAssignment={editingCell.shift}
                                 onSave={handleSaveShift}
+                                onAbsence={!isReadOnly ? async (tipo) => {
+                                    try {
+                                        await api.addUnavailability({
+                                            staffId: editingCell.staffId,
+                                            data: editingCell.date,
+                                            tipo,
+                                            note: tipo,
+                                        });
+                                        loadData();
+                                        setToast({ type: 'success', title: `${tipo} registrata ✓`, message: `${staff.find(s => s.id === editingCell.staffId)?.nome} – ${editingCell.date}` });
+                                    } catch (e: any) {
+                                        setToast({ type: 'error', title: 'Errore', message: e.message });
+                                    }
+                                } : undefined}
+                                existingAbsence={(() => {
+                                    const req = requests.find((r: any) => r.staffId === editingCell.staffId && r.data === editingCell.date && r.status === 'APPROVED');
+                                    return req ? { tipo: req.tipo } : null;
+                                })()}
                                 staffName={staff.find(s => s.id === editingCell?.staffId)?.nome || ''}
                                 date={editingCell?.date}
                                 type={editingCell?.type}
