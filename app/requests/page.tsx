@@ -1,9 +1,12 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
-import { BadgeCheck, Ban, Clock, Plus, Search, Filter, MessageSquare, User, Trash2 } from 'lucide-react';
+import { BadgeCheck, Ban, Clock, Plus, Search, Filter, MessageSquare, User, Trash2, Check, X, ChevronRight, Calendar, LayoutGrid } from 'lucide-react';
+import { format, isSameDay } from 'date-fns';
+import { it } from 'date-fns/locale';
+
 
 interface Request {
     id: number;
@@ -12,6 +15,9 @@ interface Request {
     tipo: string;
     motivo: string;
     dettagli: string;
+    endDate?: string;
+    startTime?: string;
+    endTime?: string;
     status: 'PENDING' | 'APPROVED' | 'REJECTED';
     adminResponse?: string;
     Staff?: {
@@ -30,8 +36,6 @@ export default function PermissionRequestsPage() {
     const [profile, setProfile] = useState<any>(null);
     const [showNewModal, setShowNewModal] = useState(false);
     const [staffList, setStaffList] = useState<any[]>([]); // To populate select if admin
-<<<<<<< Updated upstream
-=======
     const [statusFilter, setStatusFilter] = useState<string>('ALL');
     const calendarPopoverRef = useRef<HTMLDivElement>(null);
     const calendarButtonRef = useRef<HTMLButtonElement>(null);
@@ -42,7 +46,7 @@ export default function PermissionRequestsPage() {
     const [adminEmployeeFilter, setAdminEmployeeFilter] = useState<number | null>(null); // filter pending by staffId
     const [adminSearchQuery, setAdminSearchQuery] = useState('');
     const [adminHistoryTab, setAdminHistoryTab] = useState<'approved' | 'rejected'>('approved');
->>>>>>> Stashed changes
+
 
     // New Request Form
     const [formData, setFormData] = useState({
@@ -95,9 +99,6 @@ export default function PermissionRequestsPage() {
     });
 
     const pendingRequests = displayedRequests.filter(r => r.status === 'PENDING');
-<<<<<<< Updated upstream
-    const historyRequests = displayedRequests.filter(r => r.status !== 'PENDING');
-=======
     const approvedRequests = displayedRequests.filter(r => r.status === 'APPROVED').sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
     const rejectedRequests = displayedRequests.filter(r => r.status === 'REJECTED').sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
     const historyRequests = displayedRequests.filter(r => r.status !== 'PENDING').sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
@@ -174,7 +175,7 @@ export default function PermissionRequestsPage() {
             setExpandedGroups(new Set([...approvedKeys, ...rejectedKeys]));
         }
     }, [groupedApproved.length, groupedRejected.length]);
->>>>>>> Stashed changes
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -245,13 +246,6 @@ export default function PermissionRequestsPage() {
     };
 
     return (
-<<<<<<< Updated upstream
-        <div className="max-w-6xl mx-auto p-6 bg-gray-50 min-h-screen">
-            <div className="flex justify-between items-center mb-8">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800">Richieste Permessi (Pianificate)</h1>
-                    <p className="text-gray-500">Gestione di Ferie e Permessi <strong>richiesti in anticipo</strong>. (Tot: {displayedRequests.length})</p>
-=======
         <div className="p-6 max-w-7xl mx-auto space-y-8">
             {/* Bulk Actions Bar */}
             {selectedIds.size > 0 && (
@@ -758,7 +752,6 @@ export default function PermissionRequestsPage() {
                             ))}
                         </div>
                     )}
->>>>>>> Stashed changes
                 </div>
                 <button
                     onClick={() => setShowNewModal(true)}

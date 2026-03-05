@@ -39,10 +39,6 @@ function getShiftDate(dateStr: string, timeStr: string) {
 
 export async function generateSmartSchedule(startDate: string, endDate: string, tenantKey: string) {
 
-<<<<<<< Updated upstream
-    // 1. Data Gathering
-    // ----------------
-=======
     try {
         // 1. Data Gathering
         // ----------------
@@ -1155,7 +1151,6 @@ export async function generateSmartSchedule(startDate: string, endDate: string, 
 }
 
 export async function auditSchedule(startDate: string, endDate: string, tenantKey: string) {
->>>>>>> Stashed changes
     const startD = new Date(startDate);
     const endD = new Date(endDate);
 

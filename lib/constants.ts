@@ -10,8 +10,6 @@ export const DEFAULT_STATIONS = [
     'Pira', 'Burger', 'Fritti', 'Dolci/Ins', 'Preparazione',
     'Lavaggio', 'Lavaggio Cappa', 'Pulizia', 'SCARICO_Cucina'
 ];
-<<<<<<< Updated upstream
-=======
 
 // Station classification for role-based filtering
 export const SALA_KEYWORDS = [
@@ -59,4 +57,3 @@ export function canStaffWorkStation(staffPostazioni: string[], taskStation: stri
     // Staff can work the task if they have ANY position in the same department
     return staffDepartments.includes(taskDept) || staffDepartments.includes('BOTH');
 }
->>>>>>> Stashed changes

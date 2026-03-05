@@ -4,13 +4,9 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import * as XLSX from 'xlsx';
-<<<<<<< Updated upstream
-import { Trash2, Edit2, Upload, Plus, X, Save, Grid3x3, List } from 'lucide-react';
-=======
 import { Trash2, Edit2, Upload, Plus, X, Save, Grid3x3, List, Eraser, Settings, Clock, Star, RotateCcw } from 'lucide-react';
 import StationsManagerModal from '@/components/StationsManagerModal';
 import AvailabilityManager from '@/components/AvailabilityManager';
->>>>>>> Stashed changes
 
 interface Staff {
     id: number;
@@ -23,10 +19,6 @@ interface Staff {
     costoOra: number;
     postazioni: string[];
     skillLevel?: string;
-<<<<<<< Updated upstream
-}
-
-=======
     contractType?: string;
     listIndex?: number;
     productivityWeight?: number;
@@ -78,7 +70,6 @@ const interactPostazioni = (
     });
 };
 
->>>>>>> Stashed changes
 export default function StaffPage() {
     const [staff, setStaff] = useState<Staff[]>([]);
     const [loading, setLoading] = useState(true);
@@ -98,9 +89,6 @@ export default function StaffPage() {
         skillLevel: 'MEDIUM'
     });
 
-<<<<<<< Updated upstream
-    const availableStations = ['BAR SU', "BAR GIU'", 'B/S', 'PASS', 'CDR', 'ACC', 'CUCINA'];
-=======
     const [availableStations, setAvailableStations] = useState(['BAR SU', "BAR GIU'", 'B/S', 'PASS', 'CDR', 'ACC', 'ACC GIU', 'CUCINA']);
     const [newStation, setNewStation] = useState('');
     const [showStationsManager, setShowStationsManager] = useState(false);
@@ -160,7 +148,6 @@ export default function StaffPage() {
             loadStaff();
         }
     };
->>>>>>> Stashed changes
 
     // Helper function to capitalize names properly
     const capitalizeName = (name: string) => {
@@ -179,12 +166,6 @@ export default function StaffPage() {
     async function loadStaff() {
         setLoading(true);
         try {
-<<<<<<< Updated upstream
-            const data = await api.getStaff();
-            data.sort((a: any, b: any) => (a.listIndex ?? 999) - (b.listIndex ?? 999));
-            setStaff(data);
-        } catch (e) {
-=======
             // Updated to fetch archived staff if showArchived is true
             const data = await api.getStaff(showArchived);
 
@@ -213,7 +194,6 @@ export default function StaffPage() {
             const used = new Set(data.flatMap((s: any) => (s.postazioni || []) as string[]));
             setAvailableStations(prev => Array.from(new Set([...prev, ...used])) as string[]);
         } catch (e: any) {
->>>>>>> Stashed changes
             console.error(e);
             alert('Errore caricamento staff');
         } finally {
@@ -600,20 +580,6 @@ export default function StaffPage() {
                                             </div>
                                         )}
 
-<<<<<<< Updated upstream
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="bg-gray-50 rounded-lg p-3">
-                                                <div className="text-xs text-gray-500 mb-1">Ore Contratto</div>
-                                                <div className="text-sm font-bold text-gray-900">{s.oreMinime} - {s.oreMassime}h</div>
-                                            </div>
-                                            {s.costoOra > 0 && (
-                                                <div className="bg-emerald-50 rounded-lg p-3">
-                                                    <div className="text-xs text-emerald-600 mb-1">Costo Orario</div>
-                                                    <div className="text-sm font-bold text-emerald-700">€{s.costoOra}</div>
-                                                </div>
-                                            )}
-                                        </div>
-=======
                                                 return (
                                                     <div key={s.id} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 hover:shadow-md dark:hover:shadow-indigo-900/10 transition-all duration-200 overflow-hidden group">
                                                         {/* Header with Avatar */}
@@ -908,7 +874,6 @@ export default function StaffPage() {
                                                                         </button>
                                                                     )}
                                                                 </div>
->>>>>>> Stashed changes
 
                                         {s.postazioni.length > 0 && (
                                             <div>

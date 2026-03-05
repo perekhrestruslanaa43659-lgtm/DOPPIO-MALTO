@@ -135,16 +135,9 @@ export async function PUT(request: NextRequest) {
 
         const body = await request.json();
 
-<<<<<<< Updated upstream
-        // Handle postazioni conversion (String -> String[])
-        let postazioni: string[] = [];
-        if (typeof body.postazioni === 'string') {
-            postazioni = body.postazioni.split(',').map((s: string) => s.trim()).filter((s: string) => s !== '');
-        } else if (Array.isArray(body.postazioni)) {
-            postazioni = body.postazioni;
-=======
         // Helper to check if a key exists in body (even if null/empty)
         const has = (key: string) => Object.prototype.hasOwnProperty.call(body, key);
+        const data: any = {};
 
         if (has('nome')) data.nome = body.nome;
         if (has('cognome')) data.cognome = body.cognome || '';
@@ -173,24 +166,11 @@ export async function PUT(request: NextRequest) {
                 postazioni = body.postazioni;
             }
             data.postazioni = JSON.stringify(postazioni);
->>>>>>> Stashed changes
         }
 
         const staff = await prisma.staff.update({
-            where: { id: parseInt(id), tenantKey }, // Ensure tenant safety
-            data: {
-                nome: body.nome,
-                cognome: body.cognome || '',
-                email: body.email || null,
-                ruolo: body.ruolo,
-                oreMinime: parseInt(body.oreMinime) || 0,
-                oreMassime: parseInt(body.oreMassime) || 40,
-                costoOra: parseFloat(body.costoOra) || 0,
-                moltiplicatore: parseFloat(body.moltiplicatore) || 1.0,
-                postazioni: JSON.stringify(postazioni),
-                skillLevel: body.skillLevel || 'MEDIUM',
-                incompatibilityId: body.incompatibilityId || null,
-            },
+            where: { id: parseInt(id), tenantKey },
+            data,
         });
 
         return NextResponse.json(staff);
@@ -200,8 +180,6 @@ export async function PUT(request: NextRequest) {
     }
 }
 
-<<<<<<< Updated upstream
-=======
 export async function PATCH(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
@@ -240,7 +218,6 @@ export async function PATCH(request: NextRequest) {
     }
 }
 
->>>>>>> Stashed changes
 export async function DELETE(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
