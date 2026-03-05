@@ -1327,10 +1327,10 @@ Non è possibile assegnare Pranzo e Cena allo stesso dipendente.`);
 
                                                 return (
                                                     <React.Fragment key={i}>
-                                                        <td className="p-2 text-center border-r border-slate-200 text-xs font-medium border-r-slate-300">
+                                                        <td className="p-2 text-center border-l border-slate-200 text-xs font-medium">
                                                             {totalP > 0 ? totalP.toLocaleString('it-IT', { maximumFractionDigits: 1 }) : '-'}
                                                         </td>
-                                                        <td className="p-2 text-center border-r border-slate-200 text-xs font-medium border-r-gray-400">
+                                                        <td className="p-2 text-center border-l border-slate-200 text-xs font-medium">
                                                             {totalC > 0 ? totalC.toLocaleString('it-IT', { maximumFractionDigits: 1 }) : '-'}
                                                         </td>
                                                     </React.Fragment>
