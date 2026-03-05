@@ -110,7 +110,7 @@ export default function AbsencesPage() {
         setLoading(true);
         try {
             // Emulate "getActivityHistory" by fetching both sources
-            const [stf, unav, sch] = await Promise.all([
+            const [stf, unav, scheduleData] = await Promise.all([
                 api.getStaff(),
                 api.getUnavailability(start, end),
                 api.getSchedule(start, end)
@@ -130,7 +130,10 @@ export default function AbsencesPage() {
                 endTime: u.end_time
             }));
 
-            const mappedSch = (sch as any[]).map(a => ({
+            // Extract assignments from scheduleData (which is now an object with assignments property)
+            const schAssignments = Array.isArray(scheduleData) ? scheduleData : (scheduleData?.assignments || []);
+
+            const mappedSch = (schAssignments as any[]).map(a => ({
                 id: a.id,
                 staffId: a.staffId,
                 staff: (stf as Staff[]).find(s => s.id === a.staffId),
