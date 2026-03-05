@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { signToken, JWTPayload } from '@/lib/auth';
 import { hashPassword } from '@/lib/password';
 import { getSMTPConfig } from '@/lib/smtp-providers';
+import { sendVerificationEmail } from '@/lib/email';
+import crypto from 'crypto';
 
 export async function POST(request: NextRequest) {
     try {
@@ -48,6 +50,15 @@ export async function POST(request: NextRequest) {
             finalPort = config.port;
         }
 
+        // Generate verification token
+        const verificationToken = crypto.randomBytes(32).toString('hex');
+
+        // Check if SMTP is configured - needed to send verification email
+        const smtpConfigured = finalHost && finalPort && requestBody.smtpUser && requestBody.smtpPassword;
+
+        // If SMTP is configured, require email verification. Otherwise, auto-verify.
+        const shouldRequireVerification = smtpConfigured;
+
         // Create user as restaurant owner
         const user = await prisma.user.create({
             data: {
@@ -57,7 +68,8 @@ export async function POST(request: NextRequest) {
                 role: role || 'OWNER',
                 tenantKey,
                 companyName,
-                isVerified: true, // App interna: verifica immediata senza email
+                isVerified: !shouldRequireVerification, // Se SMTP non è configurato, auto-verifica
+                verificationToken: shouldRequireVerification ? verificationToken : null, // Salva il token solo se serve
                 // Save SMTP config
                 smtpHost: finalHost,
                 smtpPort: finalPort,
@@ -66,7 +78,25 @@ export async function POST(request: NextRequest) {
             },
         });
 
+        // Send verification email only if SMTP is configured (non-blocking)
+        if (shouldRequireVerification) {
+            const baseUrl = request.headers.get('x-forwarded-proto') && request.headers.get('x-forwarded-host')
+                ? `${request.headers.get('x-forwarded-proto')}://${request.headers.get('x-forwarded-host')}`
+                : process.env.NEXT_PUBLIC_APP_URL || 'https://scheduling-nextjs-mu.vercel.app';
+
+            sendVerificationEmail(
+                user.email,
+                verificationToken,
+                user.tenantKey,
+                user.name || '',
+                baseUrl
+            ).catch(err => {
+                console.error('Failed to send verification email during registration:', err);
+            });
+        }
+
         return NextResponse.json({
+            requiresVerification: shouldRequireVerification,
             user: {
                 id: user.id,
                 name: user.name,
@@ -75,6 +105,9 @@ export async function POST(request: NextRequest) {
                 tenantKey: user.tenantKey,
                 companyName: user.companyName,
             },
+            message: shouldRequireVerification
+                ? 'Verifica email inviata. Per favore controlla la tua email per un link di verifica.'
+                : 'Registrazione completata! Puoi accedere subito. Configura SMTP nelle impostazioni per inviare email al tuo team.'
         });
     } catch (error) {
         console.error('Registration error:', error);
