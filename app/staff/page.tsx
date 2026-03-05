@@ -740,6 +740,7 @@ export default function StaffPage() {
                             </select>
                         </div>
                         <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tipo Contratto</label>
                             <select
                                 className="w-full p-2 border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none"
                                 value={form.contractType}
