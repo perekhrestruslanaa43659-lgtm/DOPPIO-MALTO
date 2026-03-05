@@ -359,7 +359,7 @@ export default function FixedShiftsPage() {
                     </div>
                 </div>
 
-                <div className="mt-6 flex flex-wrap gap-4 items-end">
+                <div className="mt-6 flex flex-wrap gap-4 items-start">
                     <div className="flex flex-col gap-1 w-48">
                         <span className="text-gray-600 font-bold text-sm">Postazione</span>
                         <div className="relative">
