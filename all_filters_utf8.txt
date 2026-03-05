@@ -1,0 +1,650 @@
+﻿
+app\absences\page.tsx:6
+0:            
+prev.includes(id) ? 
+prev.filter(x => x !== 
+id) : [...prev, id]
+app\absences\page.tsx:2
+95:        setF({ 
+...f, selectedDays: 
+curr.includes(d) ? 
+curr.filter((x: 
+number) => x !== d) : 
+[...curr, d] });
+app\absences\page.tsx:5
+79:                    
+const staffItems = 
+items.filter(it => 
+it.staffId === 
+staff.id);
+app\api\notifications\b
+roadcast-schedule\route
+.ts:30:        const 
+emails = staff.map(s 
+=> s.email).filter(e 
+=> e && 
+e.includes('@')) as 
+string[];
+app\api\schedule\apply-
+fixed\route.ts:80:     
+       const 
+relevantShifts = 
+fixedShifts.filter((s: 
+any) => s.dayOfWeek 
+=== 
+dayDetail.dayOfWeek);
+app\api\schedule\valida
+te\route.ts:49:        
+const 
+currentAssignments = 
+assignments.filter(a 
+=> a.data >= start && 
+a.data <= end);
+app\api\schedule\valida
+te\route.ts:50:        
+const 
+previousAssignments = 
+assignments.filter(a 
+=> a.data < start);
+app\api\staff\[id]\rout
+e.ts:23:            
+postazioni = body.posta
+zioni.split(',').map((s
+: string) => 
+s.trim()).filter((s: 
+string) => s !== '');
+app\api\staff\route.ts:
+27:        const staff 
+= includeArchived ? 
+allStaff : 
+allStaff.filter((s: 
+any) => !s.archived);
+app\api\staff\route.ts:
+47:                    
+    postazioni = member
+.postazioni.split(',').
+map(s => 
+s.trim()).filter(s => 
+s);
+app\api\staff\route.ts:
+94:            
+postazioni = body.posta
+zioni.split(',').map((s
+: string) => 
+s.trim()).filter((s: 
+string) => s !== '');
+app\api\staff\route.ts:
+171:                
+postazioni = body.posta
+zioni.split(',').map((s
+: string) => 
+s.trim()).filter((s: 
+string) => s !== '');
+app\api\staff\route.ts:
+206:                
+postazioni = body.posta
+zioni.split(',').map((s
+: string) => 
+s.trim()).filter((s: 
+string) => s !== '');
+app\api\training\import
+\route.ts:17:    const 
+contains = 
+staffList.filter(s => 
+normalize(s.nome + 
+(s.cognome || 
+'')).includes(target) 
+|| target.includes(norm
+alize(s.nome)));
+app\budget\page.tsx:224
+:        
+schedule.filter(a => 
+a.data.split('T')[0] 
+=== date).forEach(a => 
+{
+app\calendar\page.tsx:3
+74:                
+setSchedule(prev => 
+prev.filter(a => a.id 
+!== asn.id)); // 
+Optimistic
+app\calendar\page.tsx:5
+39:            const 
+missing = Array.isArray
+(auditData) ? 
+auditData.filter((a: 
+any) => a.status === 
+'MISSING') : [];
+app\calendar\page.tsx:7
+62:        const 
+groupStaff = 
+(Array.isArray(staff) 
+? staff : []).filter(s 
+=> {
+app\calendar\page.tsx:7
+64:            return !
+assignedStaffIds.has(s.
+id) && g.filter(s);
+app\calendar\page.tsx:1
+097:                   
+                 
+.filter(g => g && 
+g.group && 
+(!filterArea || 
+g.group.title === 
+filterArea))
+app\closings\page.tsx:5
+71:                    
+                       
+                 : 
+prev.filter(email => 
+email !== u.email);
+app\fixed-shifts\page.t
+sx:108:        return 
+staffList.filter(s => {
+app\fixed-shifts\page.t
+sx:191:            
+setNewShift({ 
+...newShift, 
+daysOfWeek: 
+current.filter(x => x 
+!== d) });
+app\forecast\page.tsx:5
+53:        const rows 
+= clipboardData.split(/
+\r\n|\n|\r/).filter(row
+ => row.trim() !== '');
+app\regole\page.tsx:433
+:                
+setRules(r => 
+r.filter(x => x.id !== 
+rule.id));
+app\regole\page.tsx:442
+:    const 
+enabledCount = 
+rules.filter(r => 
+r.enabled).length;
+app\regole\page.tsx:443
+:    const 
+builtinRules = 
+rules.filter(r => 
+r.isBuiltin);
+app\regole\page.tsx:444
+:    const customRules 
+= rules.filter(r => 
+!r.isBuiltin);
+app\requests\page.tsx:1
+14:    const 
+displayedRequests = 
+requests.filter(r => {
+app\requests\page.tsx:1
+19:    const 
+pendingRequests = displ
+ayedRequests.filter(r 
+=> r.status === 
+'PENDING');
+app\requests\page.tsx:1
+20:    const 
+approvedRequests = disp
+layedRequests.filter(r 
+=> r.status === 
+'APPROVED').sort((a, 
+b) => new 
+Date(b.data).getTime() 
+- new Date(a.data).getT
+ime());
+app\requests\page.tsx:1
+21:    const 
+rejectedRequests = disp
+layedRequests.filter(r 
+=> r.status === 
+'REJECTED').sort((a, 
+b) => new 
+Date(b.data).getTime() 
+- new Date(a.data).getT
+ime());
+app\requests\page.tsx:1
+22:    const 
+historyRequests = displ
+ayedRequests.filter(r 
+=> r.status !== 
+'PENDING').sort((a, b) 
+=> new 
+Date(b.data).getTime() 
+- new Date(a.data).getT
+ime());
+app\requests\page.tsx:1
+61:            
+filtered = 
+list.filter(r => 
+isSameDay(new 
+Date(r.data), 
+selectedDateFilter));
+app\requests\page.tsx:2
+71:                
+newSelection = currentS
+election.filter(d => 
+!isSameDay(d, day));
+app\requests\page.tsx:2
+77:                
+newSelection = currentS
+election.filter(d => 
+!isSameDay(d, day));
+app\requests\page.tsx:3
+82:                    
+                {pendin
+gRequests.filter(r =>
+app\requests\page.tsx:3
+96:                    
+                
+{staffList.filter(s => 
+pendingRequests.some(r 
+=> r.staffId === 
+s.id)).map(s => (
+app\requests\page.tsx:4
+16:                    
+                    
+const toApprove = pendi
+ngRequests.filter(r =>
+app\requests\page.tsx:4
+51:                    
+            
+.filter(req =>
+app\requirements\detail
+s\page.tsx:322:    
+}).filter(r => r !== 
+null) as any[];
+app\requirements\detail
+s\page.tsx:480:        
+const staffAssignments 
+= assignments.filter(a 
+=> a.staffId === 
+staffId);
+app\requirements\detail
+s\page.tsx:730:        
+                       
+                       
+              const 
+parts = name.trim().spl
+it(/\s+/).filter(p => 
+p.length > 0);
+app\requirements\detail
+s\page.tsx:874:        
+                       
+     options={staffList
+.filter((s: any) => {
+app\requirements\page.t
+sx:169:            
+loadedRows = 
+loadedRows.filter(r => 
+{
+app\requirements\page.t
+sx:357:                
+const matchingDates = 
+foundDateList.filter(d 
+=> days.includes(d));
+app\requirements\page.t
+sx:479:            
+const activeRows = 
+newRows.filter(r => 
+r.extra?.active !== 
+false);
+app\requirements\page.t
+sx:605:        const 
+duplicates = validation
+.filter((item, index) 
+=> validation.indexOf(i
+tem) !== index);
+app\requirements\page.t
+sx:1243:               
+                       
+  const daily = 
+assignments.filter((a: 
+any) => a.data === d);
+app\requirements\page.t
+sx:1345:    const 
+dayAssigns = 
+assignments.filter((a: 
+any) => a.data === 
+date && matchesStation(
+a.postazione, 
+row.station));
+app\requirements\page.t
+sx:1363:               
+     assignments={dayAs
+signs.filter((a: any) 
+=> (a.start_time || 
+'') < '16:00')}
+app\requirements\page.t
+sx:1378:               
+     assignments={dayAs
+signs.filter((a: any) 
+=> (a.start_time || 
+'') >= '16:00')}
+app\staff\[id]\competen
+ze\page.tsx:202:       
+ const toSave = Object.
+values(competencies).fi
+lter(c => c.score > 0);
+app\staff\[id]\competen
+ze\page.tsx:226:    
+const extraPostazioni 
+= Object.keys(competenc
+ies).filter(p => !ownPo
+stazioni.includes(p));
+app\staff\[id]\competen
+ze\page.tsx:230:    
+const seniorCount = all
+TabPostazioni.filter(p 
+=> (competencies[p]?.sc
+ore ?? 0) >= 4).length;
+app\staff\[id]\competen
+ze\page.tsx:231:    
+const juniorCount = all
+TabPostazioni.filter(p 
+=> 
+competencies[p]?.score 
+=== 3).length;
+app\staff\[id]\competen
+ze\page.tsx:386:       
+                 
+{allStations.filter(s 
+=> !allTabPostazioni.in
+cludes(s)).map(s => (
+app\staff\page.tsx:128:
+                
+newStations = 
+newStations.filter(s 
+=> s !== station);
+app\staff\page.tsx:251:
+            const 
+finalData = 
+showArchived ? 
+data.filter((s: any) 
+=> s.archived) : data;
+app\staff\page.tsx:370:
+                const 
+toShift = 
+staff.filter((_, idx) 
+=> idx >= insertIndex);
+app\staff\page.tsx:570:
+                       
+ postazioni: idxPost > 
+-1 && row[idxPost] ? St
+ring(row[idxPost]).spli
+t(',').map(s => 
+s.trim()).filter(x => 
+x) : [],
+app\staff\page.tsx:573:
+                
+}).filter(p => p !== 
+null);
+app\staff\page.tsx:808:
+                       
+                       
+  ? form.postazioni.fil
+ter(x => x !== p)
+app\staff\page.tsx:859:
+                       
+     const 
+sectionStaff = 
+staff.filter(s => {
+app\staff\page.tsx:992:
+                       
+                       
+                       
+           {availableSt
+ations.filter(as => !s.
+postazioni.includes(as)
+).sort().map(as => (
+app\staff\page.tsx:1136
+:                      
+                       
+                       
+        {availableStati
+ons.filter(as => !s.pos
+tazioni.includes(as)).s
+ort().map(as => (
+app\stats\page.tsx:57: 
+           const 
+relevantUnavail = 
+(unavail as 
+any[]).filter(u => 
+u.data >= period.start 
+&& u.data <= 
+period.end);
+app\stats\page.tsx:60: 
+               const 
+myUnavail = relevantUna
+vail.filter(u => 
+u.staffId === s.id);
+app\users\page.tsx:133:
+    const 
+filteredUsers = 
+users.filter(u =>
+components\AiAssistantW
+idget.tsx:156:- 
+Postazioni attive: ${(A
+rray.isArray(coverage) 
+? coverage : 
+[]).filter((c: any) => 
+c.enabled !== 
+false).length || 0}
+components\Availability
+Manager.tsx:45:        
+    setSelectedDays(sel
+ectedDays.filter(d => 
+d !== index));
+components\Navigation.t
+sx:69:        const 
+filteredItems = group.i
+tems.filter(item => use
+rAllowedPaths.includes(
+item.href));
+components\Navigation.t
+sx:77:    
+}).filter(Boolean); // 
+Remove empty groups
+components\PITAnalysisP
+anel.tsx:156:    const 
+relevant = (Array.isArr
+ay(staffAnalysis) ? 
+staffAnalysis : 
+[]).filter(s => 
+s.hoursUsed > 0 || 
+s.pitContribution > 0);
+components\SearchableSe
+lect.tsx:26:    const 
+filteredOptions = 
+options.filter(opt =>
+components\StaffSelecti
+onModal.tsx:113:    
+const eligibleStaff = 
+staff.filter(s => {
+components\StaffSelecti
+onModal.tsx:121:       
+             
+staffPostazioni = s.pos
+tazioni.split(',').map(
+(p: string) => 
+p.trim()).filter((p: 
+string) => p);
+components\StaffSelecti
+onModal.tsx:146:       
+ const 
+assignmentsOnDay = exis
+tingAssignments.filter(
+a => a.staffId === 
+s.id && a.data === 
+date);
+components\StaffSelecti
+onModal.tsx:215:       
+         const 
+otherAssignments = exis
+tingAssignments.filter(
+a => {
+components\StaffSelecti
+onModal.tsx:477:       
+                       
+              const 
+dayAssignments = existi
+ngAssignments.filter(a 
+=> a.staffId === s.id 
+&& a.data === date);
+components\StationsMana
+gerModal.tsx:110:      
+              const 
+newPostazioni = s.posta
+zioni.filter((p: 
+string) => p !== name);
+components\StationsMana
+gerModal.tsx:124:      
+      const 
+updatedList = available
+Stations.filter(s => s 
+!== name);
+lib\shift-engine\engine
+.ts:24:        const 
+activeRules = 
+this.rules.filter(r => 
+r.active);
+lib\shift-engine\rules.
+ts:121:                
+const windowShifts = 
+shifts.filter(s => 
+s.data >= startDayStr 
+&& s.data <= 
+endDayStr);
+lib\shift-engine\rules.
+ts:322:                
+const covering = 
+assigned.filter(a => {
+lib\pitEngine.ts:243:  
+          const 
+slotAssignments = 
+assignments.filter(a 
+=> {
+lib\pitEngine.ts:250:  
+              
+staff.filter(s => 
+isSenior(s.ruolo, 
+s.skillLevel)).map(s 
+=> s.id)
+lib\pitEngine.ts:252:  
+          const 
+seniorCount = slotAssig
+nments.filter(a => seni
+orStaffIds.has(a.staffI
+d)).length;
+lib\pitEngine.ts:300:  
+  const 
+highIntensitySlots = 
+slots.filter(s => 
+s.pit > 
+HIGH_PIT_THRESHOLD);
+lib\pitEngine.ts:301:  
+  const violations = 
+slots.filter(s => 
+s.violations.length > 
+0);
+lib\pitEngine.ts:304:  
+  const 
+coveredHighSlots = high
+IntensitySlots.filter(s
+ => s.totalCount > 0);
+lib\scheduler-utils.ts:
+28:        const 
+activeRows = 
+coverageRows.filter(r 
+=> {
+lib\scheduler.ts:65:   
+         }) as Promise<
+any[]>).then((list: 
+any[]) => 
+list.filter((s: any) 
+=> 
+!s.archived)).catch(e 
+=> { console.error('❌ 
+Error fetching 
+staff:', e); throw e; 
+}),
+lib\scheduler.ts:137:  
+      console.log(`[Sch
+eduler] 📋 Rules 
+loaded: 
+${dbRules.length} 
+(${dbRules.filter((r: 
+any) => 
+r.enabled).length} 
+enabled)`);
+lib\scheduler.ts:163:  
+                      
+postazioni = member.pos
+tazioni.split(',').map(
+(s: any) => 
+s.trim()).filter((s: 
+any) => !!s);
+lib\scheduler.ts:426:  
+          const 
+activeRows = 
+coverageRows.filter(r 
+=> {
+lib\scheduler.ts:508:  
+      const finalTasks 
+= uniqueTasks.filter(ta
+sk => {
+lib\scheduler.ts:643:  
+          let 
+candidates = 
+staffList.filter(s => {
+lib\scheduler.ts:764:  
+                  
+candidates = 
+candidates.filter(s => 
+(competencyMap.get(s.id
+)?.get(tSN) ?? 3) >= 
+3);
+lib\scheduler.ts:788:  
+              
+candidates = 
+candidates.filter(s => 
+{
+lib\scheduler.ts:811:  
+                      .
+..newAssignments.filter
+(a => a.data === 
+task.date),
+lib\scheduler.ts:812:  
+                      .
+..existingAssignments.f
+ilter(a => a.data === 
+task.date),
+lib\scheduler.ts:813:  
+                  
+].filter(a => {
+lib\scheduler.ts:820:  
+                      
+candidates = 
+candidates.filter(s => 
+{
+lib\scheduler.ts:845:  
+          const 
+roleAssignedStaffIds = 
+Array.from(concurrentSt
+affIds).filter(sid => {
+lib\scheduler.ts:865:  
+          const 
+slotSeniorCount = Array
+.from(concurrentStaffId
+s).filter(sid => {
+lib\scheduler.ts:1124: 
+                   
+.filter(([_, count]) 
+=> count > 0)
+lib\scheduler.ts:1198: 
+       const 
+activeRows = 
+coverageRows.filter(r 
+=> {
+
+

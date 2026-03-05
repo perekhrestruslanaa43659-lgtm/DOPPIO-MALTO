@@ -4,7 +4,13 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import * as XLSX from 'xlsx';
+<<<<<<< Updated upstream
 import { Trash2, Edit2, Upload, Plus, X, Save, Grid3x3, List } from 'lucide-react';
+=======
+import { Trash2, Edit2, Upload, Plus, X, Save, Grid3x3, List, Eraser, Settings, Clock, Star, RotateCcw } from 'lucide-react';
+import StationsManagerModal from '@/components/StationsManagerModal';
+import AvailabilityManager from '@/components/AvailabilityManager';
+>>>>>>> Stashed changes
 
 interface Staff {
     id: number;
@@ -17,8 +23,62 @@ interface Staff {
     costoOra: number;
     postazioni: string[];
     skillLevel?: string;
+<<<<<<< Updated upstream
 }
 
+=======
+    contractType?: string;
+    listIndex?: number;
+    productivityWeight?: number;
+    archived?: boolean;
+}
+
+// Configurazione Categorie e Colori
+const CATEGORIE_POSTAZIONI = {
+    SALA: { color: 'blue', tag: ['CDR', 'B/S', 'ACC', 'BAR SU', 'BAR GIU', 'ACCOGLIENZA', 'ACC GIU'], label: 'Sala' },
+    CUCINA: { color: 'red', tag: ['BURGER', 'FRITTI', 'PIRA', 'PREPARAZIONE', 'DOLCI/INS', 'PIZZA'], label: 'Cucina' },
+    JOLLY: { color: 'yellow', tag: ['SCARICO', 'LAVAGGIO', 'JOLLY'], label: 'Servizi' }
+};
+
+const renderSkillLevel = (level: string) => {
+    const levels: any = { 'Senior': '⚡⚡⚡', 'Medium': '⚡⚡', 'In formazione': '⚡', 'SENIOR': '⚡⚡⚡', 'MEDIUM': '⚡⚡', 'JUNIOR': '⚡' };
+    return levels[level] || '⚡';
+};
+
+// Funzione di pulizia per la visualizzazione nelle card
+// Ora accetta callback interattive
+const interactPostazioni = (
+    postazioniRaw: string[],
+    onRemove: (p: string) => void,
+    readOnly: boolean = false
+) => {
+    // Rimuove duplicati come BARSU/BAR SU
+    const unique = [...new Set(postazioniRaw.map(p => p.replace('BARSU', 'BAR SU').replace('BARGIU', 'BAR GIU')))];
+
+    return unique.map(p => {
+        let category = Object.values(CATEGORIE_POSTAZIONI).find(c => c.tag.includes(p.toUpperCase())) || { color: 'gray' };
+        return (
+            <span key={p} className={`group relative px-2 py-1 rounded text-xs font-medium border mr-1 mb-1 inline-flex items-center gap-1
+        ${category.color === 'blue' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                    category.color === 'red' ? 'bg-red-50 text-red-700 border-red-200' :
+                        category.color === 'yellow' ? 'bg-yellow-50 text-yellow-800 border-yellow-200' :
+                            'bg-gray-50 text-gray-700 border-gray-200'}`}>
+                {p === 'CDR' ? 'CDR' : p}
+                {!readOnly && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onRemove(p); }}
+                        className="hidden group-hover:block p-0.5 hover:bg-red-100 hover:text-red-600 rounded-full"
+                        title="Rimuovi"
+                    >
+                        <X size={10} />
+                    </button>
+                )}
+            </span>
+        );
+    });
+};
+
+>>>>>>> Stashed changes
 export default function StaffPage() {
     const [staff, setStaff] = useState<Staff[]>([]);
     const [loading, setLoading] = useState(true);
@@ -38,7 +98,69 @@ export default function StaffPage() {
         skillLevel: 'MEDIUM'
     });
 
+<<<<<<< Updated upstream
     const availableStations = ['BAR SU', "BAR GIU'", 'B/S', 'PASS', 'CDR', 'ACC', 'CUCINA'];
+=======
+    const [availableStations, setAvailableStations] = useState(['BAR SU', "BAR GIU'", 'B/S', 'PASS', 'CDR', 'ACC', 'ACC GIU', 'CUCINA']);
+    const [newStation, setNewStation] = useState('');
+    const [showStationsManager, setShowStationsManager] = useState(false);
+    const [managingAvailability, setManagingAvailability] = useState<{ id: number; nome: string } | null>(null);
+    const [showArchived, setShowArchived] = useState(false);
+
+    const handleAddStation = (e?: any) => {
+        if (e) e.preventDefault();
+        if (!newStation) return;
+        const up = newStation.trim().toUpperCase();
+        if (!availableStations.includes(up)) {
+            setAvailableStations([...availableStations, up]);
+            setForm({ ...form, postazioni: [...form.postazioni, up] });
+        }
+        setNewStation('');
+    };
+
+    // Quick Update for Interactive Badges
+    const quickUpdateStations = async (id: number, currentStations: string[], station: string, action: 'add' | 'remove') => {
+        try {
+            let newStations = [...currentStations];
+            if (action === 'remove') {
+                newStations = newStations.filter(s => s !== station);
+            } else {
+                if (!newStations.includes(station)) newStations.push(station);
+            }
+
+            // Optimistic Update
+            setStaff(prev => prev.map(s => s.id === id ? { ...s, postazioni: newStations } : s));
+
+            await api.updateStaff(id, { postazioni: newStations });
+        } catch (e: any) {
+            alert("Errore aggiornamento rapido: " + e.message);
+            // Revert on error? Skipping for simplicity, usually safe.
+            loadStaff();
+        }
+    };
+
+    const quickUpdateCost = async (id: number, newCost: number) => {
+        try {
+            // Optimistic Update
+            setStaff(prev => prev.map(s => s.id === id ? { ...s, costoOra: newCost } : s));
+            await api.updateStaff(id, { costoOra: newCost });
+        } catch (e: any) {
+            alert("Errore aggiornamento costo: " + e.message);
+            loadStaff();
+        }
+    };
+
+    const quickUpdateHours = async (id: number, min: number, max: number) => {
+        try {
+            // Optimistic Update
+            setStaff(prev => prev.map(s => s.id === id ? { ...s, oreMinime: min, oreMassime: max } : s));
+            await api.updateStaff(id, { oreMinime: min, oreMassime: max });
+        } catch (e: any) {
+            alert("Errore aggiornamento ore: " + e.message);
+            loadStaff();
+        }
+    };
+>>>>>>> Stashed changes
 
     // Helper function to capitalize names properly
     const capitalizeName = (name: string) => {
@@ -52,15 +174,46 @@ export default function StaffPage() {
 
     useEffect(() => {
         loadStaff();
-    }, []);
+    }, [showArchived]);
 
     async function loadStaff() {
         setLoading(true);
         try {
+<<<<<<< Updated upstream
             const data = await api.getStaff();
             data.sort((a: any, b: any) => (a.listIndex ?? 999) - (b.listIndex ?? 999));
             setStaff(data);
         } catch (e) {
+=======
+            // Updated to fetch archived staff if showArchived is true
+            const data = await api.getStaff(showArchived);
+
+            data.sort((a: any, b: any) => {
+                // Primary: Role Priority (STRICT HIERARCHY)
+                const pA = getRolePriority(a);
+                const pB = getRolePriority(b);
+                if (pA !== pB) return pA - pB;
+
+                // Secondary: listIndex (for manual tweaks within same role)
+                const idxA = a.listIndex ?? 9999;
+                const idxB = b.listIndex ?? 9999;
+                if (idxA !== idxB) return idxA - idxB;
+
+                // Tertiary: Name
+                return (a.nome || '').localeCompare(b.nome || '');
+            });
+
+            // If we are showing archived, filter to ONLY archived.
+            // If we are NOT showing archived, the API already filtered them.
+            const finalData = showArchived ? data.filter((s: any) => s.archived) : data;
+
+            setStaff(finalData);
+
+            // Merge custom stations found in existing staff
+            const used = new Set(data.flatMap((s: any) => (s.postazioni || []) as string[]));
+            setAvailableStations(prev => Array.from(new Set([...prev, ...used])) as string[]);
+        } catch (e: any) {
+>>>>>>> Stashed changes
             console.error(e);
             alert('Errore caricamento staff');
         } finally {
@@ -122,11 +275,18 @@ export default function StaffPage() {
     }
 
     async function removeRow(id: number, nome: string) {
-        if (!confirm(`Eliminare ${nome}?`)) return;
+        if (!confirm(`Archiviare ${nome}? Lo staff archiviato non verrà più incluso nei turni automatici.`)) return;
         try {
-            await api.deleteStaff(id);
+            await api.deleteStaff(id); // By default, our API now archives
             await loadStaff();
-        } catch (e: any) { alert('Errore cancellazione: ' + e.message) }
+        } catch (e: any) { alert('Errore archiviazione: ' + e.message) }
+    }
+
+    async function restoreRow(id: number, nome: string) {
+        try {
+            await api.patchStaff(id, { archived: false });
+            await loadStaff();
+        } catch (e: any) { alert('Errore ripristino: ' + e.message) }
     }
 
     function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -250,6 +410,14 @@ export default function StaffPage() {
                             <List size={18} />
                         </button>
                     </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setShowArchived(!showArchived)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${showArchived ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                    >
+                        {showArchived ? 'Mostra Attivi' : 'Mostra Archiviati'}
+                    </button>
                 </div>
                 <div className="flex gap-2">
                     <button
@@ -432,6 +600,7 @@ export default function StaffPage() {
                                             </div>
                                         )}
 
+<<<<<<< Updated upstream
                                         <div className="grid grid-cols-2 gap-3">
                                             <div className="bg-gray-50 rounded-lg p-3">
                                                 <div className="text-xs text-gray-500 mb-1">Ore Contratto</div>
@@ -444,6 +613,302 @@ export default function StaffPage() {
                                                 </div>
                                             )}
                                         </div>
+=======
+                                                return (
+                                                    <div key={s.id} className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 hover:shadow-md dark:hover:shadow-indigo-900/10 transition-all duration-200 overflow-hidden group">
+                                                        {/* Header with Avatar */}
+                                                        <div className="p-6 pb-4">
+                                                            <div className="flex items-start gap-4">
+                                                                <div className={`w-14 h-14 rounded-full bg-gradient-to-br ${skillColor} flex items-center justify-center text-white font-bold text-lg shadow-md flex-shrink-0`}>
+                                                                    {initials}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <h3 className="text-lg font-bold text-gray-900 dark:text-white truncate">
+                                                                        {capitalizeName(s.nome)} {capitalizeName(s.cognome)}
+                                                                    </h3>
+                                                                    <div className="flex items-center gap-2 mt-1">
+                                                                        <span className="px-2.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-semibold">
+                                                                            {s.ruolo}
+                                                                        </span>
+                                                                        {s.productivityWeight !== undefined && s.productivityWeight !== 1.0 && (
+                                                                            <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded text-xs font-semibold border border-purple-200 dark:border-purple-800" title="Peso Produttività">
+                                                                                {s.productivityWeight * 100}%
+                                                                            </span>
+                                                                        )}
+                                                                        {s.skillLevel && (
+                                                                            <span className="ml-2 text-yellow-500 font-bold" title={s.skillLevel}>
+                                                                                {renderSkillLevel(s.skillLevel)}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Info Section */}
+                                                        <div className="px-6 pb-4 space-y-3">
+                                                            {s.email && (
+                                                                <div className="flex items-center gap-2 text-sm">
+                                                                    <svg className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                                                    </svg>
+                                                                    <span className="text-gray-600 dark:text-gray-300 truncate">{s.email}</span>
+                                                                </div>
+                                                            )}
+
+                                                            <div className="grid grid-cols-2 gap-3">
+                                                                <div className="bg-gray-50 dark:bg-slate-700/50 rounded-lg p-3 group relative hover:bg-white dark:hover:bg-slate-700 hover:shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-slate-600 transition">
+                                                                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 flex justify-between">
+                                                                        Ore Contratto
+                                                                        <Edit2 size={10} className="opacity-0 group-hover:opacity-50" />
+                                                                    </div>
+                                                                    <div className="flex items-center text-sm font-bold text-gray-900 dark:text-white gap-1">
+                                                                        <input
+                                                                            type="number"
+                                                                            className="bg-transparent outline-none w-10 text-center border-b border-transparent hover:border-gray-300 dark:hover:border-slate-500 focus:border-indigo-500 transition"
+                                                                            defaultValue={s.oreMinime}
+                                                                            onBlur={(e) => quickUpdateHours(s.id, parseInt(e.target.value) || 0, s.oreMassime)}
+                                                                            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                                                                        />
+                                                                        <span className="text-gray-400">-</span>
+                                                                        <input
+                                                                            type="number"
+                                                                            className="bg-transparent outline-none w-10 text-center border-b border-transparent hover:border-gray-300 dark:hover:border-slate-500 focus:border-indigo-500 transition"
+                                                                            defaultValue={s.oreMassime}
+                                                                            onBlur={(e) => quickUpdateHours(s.id, s.oreMinime, parseInt(e.target.value) || 0)}
+                                                                            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                                                                        />
+                                                                        <span className="text-gray-400 text-xs font-normal">h</span>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="bg-emerald-50 dark:bg-emerald-900/10 rounded-lg p-3 cursor-text hover:bg-emerald-100 dark:hover:bg-emerald-900/20 transition relative group">
+                                                                    <div className="text-xs text-emerald-600 dark:text-emerald-400 mb-1 flex justify-between">
+                                                                        Costo Orario
+                                                                        <Edit2 size={10} className="opacity-0 group-hover:opacity-50" />
+                                                                    </div>
+                                                                    <div className="flex items-center text-sm font-bold text-emerald-700 dark:text-emerald-300">
+                                                                        <span className="mr-1">€</span>
+                                                                        <input
+                                                                            type="number"
+                                                                            className="bg-transparent outline-none w-full"
+                                                                            defaultValue={s.costoOra}
+                                                                            onBlur={(e) => quickUpdateCost(s.id, parseFloat(e.target.value) || 0)}
+                                                                            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
+                                                            {s.postazioni.length > -1 && (
+                                                                <div>
+                                                                    <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Postazioni</div>
+                                                                    <div className="flex flex-wrap gap-1.5 items-center">
+                                                                        {interactPostazioni(s.postazioni, (p) => quickUpdateStations(s.id, s.postazioni, p, 'remove'))}
+                                                                        <div className="relative">
+                                                                            <button className="p-1 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded text-gray-600 dark:text-gray-300 transition">
+                                                                                <Plus size={12} />
+                                                                            </button>
+                                                                            <select
+                                                                                className="absolute inset-0 opacity-0 cursor-pointer w-full bg-slate-800"
+                                                                                value=""
+                                                                                onChange={(e) => {
+                                                                                    if (e.target.value) quickUpdateStations(s.id, s.postazioni, e.target.value, 'add');
+                                                                                }}
+                                                                            >
+                                                                                <option value="">+</option>
+                                                                                {availableStations.filter(as => !s.postazioni.includes(as)).sort().map(as => (
+                                                                                    <option key={as} value={as}>{as}</option>
+                                                                                ))}
+                                                                            </select>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Actions Footer */}
+                                                        <div className="px-6 py-3 bg-gray-50 dark:bg-slate-700/50 border-t border-gray-100 dark:border-slate-700 flex justify-end gap-2">
+                                                            <Link
+                                                                href={`/staff/${s.id}/competenze`}
+                                                                className="flex items-center gap-1.5 px-3 py-1.5 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 rounded-md transition text-sm font-medium"
+                                                                title="Valuta competenze"
+                                                            >
+                                                                <Star size={14} />
+                                                                Valuta
+                                                            </Link>
+                                                            <button
+                                                                onClick={() => startEdit(s)}
+                                                                className="flex items-center gap-1.5 px-3 py-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md transition text-sm font-medium"
+                                                                title="Modifica"
+                                                            >
+                                                                <Edit2 size={14} />
+                                                                Modifica
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setManagingAvailability({ id: s.id, nome: `${s.nome} ${s.cognome}` })}
+                                                                className="flex items-center gap-1.5 px-3 py-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-md transition text-sm font-medium"
+                                                                title="Disponibilità"
+                                                            >
+                                                                <Clock size={14} />
+                                                                Orari
+                                                            </button>
+                                                            {showArchived ? (
+                                                                <button
+                                                                    onClick={() => restoreRow(s.id, s.nome)}
+                                                                    className="flex items-center gap-1.5 px-3 py-1.5 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-md transition text-sm font-medium"
+                                                                    title="Ripristina"
+                                                                >
+                                                                    <RotateCcw size={14} />
+                                                                    Ripristina
+                                                                </button>
+                                                            ) : (
+                                                                <button
+                                                                    onClick={() => removeRow(s.id, s.nome)}
+                                                                    className="flex items-center gap-1.5 px-3 py-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md transition text-sm font-medium"
+                                                                    title="Archivia"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                    Archivia
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    ) : (
+                                        // LIST VIEW (Table)
+                                        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden transition-colors">
+                                            <table className="w-full text-left border-collapse">
+                                                <thead className="bg-gray-50 dark:bg-slate-700/50 border-b border-gray-200 dark:border-slate-700">
+                                                    <tr>
+                                                        <th className="p-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nome</th>
+                                                        <th className="p-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ruolo</th>
+                                                        <th className="p-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
+                                                        <th className="p-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ore (Min-Max)</th>
+                                                        <th className="p-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Costo</th>
+                                                        <th className="p-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Postazioni</th>
+                                                        <th className="p-4 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-right">Azioni</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
+                                                    {sectionStaff.map(s => (
+                                                        <tr key={s.id} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition">
+                                                            <td className="p-4 font-medium text-gray-900 dark:text-white">
+                                                                {capitalizeName(s.nome)} {capitalizeName(s.cognome)}
+                                                            </td>
+                                                            <td className="p-4 text-gray-600 dark:text-gray-300">
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    <span className="px-2 py-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded text-xs font-semibold w-fit">{s.ruolo}</span>
+                                                                    {s.productivityWeight !== undefined && s.productivityWeight !== 1.0 && (
+                                                                        <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 rounded text-xs font-semibold border border-purple-200 dark:border-purple-800 w-fit" title="Peso Produttività">
+                                                                            {s.productivityWeight * 100}%
+                                                                        </span>
+                                                                    )}
+                                                                    {s.skillLevel && (
+                                                                        <span className="text-yellow-500 font-bold ml-1" title={s.skillLevel}>
+                                                                            {renderSkillLevel(s.skillLevel)}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                            <td className="p-4 text-gray-500 dark:text-gray-400 text-sm">{s.email || '-'}</td>
+                                                            <td className="p-4 text-gray-600 dark:text-gray-400 text-sm">
+                                                                <div className="flex items-center gap-1 group">
+                                                                    <input
+                                                                        type="number"
+                                                                        className="bg-transparent outline-none w-8 text-center border-b border-transparent hover:border-gray-300 dark:hover:border-slate-500 focus:border-indigo-500 transition"
+                                                                        defaultValue={s.oreMinime}
+                                                                        onBlur={(e) => quickUpdateHours(s.id, parseInt(e.target.value) || 0, s.oreMassime)}
+                                                                        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                                                                    />
+                                                                    <span>-</span>
+                                                                    <input
+                                                                        type="number"
+                                                                        className="bg-transparent outline-none w-8 text-center border-b border-transparent hover:border-gray-300 dark:hover:border-slate-500 focus:border-indigo-500 transition"
+                                                                        defaultValue={s.oreMassime}
+                                                                        onBlur={(e) => quickUpdateHours(s.id, s.oreMinime, parseInt(e.target.value) || 0)}
+                                                                        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                                                                    />
+                                                                    <span className="opacity-0 group-hover:opacity-50 ml-1"><Edit2 size={10} /></span>
+                                                                </div>
+                                                            </td>
+                                                            <td className="p-4 text-gray-600 dark:text-gray-400 text-sm w-32">
+                                                                <div className="flex items-center bg-gray-50 dark:bg-slate-700/50 rounded px-2 py-1 w-full border border-transparent hover:border-gray-300 dark:hover:border-slate-600 transition">
+                                                                    <span className="text-gray-400 mr-1">€</span>
+                                                                    <input
+                                                                        type="number"
+                                                                        className="bg-transparent outline-none w-full font-medium text-gray-700 dark:text-gray-300"
+                                                                        defaultValue={s.costoOra}
+                                                                        onBlur={(e) => quickUpdateCost(s.id, parseFloat(e.target.value) || 0)}
+                                                                        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+                                                                    />
+                                                                </div>
+                                                            </td>
+                                                            <td className="p-4">
+                                                                <div className="flex flex-wrap gap-1 items-center">
+                                                                    {interactPostazioni(s.postazioni, (p) => quickUpdateStations(s.id, s.postazioni, p, 'remove'))}
+                                                                    <div className="relative inline-block align-middle">
+                                                                        <button className="p-0.5 bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded text-gray-600 dark:text-gray-400 transition">
+                                                                            <Plus size={10} />
+                                                                        </button>
+                                                                        <select
+                                                                            className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                                                                            value=""
+                                                                            onChange={(e) => {
+                                                                                if (e.target.value) quickUpdateStations(s.id, s.postazioni, e.target.value, 'add');
+                                                                            }}
+                                                                        >
+                                                                            <option value="">+</option>
+                                                                            {availableStations.filter(as => !s.postazioni.includes(as)).sort().map(as => (
+                                                                                <option key={as} value={as}>{as}</option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td className="p-4 text-right">
+                                                                <div className="flex justify-end gap-2">
+                                                                    <Link
+                                                                        href={`/staff/${s.id}/competenze`}
+                                                                        className="p-1.5 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/30 rounded-md transition"
+                                                                        title="Valuta competenze"
+                                                                    >
+                                                                        <Star size={16} />
+                                                                    </Link>
+                                                                    <button
+                                                                        onClick={() => startEdit(s)}
+                                                                        className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md transition"
+                                                                        title="Modifica"
+                                                                    >
+                                                                        <Edit2 size={16} />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => setManagingAvailability({ id: s.id, nome: `${s.nome} ${s.cognome}` })}
+                                                                        className="p-1.5 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-md transition"
+                                                                        title="Disponibilità"
+                                                                    >
+                                                                        <Clock size={16} />
+                                                                    </button>
+                                                                    {showArchived ? (
+                                                                        <button
+                                                                            onClick={() => restoreRow(s.id, s.nome)}
+                                                                            className="p-1.5 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded-md transition"
+                                                                            title="Ripristina"
+                                                                        >
+                                                                            <RotateCcw size={16} />
+                                                                        </button>
+                                                                    ) : (
+                                                                        <button
+                                                                            onClick={() => removeRow(s.id, s.nome)}
+                                                                            className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md transition"
+                                                                            title="Archivia"
+                                                                        >
+                                                                            <Trash2 size={16} />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+>>>>>>> Stashed changes
 
                                         {s.postazioni.length > 0 && (
                                             <div>

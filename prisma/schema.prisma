@@ -8,26 +8,31 @@ datasource db {
 }
 
 model Staff {
-  id                Int                 @id @default(autoincrement())
-  nome              String
-  cognome           String              @default("")
-  ruolo             String
-  email             String?
-  oreMinime         Int                 @default(0)
-  oreMassime        Int                 @default(40)
-  costoOra          Float               @default(0)
-  listIndex         Int
-  fixedShifts       String?             @default("{}")
-  createdAt         DateTime            @default(now())
-  moltiplicatore    Float               @default(1.0)
-  postazioni        String              @default("[]")
-  tenantKey         String              @default("default-tenant")
-  skillLevel        String              @default("MEDIUM") // JUNIOR, MEDIUM, SENIOR
-  incompatibilityId String?             // If set, staff with same ID invalid to work together
-  assignments       Assignment[]
-  PermissionRequest PermissionRequest[]
-  recurringShifts   RecurringShift[]
-  unavailabilities  Unavailability[]
+  id                 Int                 @id @default(autoincrement())
+  nome               String
+  cognome            String              @default("")
+  ruolo              String
+  email              String?
+  oreMinime          Int                 @default(0)
+  oreMassime         Int                 @default(40)
+  costoOra           Float               @default(0)
+  listIndex          Int
+  fixedShifts        String?             @default("{}")
+  createdAt          DateTime            @default(now())
+  moltiplicatore     Float               @default(1.0)
+  postazioni         String              @default("[]")
+  tenantKey          String              @default("default-tenant")
+  incompatibilityId  String?
+  skillLevel         String              @default("MEDIUM")
+  contractType       String              @default("STANDARD")
+  productivityWeight Float               @default(1.0)
+  archived           Boolean             @default(false)
+  assignments        Assignment[]
+  // availability       Availability[]
+  PermissionRequest  PermissionRequest[]
+  recurringShifts    RecurringShift[]
+  unavailabilities   Unavailability[]
+  // competencies       StaffCompetency[]
 
   @@unique([email, tenantKey])
   @@index([tenantKey])

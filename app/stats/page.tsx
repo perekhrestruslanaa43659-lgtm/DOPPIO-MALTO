@@ -54,9 +54,12 @@ export default function AbsencesStatsPage() {
                 api.getUnavailability(period.start, period.end)
             ]);
 
-            const relevantUnavail = (unavail as any[]).filter(u => u.data >= period.start && u.data <= period.end);
+            const safeUnavail = Array.isArray(unavail) ? unavail : [];
+            const safeStaff = Array.isArray(staffList) ? staffList : [];
 
-            const report: StatRow[] = (staffList as Staff[]).map(s => {
+            const relevantUnavail = safeUnavail.filter(u => u.data >= period.start && u.data <= period.end);
+
+            const report: StatRow[] = safeStaff.map(s => {
                 const myUnavail = relevantUnavail.filter(u => u.staffId === s.id);
                 let totalHours = 0;
                 let daysArr = 0;

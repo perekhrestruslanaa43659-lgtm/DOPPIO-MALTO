@@ -59,7 +59,7 @@ export const api = {
     updateSettings: (data: any) => request('/settings', { method: 'PUT', body: JSON.stringify(data) }),
 
     // --- Staff ---
-    getStaff: () => request('/staff'),
+    getStaff: (includeArchived?: boolean) => request(`/staff${includeArchived ? '?includeArchived=true' : ''}`),
     updateStaff: (id: number, data: any) => request(`/staff?id=${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     upsertStaff: (data: any) => request('/staff', { method: 'POST', body: JSON.stringify(data) }),
     deleteStaff: (id: number) => request(`/staff?id=${id}`, { method: 'DELETE' }),
@@ -115,6 +115,7 @@ export const api = {
     approveRequest: (id: string, response: string) => request(`/permission-requests/${id}/approve`, { method: 'POST', body: JSON.stringify({ adminResponse: response }) }),
     rejectRequest: (id: string, response: string) => request(`/permission-requests/${id}/reject`, { method: 'POST', body: JSON.stringify({ adminResponse: response }) }),
     deletePermissionRequest: (id: string | number) => request(`/permission-requests/${id}`, { method: 'DELETE' }),
+    deleteMultiplePermissionRequests: (ids: (number | string)[]) => request('/permission-requests', { method: 'DELETE', body: JSON.stringify({ ids }) }),
     getPendingRequestsCount: () => request('/permission-requests/count'),
 
     // --- AI ---

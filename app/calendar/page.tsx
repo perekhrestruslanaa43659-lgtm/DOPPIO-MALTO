@@ -421,458 +421,458 @@ export default function CalendarPage() {
                             </select>
                         </div>
                     </div>
-
-                    <div className="text-sm text-gray-600">
-                        {range.start.split('-').reverse().join('/')} - {range.end.split('-').reverse().join('/')}
-                    </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    {missingShifts.length > 0 && (
-                        <button
-                            onClick={() => setShowMissingModal(true)}
-                            className="flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white rounded hover:bg-amber-600 text-xs font-bold transition animate-pulse"
-                        >
-                            <AlertTriangle size={14} />
-                            {missingShifts.length} Mancanti
-                        </button>
-                    )}
-                    <button onClick={generate} className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-xs font-bold transition">
-                        <Wand2 size={14} /> AI Expert
-                    </button>
-                    <div className="h-6 w-px bg-gray-300 mx-1"></div>
-                    <button
-                        onClick={() => setPanarelloActive(!panarelloActive)}
-                        className={`p-2 rounded transition ${panarelloActive ? 'bg-yellow-300 shadow-md ring-2 ring-yellow-400' : 'bg-gray-200 text-gray-600'}`}
-                        title="Modalità Panarello (Conferma Rapida)"
-                    >
-                        <Paintbrush size={16} />
-                    </button>
-                    <button onClick={clearAll} className="p-2 bg-red-100 text-red-600 rounded hover:bg-red-200 transition" title="Cancella Tutto">
-                        <Trash2 size={16} />
-                    </button>
-                    <div className="bg-gray-100 flex gap-4 px-3 py-1.5 rounded items-center text-xs">
-                        <div><span className="text-gray-500">Bdgt:</span> <strong>{stats.totalContractHours}h</strong></div>
-                        <div><span className="text-gray-500">Eff:</span> <strong>{stats.totalAssignedHours.toLocaleString(undefined, { maximumFractionDigits: 1 })}h</strong></div>
-                        <div className={`${stats.diff >= 0 ? 'text-green-600' : 'text-red-600'}`}><strong>Diff: {stats.diff.toFixed(1)}h</strong></div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Calendar Grid */}
-            <div className="flex-1 overflow-auto relative">
-                <table className="w-full border-collapse text-xs min-w-[1800px]">
-                    <thead className="bg-white sticky top-0 z-20 shadow-sm text-gray-600">
-                        <tr>
-                            <th className="sticky left-0 bg-white border-b border-r p-2 min-w-[40px] z-30">#</th>
-                            <th className="sticky left-[40px] bg-white border-b border-r p-2 min-w-[150px] text-left z-30">Staff</th>
-                            <th className="sticky left-[190px] bg-white border-b border-r p-2 min-w-[50px] z-30">Ctr.</th>
-                            <th className="sticky left-[240px] bg-white border-b border-r p-2 min-w-[50px] z-30">Eff.</th>
-                            {days.map((d, i) => (
-                                <th key={d} colSpan={6} className="border-b border-r p-1 text-center bg-gray-50">
-                                    <div className="font-bold text-gray-800">{new Date(d).toLocaleDateString('it-IT', { weekday: 'short' })}</div>
-                                    <div className="text-[10px] text-gray-500">{d.split('-').slice(1).join('/')}</div>
-                                </th>
-                            ))}
-                        </tr>
-                        <tr>
-                            <th className="sticky left-0 bg-white border-b border-r z-30"></th>
-                            <th className="sticky left-[40px] bg-white border-b border-r z-30"></th>
-                            <th className="sticky left-[190px] bg-white border-b border-r z-30"></th>
-                            <th className="sticky left-[240px] bg-white border-b border-r z-30"></th>
-                            {days.map(d => (
-                                <React.Fragment key={d + '_sub'}>
-                                    <th className="bg-blue-50/50 border-b border-gray-200 text-[9px] w-10 text-center font-normal">IN</th>
-                                    <th className="bg-blue-50/50 border-b border-gray-200 text-[9px] w-10 text-center font-normal">OUT</th>
-                                    <th className="bg-blue-50/50 border-b border-r border-gray-200 text-[9px] w-12 text-center font-normal">POST</th>
-                                    <th className="bg-indigo-50/50 border-b border-gray-200 text-[9px] w-10 text-center font-normal">IN</th>
-                                    <th className="bg-indigo-50/50 border-b border-gray-200 text-[9px] w-10 text-center font-normal">OUT</th>
-                                    <th className="bg-indigo-50/50 border-b border-r-2 border-gray-300 text-[9px] w-12 text-center font-normal">POST</th>
-                                </React.Fragment>
-                            ))}
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white">
-                        {staff.map((s, idx) => {
-                            let totalHours = 0;
-                            // Calculate total for this row
-                            Object.values(matrix[s.id] || {}).flat().forEach(a => {
-                                const st = a.start_time || a.shiftTemplate?.oraInizio;
-                                const et = a.end_time || a.shiftTemplate?.oraFine;
-                                if (st && et) totalHours += calcHours(st, et);
-                            });
-
-                            // Budget checks
-                            const budgetDiff = totalHours - (s.oreMassime || 0);
-                            const budgetColor = budgetDiff > 2 ? 'bg-red-50 text-red-700' : (budgetDiff < -2 ? 'bg-blue-50 text-blue-700' : 'text-gray-600');
-
-                            return (
-                                <tr key={s.id} className="hover:bg-gray-50 border-b border-gray-100 group">
-                                    <td className="sticky left-0 bg-white border-r p-2 text-center text-gray-400 group-hover:bg-gray-50 z-10">{idx + 1}</td>
-                                    <td className="sticky left-[40px] bg-white border-r p-2 font-medium text-gray-800 text-left group-hover:bg-gray-50 z-10 truncate max-w-[150px]">{s.nome} {s.cognome}</td>
-                                    <td className="sticky left-[190px] bg-white border-r p-2 text-center text-gray-500 group-hover:bg-gray-50 z-10">{s.oreMassime}</td>
-                                    <td className={`sticky left-[240px] bg-white border-r p-2 text-center font-bold z-10 ${budgetColor} group-hover:bg-gray-50`}>{totalHours.toFixed(1)}</td>
-                                    {days.map(d => {
-                                        const lunch = getShift(s.id, d, 'PRANZO');
-                                        const dinner = getShift(s.id, d, 'SERA');
-
-                                        const renderCell = (asn: Assignment | undefined, type: string, bgColor: string) => {
-                                            // Check unavailability
-                                            const unavail = s.unavailabilities.find((u: any) => u.data.startsWith(d) && (u.tipo === 'TOTALE' || u.tipo === (type.includes('Pranzo') ? 'PRANZO' : 'SERA')));
-
-                                            if (unavail) {
-                                                return { bg: 'bg-red-100', text: 'N/A', disabled: true };
-                                            }
-
-                                            if (!asn) return { bg: bgColor, text: '', disabled: false };
-
-                                            let text = '';
-                                            if (type.includes('Post')) text = asn.postazione || '-';
-                                            else {
-                                                const st = asn.start_time || asn.shiftTemplate?.oraInizio;
-                                                const et = asn.end_time || asn.shiftTemplate?.oraFine;
-                                                if (type.includes('In')) text = st || '';
-                                                if (type.includes('Out')) text = et || '';
-                                            }
-
-                                            // Status Color
-                                            let bg = bgColor;
-                                            if (asn && type.includes('Post')) bg = asn.status ? 'bg-green-100 text-green-800 font-bold' : 'bg-yellow-50 text-yellow-800';
-
-                                            return { bg, text, disabled: false };
-                                        };
-
-                                        // Lunch Cells
-                                        const lIn = renderCell(lunch, 'Turno1_In', 'bg-white');
-                                        const lOut = renderCell(lunch, 'Turno1_Out', 'bg-white');
-                                        const lPost = renderCell(lunch, 'Turno1_Post', 'bg-white');
-
-                                        // Dinner Cells
-                                        const dIn = renderCell(dinner, 'Turno2_In', 'bg-gray-50/30');
-                                        const dOut = renderCell(dinner, 'Turno2_Out', 'bg-gray-50/30');
-                                        const dPost = renderCell(dinner, 'Turno2_Post', 'bg-gray-50/30');
-
-                                        return (
-                                            <React.Fragment key={d}>
-                                                <td onClick={() => !lIn.disabled && handleCellClick(s.id, d, 'Pranzo_In', lunch)} className={`border-r border-gray-100 p-1 text-center cursor-pointer hover:brightness-95 ${lIn.bg}`}>{lIn.text}</td>
-                                                <td onClick={() => !lOut.disabled && handleCellClick(s.id, d, 'Pranzo_Out', lunch)} className={`border-r border-gray-100 p-1 text-center cursor-pointer hover:brightness-95 ${lOut.bg}`}>{lOut.text}</td>
-                                                <td onClick={() => !lPost.disabled && handleCellClick(s.id, d, 'Pranzo_Post', lunch)} className={`border-r-2 border-gray-200 p-1 text-center cursor-pointer hover:brightness-95 ${lPost.bg} text-[10px]`}>{lPost.text}</td>
-
-                                                <td onClick={() => !dIn.disabled && handleCellClick(s.id, d, 'Sera_In', dinner)} className={`border-r border-gray-100 p-1 text-center cursor-pointer hover:brightness-95 ${dIn.bg}`}>{dIn.text}</td>
-                                                <td onClick={() => !dOut.disabled && handleCellClick(s.id, d, 'Sera_Out', dinner)} className={`border-r border-gray-100 p-1 text-center cursor-pointer hover:brightness-95 ${dOut.bg}`}>{dOut.text}</td>
-                                                <td onClick={() => !dPost.disabled && handleCellClick(s.id, d, 'Sera_Post', dinner)} className={`border-r-2 border-gray-300 p-1 text-center cursor-pointer hover:brightness-95 ${dPost.bg} text-[10px]`}>{dPost.text}</td>
-                                            </React.Fragment>
-                                        );
-                                    })}
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                    <tfoot className="bg-white sticky bottom-0 z-40 font-sans shadow-[0_-4px_20px_rgba(0,0,0,0.08)] border-t border-indigo-100">
-                        {(() => {
-                            // --- Calculation Logic for Footer ---
-                            const statsMap = days.map((d, dayIdx) => {
-                                const budget = budgets.find((b: any) => b.data === d);
-                                let realLunch = 0;
-                                let realDinner = 0;
-
-                                staff.forEach(s => {
-                                    const asns = matrix[s.id]?.[d] || [];
-                                    asns.forEach(a => {
-                                        const st = a.start_time || a.shiftTemplate?.oraInizio;
-                                        const et = a.end_time || a.shiftTemplate?.oraFine;
-                                        if (!st || !et) return;
-
-                                        // Safe time parsing
-                                        const parseTime = (timeStr: string) => {
-                                            const cleaned = timeStr.trim().split(' ')[0];
-                                            const parts = cleaned.split(':');
-                                            if (parts.length !== 2) return null;
-                                            const h = parseInt(parts[0]);
-                                            const m = parseInt(parts[1]);
-                                            if (isNaN(h) || isNaN(m)) return null;
-                                            return h + m / 60;
-                                        };
-
-                                        const starts = parseTime(st);
-                                        const ends = parseTime(et);
-
-                                        if (starts === null || ends === null) return;
-
-                                        let endsAdjusted = ends;
-                                        if (ends < starts) endsAdjusted = ends + 24;
-
-                                        const cutoff = 16.0;
-                                        const lunchEnd = Math.min(endsAdjusted, cutoff);
-                                        realLunch += Math.max(0, lunchEnd - starts);
-
-                                        const dinnerStart = Math.max(starts, cutoff);
-                                        realDinner += Math.max(0, endsAdjusted - dinnerStart);
-                                    });
-                                });
-
-                                // Get forecast data for this day
-                                const budgetHours = getForecastValue('ore budget', dayIdx); // Total Daily Budget Hours
-                                const budgetLunch_Revenue = getForecastValue('budget pranzo', dayIdx);
-                                const budgetDinner_Revenue = getForecastValue('budget cena', dayIdx);
-                                const realLunch_Revenue = getForecastValue('real pranzo', dayIdx);
-                                const realDinner_Revenue = getForecastValue('real cena', dayIdx);
-
-                                // Use explicit day hours if available, otherwise split total
-                                // Ideally 'ore budget' is daily. We split by revenue weight.
-                                const totalBudgetRevenue = budgetLunch_Revenue + budgetDinner_Revenue;
-
-                                const budgetLunchHours = totalBudgetRevenue > 0
-                                    ? budgetHours * (budgetLunch_Revenue / totalBudgetRevenue)
-                                    : budgetHours * 0.5;
-
-                                const budgetDinnerHours = totalBudgetRevenue > 0
-                                    ? budgetHours * (budgetDinner_Revenue / totalBudgetRevenue)
-                                    : budgetHours * 0.5;
-
-                                return {
-                                    date: d,
-                                    realLunch: isFinite(realLunch) ? realLunch : 0,
-                                    realDinner: isFinite(realDinner) ? realDinner : 0,
-                                    budgetLunch: isFinite(budgetLunchHours) ? budgetLunchHours : 0,
-                                    budgetDinner: isFinite(budgetDinnerHours) ? budgetDinnerHours : 0,
-
-                                    // Revenues
-                                    revLunch_Real: realLunch_Revenue,
-                                    revDinner_Real: realDinner_Revenue,
-                                    revLunch_Budget: budgetLunch_Revenue,
-                                    revDinner_Budget: budgetDinner_Revenue,
-                                };
-                            });
-
-                            const SummaryRow = ({ label, icon: Icon, accessor, format, type, highlightDiff }: any) => (
-                                <tr className="group transition-colors hover:bg-indigo-50/30">
-                                    <td colSpan={4} className="py-3 px-4 text-right bg-white border-r border-indigo-50">
-                                        <div className="flex items-center justify-end gap-2 text-indigo-900 font-semibold text-xs uppercase tracking-wider">
-                                            {Icon && <Icon size={14} className="text-indigo-400" />}
-                                            {label}
+                                            <div className="text-sm text-gray-600">
+                                                {range.start.split('-').reverse().join('/')} - {range.end.split('-').reverse().join('/')}
+                                            </div>
                                         </div>
-                                    </td>
-                                    {statsMap.map((s, i) => {
-                                        const valL = accessor({ ...s, type: 'LUNCH' });
-                                        const valD = accessor({ ...s, type: 'DINNER' });
 
-                                        // Dynamic Styling based on Row Type
-                                        let classL = "text-gray-600";
-                                        let classD = "text-gray-600";
-                                        let bgL = "";
-                                        let bgD = "";
+                                        <div className="flex items-center gap-2">
+                                            {missingShifts.length > 0 && (
+                                                <button
+                                                    onClick={() => setShowMissingModal(true)}
+                                                    className="flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white rounded hover:bg-amber-600 text-xs font-bold transition animate-pulse"
+                                                >
+                                                    <AlertTriangle size={14} />
+                                                    {missingShifts.length} Mancanti
+                                                </button>
+                                            )}
+                                            <button onClick={generate} className="flex items-center gap-1 px-3 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-xs font-bold transition">
+                                                <Wand2 size={14} /> AI Expert
+                                            </button>
+                                            <div className="h-6 w-px bg-gray-300 mx-1"></div>
+                                            <button
+                                                onClick={() => setPanarelloActive(!panarelloActive)}
+                                                className={`p-2 rounded transition ${panarelloActive ? 'bg-yellow-300 shadow-md ring-2 ring-yellow-400' : 'bg-gray-200 text-gray-600'}`}
+                                                title="Modalità Panarello (Conferma Rapida)"
+                                            >
+                                                <Paintbrush size={16} />
+                                            </button>
+                                            <button onClick={clearAll} className="p-2 bg-red-100 text-red-600 rounded hover:bg-red-200 transition" title="Cancella Tutto">
+                                                <Trash2 size={16} />
+                                            </button>
+                                            <div className="bg-gray-100 flex gap-4 px-3 py-1.5 rounded items-center text-xs">
+                                                <div><span className="text-gray-500">Bdgt:</span> <strong>{stats.totalContractHours}h</strong></div>
+                                                <div><span className="text-gray-500">Eff:</span> <strong>{stats.totalAssignedHours.toLocaleString(undefined, { maximumFractionDigits: 1 })}h</strong></div>
+                                                <div className={`${stats.diff >= 0 ? 'text-green-600' : 'text-red-600'}`}><strong>Diff: {stats.diff.toFixed(1)}h</strong></div>
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                        if (highlightDiff) {
-                                            // Compare Real vs Budget
-                                            const bL = accessor({ ...s, type: 'LUNCH', mode: 'BUDGET' });
-                                            const bD = accessor({ ...s, type: 'DINNER', mode: 'BUDGET' });
-                                            const rL = valL; // Assumes valL is REAL
-                                            const rD = valD;
+                                    {/* Calendar Grid */}
+                                    <div className="flex-1 overflow-auto relative">
+                                        <table className="w-full border-collapse text-xs min-w-[1800px]">
+                                            <thead className="bg-white sticky top-0 z-20 shadow-sm text-gray-600">
+                                                <tr>
+                                                    <th className="sticky left-0 bg-white border-b border-r p-2 min-w-[40px] z-30">#</th>
+                                                    <th className="sticky left-[40px] bg-white border-b border-r p-2 min-w-[150px] text-left z-30">Staff</th>
+                                                    <th className="sticky left-[190px] bg-white border-b border-r p-2 min-w-[50px] z-30">Ctr.</th>
+                                                    <th className="sticky left-[240px] bg-white border-b border-r p-2 min-w-[50px] z-30">Eff.</th>
+                                                    {days.map((d, i) => (
+                                                        <th key={d} colSpan={6} className="border-b border-r p-1 text-center bg-gray-50">
+                                                            <div className="font-bold text-gray-800">{new Date(d).toLocaleDateString('it-IT', { weekday: 'short' })}</div>
+                                                            <div className="text-[10px] text-gray-500">{d.split('-').slice(1).join('/')}</div>
+                                                        </th>
+                                                    ))}
+                                                </tr>
+                                                <tr>
+                                                    <th className="sticky left-0 bg-white border-b border-r z-30"></th>
+                                                    <th className="sticky left-[40px] bg-white border-b border-r z-30"></th>
+                                                    <th className="sticky left-[190px] bg-white border-b border-r z-30"></th>
+                                                    <th className="sticky left-[240px] bg-white border-b border-r z-30"></th>
+                                                    {days.map(d => (
+                                                        <React.Fragment key={d + '_sub'}>
+                                                            <th className="bg-blue-50/50 border-b border-gray-200 text-[9px] w-10 text-center font-normal">IN</th>
+                                                            <th className="bg-blue-50/50 border-b border-gray-200 text-[9px] w-10 text-center font-normal">OUT</th>
+                                                            <th className="bg-blue-50/50 border-b border-r border-gray-200 text-[9px] w-12 text-center font-normal">POST</th>
+                                                            <th className="bg-indigo-50/50 border-b border-gray-200 text-[9px] w-10 text-center font-normal">IN</th>
+                                                            <th className="bg-indigo-50/50 border-b border-gray-200 text-[9px] w-10 text-center font-normal">OUT</th>
+                                                            <th className="bg-indigo-50/50 border-b border-r-2 border-gray-300 text-[9px] w-12 text-center font-normal">POST</th>
+                                                        </React.Fragment>
+                                                    ))}
+                                                </tr>
+                                            </thead>
+                                            <tbody className="bg-white">
+                                                {staff.map((s, idx) => {
+                                                    let totalHours = 0;
+                                                    // Calculate total for this row
+                                                    Object.values(matrix[s.id] || {}).flat().forEach(a => {
+                                                        const st = a.start_time || a.shiftTemplate?.oraInizio;
+                                                        const et = a.end_time || a.shiftTemplate?.oraFine;
+                                                        if (st && et) totalHours += calcHours(st, et);
+                                                    });
 
-                                            const diffL = bL ? rL - bL : 0;
-                                            const diffD = bD ? rD - bD : 0;
+                                                    // Budget checks
+                                                    const budgetDiff = totalHours - (s.oreMassime || 0);
+                                                    const budgetColor = budgetDiff > 2 ? 'bg-red-50 text-red-700' : (budgetDiff < -2 ? 'bg-blue-50 text-blue-700' : 'text-gray-600');
 
-                                            if (diffL > 2) { classL = "text-red-600 font-bold"; bgL = "bg-red-50"; }
-                                            if (diffL < -2 && bL) { classL = "text-emerald-600 font-bold"; bgL = "bg-emerald-50"; }
+                                                    return (
+                                                        <tr key={s.id} className="hover:bg-gray-50 border-b border-gray-100 group">
+                                                            <td className="sticky left-0 bg-white border-r p-2 text-center text-gray-400 group-hover:bg-gray-50 z-10">{idx + 1}</td>
+                                                            <td className="sticky left-[40px] bg-white border-r p-2 font-medium text-gray-800 text-left group-hover:bg-gray-50 z-10 truncate max-w-[150px]">{s.nome} {s.cognome}</td>
+                                                            <td className="sticky left-[190px] bg-white border-r p-2 text-center text-gray-500 group-hover:bg-gray-50 z-10">{s.oreMassime}</td>
+                                                            <td className={`sticky left-[240px] bg-white border-r p-2 text-center font-bold z-10 ${budgetColor} group-hover:bg-gray-50`}>{totalHours.toFixed(1)}</td>
+                                                            {days.map(d => {
+                                                                const lunch = getShift(s.id, d, 'PRANZO');
+                                                                const dinner = getShift(s.id, d, 'SERA');
 
-                                            if (diffD > 2) { classD = "text-red-600 font-bold"; bgD = "bg-red-50"; }
-                                            if (diffD < -2 && bD) { classD = "text-emerald-600 font-bold"; bgD = "bg-emerald-50"; }
-                                        }
+                                                                const renderCell = (asn: Assignment | undefined, type: string, bgColor: string) => {
+                                                                    // Check unavailability
+                                                                    const unavail = s.unavailabilities.find((u: any) => u.data.startsWith(d) && (u.tipo === 'TOTALE' || u.tipo === (type.includes('Pranzo') ? 'PRANZO' : 'SERA')));
 
-                                        if (type === 'PROD') {
-                                            // Produttività formatting
-                                            classL = valL > 0 ? "text-indigo-700 font-bold" : "text-gray-300";
-                                            classD = valD > 0 ? "text-indigo-700 font-bold" : "text-gray-300";
-                                            if (valL > 0) bgL = "bg-indigo-50/50";
-                                            if (valD > 0) bgD = "bg-indigo-50/50";
-                                        }
+                                                                    if (unavail) {
+                                                                        return { bg: 'bg-red-100', text: 'N/A', disabled: true };
+                                                                    }
 
-                                        if (type === 'MONEY') {
-                                            classL = valL > 0 ? "text-gray-700 font-medium" : "text-gray-300";
-                                            classD = valD > 0 ? "text-gray-700 font-medium" : "text-gray-300";
-                                        }
+                                                                    if (!asn) return { bg: bgColor, text: '', disabled: false };
 
-                                        return (
-                                            <React.Fragment key={i}>
-                                                <td colSpan={3} className={`p-2 text-center border-r border-indigo-50 text-xs ${classL} ${bgL}`}>
-                                                    {format(valL)}
-                                                </td>
-                                                <td colSpan={3} className={`p-2 text-center border-r border-indigo-100/50 text-xs ${classD} ${bgD}`}>
-                                                    {format(valD)}
-                                                </td>
-                                            </React.Fragment>
-                                        )
-                                    })}
-                                </tr>
-                            );
+                                                                    let text = '';
+                                                                    if (type.includes('Post')) text = asn.postazione || '-';
+                                                                    else {
+                                                                        const st = asn.start_time || asn.shiftTemplate?.oraInizio;
+                                                                        const et = asn.end_time || asn.shiftTemplate?.oraFine;
+                                                                        if (type.includes('In')) text = st || '';
+                                                                        if (type.includes('Out')) text = et || '';
+                                                                    }
 
-                            return (
-                                <>
-                                    <SummaryRow
-                                        label="Ore Reali"
-                                        icon={Clock}
-                                        type="REAL"
-                                        highlightDiff={true}
-                                        accessor={(ctx: any) => {
-                                            if (ctx.mode === 'BUDGET') return ctx.type === 'LUNCH' ? ctx.budgetLunch : ctx.budgetDinner;
-                                            return ctx.type === 'LUNCH' ? ctx.realLunch : ctx.realDinner;
-                                        }}
-                                        format={(v: number) => v.toFixed(1)}
-                                    />
-                                    <SummaryRow
-                                        label="Budget H."
-                                        icon={Target}
-                                        accessor={(ctx: any) => ctx.type === 'LUNCH' ? ctx.budgetLunch : ctx.budgetDinner}
-                                        format={(v: number) => v > 0 ? v.toFixed(1) : '-'}
-                                    />
-                                    <SummaryRow
-                                        label="Budget €"
-                                        icon={DollarSign}
-                                        type="MONEY"
-                                        accessor={(ctx: any) => ctx.type === 'LUNCH' ? ctx.revLunch_Budget : ctx.revDinner_Budget}
-                                        format={(v: number) => v > 0 ? `€ ${Math.round(v)}` : '-'}
-                                    />
-                                    <SummaryRow
-                                        label="Incasso Reale"
-                                        icon={TrendingUp}
-                                        type="MONEY"
-                                        accessor={(ctx: any) => ctx.type === 'LUNCH' ? ctx.revLunch_Real : ctx.revDinner_Real}
-                                        format={(v: number) => v > 0 ? `€ ${Math.round(v)}` : '-'}
-                                    />
-                                    <SummaryRow
-                                        label="Produttività"
-                                        icon={Wand2}
-                                        type="PROD"
-                                        accessor={(ctx: any) => {
-                                            // CALCULATED AUTOMATICALLY: Revenue / Real Hours
-                                            const rev = ctx.type === 'LUNCH' ? ctx.revLunch_Real : ctx.revDinner_Real;
-                                            const hours = ctx.type === 'LUNCH' ? ctx.realLunch : ctx.realDinner;
+                                                                    // Status Color
+                                                                    let bg = bgColor;
+                                                                    if (asn && type.includes('Post')) bg = asn.status ? 'bg-green-100 text-green-800 font-bold' : 'bg-yellow-50 text-yellow-800';
 
-                                            if (hours > 0 && rev > 0) return rev / hours;
-                                            return 0;
-                                        }}
-                                        format={(v: number) => v > 0 ? `€ ${v.toFixed(1)}` : '-'}
-                                    />
-                                </>
-                            );
-                        })()}
-                    </tfoot>
-                </table>
-            </div>
+                                                                    return { bg, text, disabled: false };
+                                                                };
 
-            {/* Missing Shifts Modal */}
-            {showMissingModal && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowMissingModal(false)}>
-                    <div className="bg-white rounded-xl shadow-2xl p-6 w-[600px] max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center mb-4 border-b pb-2">
-                            <h3 className="text-lg font-bold text-amber-600 flex items-center gap-2">
-                                <AlertTriangle size={24} />
-                                Postazioni Mancanti
-                            </h3>
-                            <button onClick={() => setShowMissingModal(false)} className="text-gray-400 hover:text-gray-600">
-                                <Trash2 size={20} className="transform rotate-45" /> {/* Use X icon if available, reusing Trash2 rotated for close X */}
-                            </button>
-                        </div>
+                                                                // Lunch Cells
+                                                                const lIn = renderCell(lunch, 'Turno1_In', 'bg-white');
+                                                                const lOut = renderCell(lunch, 'Turno1_Out', 'bg-white');
+                                                                const lPost = renderCell(lunch, 'Turno1_Post', 'bg-white');
 
-                        <div className="overflow-y-auto flex-1">
-                            {missingShifts.length === 0 ? (
-                                <p className="text-gray-500 text-center py-8">Nessuna postazione mancante.</p>
-                            ) : (
-                                <table className="w-full text-left text-sm">
-                                    <thead className="bg-gray-50 text-gray-500 font-bold uppercase text-xs sticky top-0">
-                                        <tr>
-                                            <th className="p-2">Data</th>
-                                            <th className="p-2">Orario</th>
-                                            <th className="p-2">Postazione</th>
-                                            <th className="p-2">Motivo</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100">
-                                        {missingShifts.map((m, i) => (
-                                            <tr key={i} className="hover:bg-amber-50">
-                                                <td className="p-2 font-medium">{new Date(m.date).toLocaleDateString()}</td>
-                                                <td className="p-2 font-mono text-xs">{m.start} - {m.end}</td>
-                                                <td className="p-2 font-bold text-gray-700">{m.station}</td>
-                                                <td className="p-2 text-xs text-gray-500 italic">{m.reason}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
-                        </div>
+                                                                // Dinner Cells
+                                                                const dIn = renderCell(dinner, 'Turno2_In', 'bg-gray-50/30');
+                                                                const dOut = renderCell(dinner, 'Turno2_Out', 'bg-gray-50/30');
+                                                                const dPost = renderCell(dinner, 'Turno2_Post', 'bg-gray-50/30');
 
-                        <div className="mt-4 pt-4 border-t text-xs text-gray-400 text-center">
-                            Questi turni richiedono attenzione manuale poiché nessun dipendente idoneo è stato trovato dalle regole automatiche.
-                        </div>
-                    </div>
-                </div>
-            )}
+                                                                return (
+                                                                    <React.Fragment key={d}>
+                                                                        <td onClick={() => !lIn.disabled && handleCellClick(s.id, d, 'Pranzo_In', lunch)} className={`border-r border-gray-100 p-1 text-center cursor-pointer hover:brightness-95 ${lIn.bg}`}>{lIn.text}</td>
+                                                                        <td onClick={() => !lOut.disabled && handleCellClick(s.id, d, 'Pranzo_Out', lunch)} className={`border-r border-gray-100 p-1 text-center cursor-pointer hover:brightness-95 ${lOut.bg}`}>{lOut.text}</td>
+                                                                        <td onClick={() => !lPost.disabled && handleCellClick(s.id, d, 'Pranzo_Post', lunch)} className={`border-r-2 border-gray-200 p-1 text-center cursor-pointer hover:brightness-95 ${lPost.bg} text-[10px]`}>{lPost.text}</td>
+                                                                        <td onClick={() => !dIn.disabled && handleCellClick(s.id, d, 'Sera_In', dinner)} className={`border-r border-gray-100 p-1 text-center cursor-pointer hover:brightness-95 ${dIn.bg}`}>{dIn.text}</td>
+                                                                        <td onClick={() => !dOut.disabled && handleCellClick(s.id, d, 'Sera_Out', dinner)} className={`border-r border-gray-100 p-1 text-center cursor-pointer hover:brightness-95 ${dOut.bg}`}>{dOut.text}</td>
+                                                                        <td onClick={() => !dPost.disabled && handleCellClick(s.id, d, 'Sera_Post', dinner)} className={`border-r-2 border-gray-300 p-1 text-center cursor-pointer hover:brightness-95 ${dPost.bg} text-[10px]`}>{dPost.text}</td>
+                                                                    </React.Fragment>
+                                                                );
+                                                            })}
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                            <tfoot className="bg-white sticky bottom-0 z-40 font-sans shadow-[0_-4px_20px_rgba(0,0,0,0.08)] border-t border-indigo-100">
+                                                {(() => {
+                                                    // --- Calculation Logic for Footer ---
+                                                    const statsMap = days.map((d, dayIdx) => {
+                                                        const budget = budgets.find((b: any) => b.data === d);
+                                                        let realLunch = 0;
+                                                        let realDinner = 0;
 
-            {/* Editing Modal */}
-            {editingCell && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setEditingCell(null)}>
-                    <div className="bg-white rounded-xl shadow-2xl p-6 w-[400px]" onClick={e => e.stopPropagation()}>
-                        <h3 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Modifica Turno</h3>
-                        <div className="mb-4 text-sm text-gray-600">
-                            {staff.find(s => s.id === editingCell.staffId)?.nome} - {new Date(editingCell.date).toLocaleDateString('it-IT')} ({editingCell.type})
-                        </div>
+                                                        staff.forEach(s => {
+                                                            const asns = matrix[s.id]?.[d] || [];
+                                                            asns.forEach(a => {
+                                                                const st = a.start_time || a.shiftTemplate?.oraInizio;
+                                                                const et = a.end_time || a.shiftTemplate?.oraFine;
+                                                                if (!st || !et) return;
 
-                        {editingCell.type.includes('Post') ? (
-                            <div className="space-y-4">
-                                <label className="block text-sm font-medium">Postazione</label>
-                                <select id="editPost" className="w-full p-2 border rounded" defaultValue={editingCell.currentAsn?.postazione}>
-                                    <option value="">- Seleziona -</option>
-                                    {['BARGIU', 'BARSU', 'ACCSU', 'CDR', 'B/S', 'CUCINA', 'MANAGER'].map(p => <option key={p} value={p}>{p}</option>)}
-                                </select>
-                                <button onClick={() => saveEdit((document.getElementById('editPost') as HTMLSelectElement).value)} className="w-full py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Salva Postazione</button>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Turno Predefinito</label>
-                                    <select
-                                        id="editTmpl"
-                                        className="w-full p-2 border rounded"
-                                        defaultValue={editingCell.currentAsn?.shiftTemplateId || ''}
-                                        onChange={(e) => {
-                                            const t = templates.find(x => x.id === Number(e.target.value));
-                                            if (t) setCustomTimes({ start: t.oraInizio, end: t.oraFine });
-                                        }}
-                                    >
-                                        <option value="">(Nessuno / Manuale)</option>
-                                        <option value="MANUAL">-- Personalizzato --</option>
-                                        {editingCell.filteredTemplates?.map((t: any) => (
-                                            <option key={t.id} value={t.id}>{t.nome} ({t.oraInizio}-{t.oraFine})</option>
-                                        ))}
-                                    </select>
-                                </div>
+                                                                // Safe time parsing
+                                                                const parseTime = (timeStr: string) => {
+                                                                    const cleaned = timeStr.trim().split(' ')[0];
+                                                                    const parts = cleaned.split(':');
+                                                                    if (parts.length !== 2) return null;
+                                                                    const h = parseInt(parts[0]);
+                                                                    const m = parseInt(parts[1]);
+                                                                    if (isNaN(h) || isNaN(m)) return null;
+                                                                    return h + m / 60;
+                                                                };
 
-                                <div className="flex gap-4 p-3 bg-gray-50 rounded">
-                                    <QuarterTimeInput label="Start" value={customTimes.start} onChange={v => setCustomTimes({ ...customTimes, start: v })} />
-                                    <QuarterTimeInput label="End" value={customTimes.end} onChange={v => setCustomTimes({ ...customTimes, end: v })} />
-                                </div>
+                                                                const starts = parseTime(st);
+                                                                const ends = parseTime(et);
 
-                                <div className="flex gap-2 pt-2">
-                                    <button onClick={() => saveEdit((document.getElementById('editTmpl') as HTMLSelectElement).value)} className="flex-1 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-medium">Salva</button>
-                                    {editingCell.currentAsn && (
-                                        <button onClick={() => { if (confirm('Eliminare?')) saveEdit('') }} className="px-3 py-2 bg-red-100 text-red-600 rounded hover:bg-red-200">
-                                            <Trash2 size={18} />
-                                        </button>
+                                                                if (starts === null || ends === null) return;
+
+                                                                let endsAdjusted = ends;
+                                                                if (ends < starts) endsAdjusted = ends + 24;
+
+                                                                const cutoff = 16.0;
+                                                                const lunchEnd = Math.min(endsAdjusted, cutoff);
+                                                                realLunch += Math.max(0, lunchEnd - starts);
+
+                                                                const dinnerStart = Math.max(starts, cutoff);
+                                                                realDinner += Math.max(0, endsAdjusted - dinnerStart);
+                                                            });
+                                                        });
+
+                                                        // Get forecast data for this day
+                                                        const budgetHours = getForecastValue('ore budget', dayIdx); // Total Daily Budget Hours
+                                                        const budgetLunch_Revenue = getForecastValue('budget pranzo', dayIdx);
+                                                        const budgetDinner_Revenue = getForecastValue('budget cena', dayIdx);
+                                                        const realLunch_Revenue = getForecastValue('real pranzo', dayIdx);
+                                                        const realDinner_Revenue = getForecastValue('real cena', dayIdx);
+
+                                                        // Use explicit day hours if available, otherwise split total
+                                                        // Ideally 'ore budget' is daily. We split by revenue weight.
+                                                        const totalBudgetRevenue = budgetLunch_Revenue + budgetDinner_Revenue;
+
+                                                        const budgetLunchHours = totalBudgetRevenue > 0
+                                                            ? budgetHours * (budgetLunch_Revenue / totalBudgetRevenue)
+                                                            : budgetHours * 0.5;
+
+                                                        const budgetDinnerHours = totalBudgetRevenue > 0
+                                                            ? budgetHours * (budgetDinner_Revenue / totalBudgetRevenue)
+                                                            : budgetHours * 0.5;
+
+                                                        return {
+                                                            date: d,
+                                                            realLunch: isFinite(realLunch) ? realLunch : 0,
+                                                            realDinner: isFinite(realDinner) ? realDinner : 0,
+                                                            budgetLunch: isFinite(budgetLunchHours) ? budgetLunchHours : 0,
+                                                            budgetDinner: isFinite(budgetDinnerHours) ? budgetDinnerHours : 0,
+
+                                                            // Revenues
+                                                            revLunch_Real: realLunch_Revenue,
+                                                            revDinner_Real: realDinner_Revenue,
+                                                            revLunch_Budget: budgetLunch_Revenue,
+                                                            revDinner_Budget: budgetDinner_Revenue,
+                                                        };
+                                                    });
+
+                                                    const SummaryRow = ({ label, icon: Icon, accessor, format, type, highlightDiff }: any) => (
+                                                        <tr className="group transition-colors hover:bg-indigo-50/30">
+                                                            <td colSpan={4} className="py-3 px-4 text-right bg-white border-r border-indigo-50">
+                                                                <div className="flex items-center justify-end gap-2 text-indigo-900 font-semibold text-xs uppercase tracking-wider">
+                                                                    {Icon && <Icon size={14} className="text-indigo-400" />}
+                                                                    {label}
+                                                                </div>
+                                                            </td>
+                                                            {statsMap.map((s, i) => {
+                                                                const valL = accessor({ ...s, type: 'LUNCH' });
+                                                                const valD = accessor({ ...s, type: 'DINNER' });
+
+                                                                // Dynamic Styling based on Row Type
+                                                                let classL = "text-gray-600";
+                                                                let classD = "text-gray-600";
+                                                                let bgL = "";
+                                                                let bgD = "";
+
+                                                                if (highlightDiff) {
+                                                                    // Compare Real vs Budget
+                                                                    const bL = accessor({ ...s, type: 'LUNCH', mode: 'BUDGET' });
+                                                                    const bD = accessor({ ...s, type: 'DINNER', mode: 'BUDGET' });
+                                                                    const rL = valL; // Assumes valL is REAL
+                                                                    const rD = valD;
+
+                                                                    const diffL = bL ? rL - bL : 0;
+                                                                    const diffD = bD ? rD - bD : 0;
+
+                                                                    if (diffL > 2) { classL = "text-red-600 font-bold"; bgL = "bg-red-50"; }
+                                                                    if (diffL < -2 && bL) { classL = "text-emerald-600 font-bold"; bgL = "bg-emerald-50"; }
+
+                                                                    if (diffD > 2) { classD = "text-red-600 font-bold"; bgD = "bg-red-50"; }
+                                                                    if (diffD < -2 && bD) { classD = "text-emerald-600 font-bold"; bgD = "bg-emerald-50"; }
+                                                                }
+
+                                                                if (type === 'PROD') {
+                                                                    // Produttività formatting
+                                                                    classL = valL > 0 ? "text-indigo-700 font-bold" : "text-gray-300";
+                                                                    classD = valD > 0 ? "text-indigo-700 font-bold" : "text-gray-300";
+                                                                    if (valL > 0) bgL = "bg-indigo-50/50";
+                                                                    if (valD > 0) bgD = "bg-indigo-50/50";
+                                                                }
+
+                                                                if (type === 'MONEY') {
+                                                                    classL = valL > 0 ? "text-gray-700 font-medium" : "text-gray-300";
+                                                                    classD = valD > 0 ? "text-gray-700 font-medium" : "text-gray-300";
+                                                                }
+
+                                                                return (
+                                                                    <React.Fragment key={i}>
+                                                                        <td colSpan={3} className={`p-2 text-center border-r border-indigo-50 text-xs ${classL} ${bgL}`}>
+                                                                            {format(valL)}
+                                                                        </td>
+                                                                        <td colSpan={3} className={`p-2 text-center border-r border-indigo-100/50 text-xs ${classD} ${bgD}`}>
+                                                                            {format(valD)}
+                                                                        </td>
+                                                                    </React.Fragment>
+                                                                )
+                                                            })}
+                                                        </tr>
+                                                    );
+
+                                                    return (
+                                                        <>
+                                                            <SummaryRow
+                                                                label="Ore Reali"
+                                                                icon={Clock}
+                                                                type="REAL"
+                                                                highlightDiff={true}
+                                                                accessor={(ctx: any) => {
+                                                                    if (ctx.mode === 'BUDGET') return ctx.type === 'LUNCH' ? ctx.budgetLunch : ctx.budgetDinner;
+                                                                    return ctx.type === 'LUNCH' ? ctx.realLunch : ctx.realDinner;
+                                                                }}
+                                                                format={(v: number) => v.toFixed(1)}
+                                                            />
+                                                            <SummaryRow
+                                                                label="Budget H."
+                                                                icon={Target}
+                                                                accessor={(ctx: any) => ctx.type === 'LUNCH' ? ctx.budgetLunch : ctx.budgetDinner}
+                                                                format={(v: number) => v > 0 ? v.toFixed(1) : '-'}
+                                                            />
+                                                            <SummaryRow
+                                                                label="Budget €"
+                                                                icon={DollarSign}
+                                                                type="MONEY"
+                                                                accessor={(ctx: any) => ctx.type === 'LUNCH' ? ctx.revLunch_Budget : ctx.revDinner_Budget}
+                                                                format={(v: number) => v > 0 ? `€ ${Math.round(v)}` : '-'}
+                                                            />
+                                                            <SummaryRow
+                                                                label="Incasso Reale"
+                                                                icon={TrendingUp}
+                                                                type="MONEY"
+                                                                accessor={(ctx: any) => ctx.type === 'LUNCH' ? ctx.revLunch_Real : ctx.revDinner_Real}
+                                                                format={(v: number) => v > 0 ? `€ ${Math.round(v)}` : '-'}
+                                                            />
+                                                            <SummaryRow
+                                                                label="Produttività"
+                                                                icon={Wand2}
+                                                                type="PROD"
+                                                                accessor={(ctx: any) => {
+                                                                    // CALCULATED AUTOMATICALLY: Revenue / Real Hours
+                                                                    const rev = ctx.type === 'LUNCH' ? ctx.revLunch_Real : ctx.revDinner_Real;
+                                                                    const hours = ctx.type === 'LUNCH' ? ctx.realLunch : ctx.realDinner;
+
+                                                                    if (hours > 0 && rev > 0) return rev / hours;
+                                                                    return 0;
+                                                                }}
+                                                                format={(v: number) => v > 0 ? `€ ${v.toFixed(1)}` : '-'}
+                                                            />
+                                                        </>
+                                                    );
+                                                })()}
+                                            </tfoot>
+                                        </table>
+                                    </div>
+
+                                    {/* Missing Shifts Modal */}
+                                    {showMissingModal && (
+                                        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowMissingModal(false)}>
+                                            <div className="bg-white rounded-xl shadow-2xl p-6 w-[600px] max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                                                <div className="flex justify-between items-center mb-4 border-b pb-2">
+                                                    <h3 className="text-lg font-bold text-amber-600 flex items-center gap-2">
+                                                        <AlertTriangle size={24} />
+                                                        Postazioni Mancanti
+                                                    </h3>
+                                                    <button onClick={() => setShowMissingModal(false)} className="text-gray-400 hover:text-gray-600">
+                                                        <Trash2 size={20} className="transform rotate-45" /> {/* Use X icon if available, reusing Trash2 rotated for close X */}
+                                                    </button>
+                                                </div>
+
+                                                <div className="overflow-y-auto flex-1">
+                                                    {missingShifts.length === 0 ? (
+                                                        <p className="text-gray-500 text-center py-8">Nessuna postazione mancante.</p>
+                                                    ) : (
+                                                        <table className="w-full text-left text-sm">
+                                                            <thead className="bg-gray-50 text-gray-500 font-bold uppercase text-xs sticky top-0">
+                                                                <tr>
+                                                                    <th className="p-2">Data</th>
+                                                                    <th className="p-2">Orario</th>
+                                                                    <th className="p-2">Postazione</th>
+                                                                    <th className="p-2">Motivo</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody className="divide-y divide-gray-100">
+                                                                {missingShifts.map((m, i) => (
+                                                                    <tr key={i} className="hover:bg-amber-50">
+                                                                        <td className="p-2 font-medium">{new Date(m.date).toLocaleDateString()}</td>
+                                                                        <td className="p-2 font-mono text-xs">{m.start} - {m.end}</td>
+                                                                        <td className="p-2 font-bold text-gray-700">{m.station}</td>
+                                                                        <td className="p-2 text-xs text-gray-500 italic">{m.reason}</td>
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    )}
+                                                </div>
+
+                                                <div className="mt-4 pt-4 border-t text-xs text-gray-400 text-center">
+                                                    Questi turni richiedono attenzione manuale poiché nessun dipendente idoneo è stato trovato dalle regole automatiche.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Editing Modal */}
+                                    {editingCell && (
+                                        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center" onClick={() => setEditingCell(null)}>
+                                            <div className="bg-white rounded-xl shadow-2xl p-6 w-[400px]" onClick={e => e.stopPropagation()}>
+                                                <h3 className="text-lg font-bold text-gray-800 mb-4 border-b pb-2">Modifica Turno</h3>
+                                                <div className="mb-4 text-sm text-gray-600">
+                                                    {staff.find(s => s.id === editingCell.staffId)?.nome} - {new Date(editingCell.date).toLocaleDateString('it-IT')} ({editingCell.type})
+                                                </div>
+
+                                                {editingCell.type.includes('Post') ? (
+                                                    <div className="space-y-4">
+                                                        <label className="block text-sm font-medium">Postazione</label>
+                                                        <select id="editPost" className="w-full p-2 border rounded" defaultValue={editingCell.currentAsn?.postazione}>
+                                                            <option value="">- Seleziona -</option>
+                                                            {['BARGIU', 'BARSU', 'ACCSU', 'CDR', 'B/S', 'CUCINA', 'MANAGER'].map(p => <option key={p} value={p}>{p}</option>)}
+                                                        </select>
+                                                        <button onClick={() => saveEdit((document.getElementById('editPost') as HTMLSelectElement).value)} className="w-full py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Salva Postazione</button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-4">
+                                                        <div>
+                                                            <label className="block text-sm font-medium mb-1">Turno Predefinito</label>
+                                                            <select
+                                                                id="editTmpl"
+                                                                className="w-full p-2 border rounded"
+                                                                defaultValue={editingCell.currentAsn?.shiftTemplateId || ''}
+                                                                onChange={(e) => {
+                                                                    const t = templates.find(x => x.id === Number(e.target.value));
+                                                                    if (t) setCustomTimes({ start: t.oraInizio, end: t.oraFine });
+                                                                }}
+                                                            >
+                                                                <option value="">(Nessuno / Manuale)</option>
+                                                                <option value="MANUAL">-- Personalizzato --</option>
+                                                                {editingCell.filteredTemplates?.map((t: any) => (
+                                                                    <option key={t.id} value={t.id}>{t.nome} ({t.oraInizio}-{t.oraFine})</option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+
+                                                        <div className="flex gap-4 p-3 bg-gray-50 rounded">
+                                                            <QuarterTimeInput label="Start" value={customTimes.start} onChange={v => setCustomTimes({ ...customTimes, start: v })} />
+                                                            <QuarterTimeInput label="End" value={customTimes.end} onChange={v => setCustomTimes({ ...customTimes, end: v })} />
+                                                        </div>
+
+                                                        <div className="flex gap-2 pt-2">
+                                                            <button onClick={() => saveEdit((document.getElementById('editTmpl') as HTMLSelectElement).value)} className="flex-1 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-medium">Salva</button>
+                                                            {editingCell.currentAsn && (
+                                                                <button onClick={() => { if (confirm('Eliminare?')) saveEdit('') }} className="px-3 py-2 bg-red-100 text-red-600 rounded hover:bg-red-200">
+                                                                    <Trash2 size={18} />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {loading && (
+                                        <div className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-full shadow-lg text-sm flex items-center gap-2 animate-pulse">
+                                            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                                            Caricamento...
+                                        </div>
                                     )}
                                 </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {loading && (
-                <div className="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-full shadow-lg text-sm flex items-center gap-2 animate-pulse">
-                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                    Caricamento...
-                </div>
-            )}
-        </div>
-    );
+                                );
 }

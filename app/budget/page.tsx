@@ -64,11 +64,11 @@ export default function BudgetPage() {
                 api.getBudget(range.start, range.end),
                 api.getForecast(range.start, range.end)
             ]);
-            setSchedule(sch as any[]);
-            setStaff(stf as any[]);
+            setSchedule(Array.isArray(sch) ? sch : []);
+            setStaff(Array.isArray(stf) ? stf : []);
 
             const bMap: any = {};
-            (bdg as any[]).forEach(b => {
+            (Array.isArray(bdg) ? bdg : []).forEach(b => {
                 bMap[b.data.split('T')[0]] = {
                     valueLunch: b.valueLunch || 0,
                     valueDinner: b.valueDinner || 0,
@@ -80,8 +80,8 @@ export default function BudgetPage() {
 
             // Integrate Forecast Data if available and budget is empty-ish?
             // Or just allow manual sync. Let's process it for potential usage.
-            if (fcasts && (fcasts as any[]).length > 0) {
-                const f = (fcasts as any[])[0];
+            if (Array.isArray(fcasts) && fcasts.length > 0) {
+                const f = fcasts[0];
                 try {
                     const grid = JSON.parse(f.data);
                     // Find rows

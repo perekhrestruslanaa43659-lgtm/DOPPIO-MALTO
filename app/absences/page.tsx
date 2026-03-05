@@ -111,10 +111,10 @@ export default function AbsencesPage() {
 
             setStaffList(stf as Staff[]);
 
-            const mappedUnav = (unav as any[]).map(u => ({
+            const mappedUnav = (Array.isArray(unav) ? unav : []).map(u => ({
                 id: u.id,
                 staffId: u.staffId,
-                staff: (stf as Staff[]).find(s => s.id === u.staffId),
+                staff: Array.isArray(stf) ? stf.find(s => s.id === u.staffId) : undefined,
                 data: u.data.split('T')[0],
                 tipo: u.tipo,
                 reason: u.reason,
@@ -123,10 +123,10 @@ export default function AbsencesPage() {
                 endTime: u.end_time
             }));
 
-            const mappedSch = (sch as any[]).map(a => ({
+            const mappedSch = (Array.isArray(sch) ? sch : []).map(a => ({
                 id: a.id,
                 staffId: a.staffId,
-                staff: (stf as Staff[]).find(s => s.id === a.staffId),
+                staff: Array.isArray(stf) ? stf.find(s => s.id === a.staffId) : undefined,
                 data: a.data.split('T')[0],
                 tipo: `${a.start_time || a.shiftTemplate?.oraInizio || '?'} - ${a.end_time || a.shiftTemplate?.oraFine || '?'}`,
                 reason: a.shiftTemplate?.nome || 'Manuale',

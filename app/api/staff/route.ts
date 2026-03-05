@@ -16,11 +16,15 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Tenant key required' }, { status: 400 });
         }
 
+        const includeArchived = request.nextUrl.searchParams.get('includeArchived') === 'true';
+
         console.log('🔍 Ricerca staff...');
-        const staff = await prisma.staff.findMany({
+        // Filter in-memory as a workaround for stale Prisma Client on Windows
+        const allStaff = await prisma.staff.findMany({
             where: { tenantKey },
-            orderBy: { listIndex: 'asc' }, // Respect custom order (e.g. import order)
+            orderBy: { listIndex: 'asc' },
         });
+        const staff = includeArchived ? allStaff : allStaff.filter((s: any) => !s.archived);
 
         console.log(`✅ Trovati ${staff.length} membri dello staff`);
         console.log('=== STAFF GET SUCCESS ===\n');
@@ -88,7 +92,7 @@ export async function POST(request: NextRequest) {
         console.log('   - Ruolo:', body.ruolo);
         console.log('   - Postazioni:', postazioni);
 
-        const staff = await prisma.staff.create({
+        const staff = await (prisma.staff as any).create({
             data: {
                 nome: body.nome,
                 cognome: body.cognome || '',
@@ -131,12 +135,45 @@ export async function PUT(request: NextRequest) {
 
         const body = await request.json();
 
+<<<<<<< Updated upstream
         // Handle postazioni conversion (String -> String[])
         let postazioni: string[] = [];
         if (typeof body.postazioni === 'string') {
             postazioni = body.postazioni.split(',').map((s: string) => s.trim()).filter((s: string) => s !== '');
         } else if (Array.isArray(body.postazioni)) {
             postazioni = body.postazioni;
+=======
+        // Helper to check if a key exists in body (even if null/empty)
+        const has = (key: string) => Object.prototype.hasOwnProperty.call(body, key);
+
+        if (has('nome')) data.nome = body.nome;
+        if (has('cognome')) data.cognome = body.cognome || '';
+        if (has('email')) data.email = body.email || null;
+        if (has('ruolo')) data.ruolo = body.ruolo;
+
+        if (has('oreMinime')) data.oreMinime = parseInt(body.oreMinime) || 0;
+        if (has('oreMassime')) data.oreMassime = !isNaN(parseInt(body.oreMassime)) ? parseInt(body.oreMassime) : 40;
+
+        if (has('costoOra')) data.costoOra = parseFloat(body.costoOra) || 0;
+        if (has('moltiplicatore')) data.moltiplicatore = parseFloat(body.moltiplicatore) || 1.0;
+
+        if (has('skillLevel')) data.skillLevel = body.skillLevel || 'MEDIUM';
+        if (has('contractType')) data.contractType = body.contractType || 'STANDARD';
+        if (has('incompatibilityId')) data.incompatibilityId = body.incompatibilityId || null;
+        if (has('listIndex')) data.listIndex = body.listIndex;
+        if (has('archived')) data.archived = body.archived === true;
+        if (has('productivityWeight')) data.productivityWeight = parseFloat(body.productivityWeight) || 1.0;
+
+        // Handle Postazioni
+        if (has('postazioni')) {
+            let postazioni: string[] = [];
+            if (typeof body.postazioni === 'string') {
+                postazioni = body.postazioni.split(',').map((s: string) => s.trim()).filter((s: string) => s !== '');
+            } else if (Array.isArray(body.postazioni)) {
+                postazioni = body.postazioni;
+            }
+            data.postazioni = JSON.stringify(postazioni);
+>>>>>>> Stashed changes
         }
 
         const staff = await prisma.staff.update({
@@ -163,6 +200,47 @@ export async function PUT(request: NextRequest) {
     }
 }
 
+<<<<<<< Updated upstream
+=======
+export async function PATCH(request: NextRequest) {
+    try {
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+        const tenantKey = request.headers.get('x-user-tenant-key');
+
+        if (!tenantKey) return NextResponse.json({ error: 'Tenant key required' }, { status: 400 });
+        if (!id) return NextResponse.json({ error: 'Staff ID required' }, { status: 400 });
+
+        const body = await request.json();
+        const data: any = {};
+
+        // Handle Postazioni
+        if (body.postazioni !== undefined) {
+            let postazioni: string[] = [];
+            if (typeof body.postazioni === 'string') {
+                postazioni = body.postazioni.split(',').map((s: string) => s.trim()).filter((s: string) => s !== '');
+            } else if (Array.isArray(body.postazioni)) {
+                postazioni = body.postazioni;
+            }
+            data.postazioni = JSON.stringify(postazioni);
+        }
+
+        if (body.archived !== undefined) data.archived = body.archived === true;
+        if (body.productivityWeight !== undefined) data.productivityWeight = parseFloat(body.productivityWeight) || 1.0;
+
+        const staff = await prisma.staff.update({
+            where: { id: parseInt(id), tenantKey },
+            data: data,
+        });
+
+        return NextResponse.json(staff);
+    } catch (error) {
+        console.error('Error patching staff:', error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+}
+
+>>>>>>> Stashed changes
 export async function DELETE(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
@@ -181,11 +259,20 @@ export async function DELETE(request: NextRequest) {
 
         if (!id) return NextResponse.json({ error: 'Staff ID required' }, { status: 400 });
 
-        await prisma.staff.delete({
-            where: { id: parseInt(id), tenantKey }
-        });
+        const permanent = searchParams.get('permanent') === 'true';
 
-        return NextResponse.json({ success: true });
+        if (permanent) {
+            await prisma.staff.delete({
+                where: { id: parseInt(id), tenantKey }
+            });
+            return NextResponse.json({ success: true, action: 'deleted' });
+        } else {
+            await (prisma.staff as any).update({
+                where: { id: parseInt(id), tenantKey },
+                data: { archived: true }
+            });
+            return NextResponse.json({ success: true, action: 'archived' });
+        }
     } catch (error) {
         console.error('Error deleting staff:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

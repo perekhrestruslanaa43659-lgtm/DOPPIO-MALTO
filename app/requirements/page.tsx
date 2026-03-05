@@ -8,7 +8,7 @@ import * as XLSX from 'xlsx';
 import Link from 'next/link';
 import StaffSelectionModal from '@/components/StaffSelectionModal';
 import { DEFAULT_STATIONS } from '@/lib/constants';
-
+\n
 // --- Types ---
 interface CoverageRow {
     station: string;
@@ -65,11 +65,7 @@ function calcHours(start: string, end: string) {
 }
 
 import { Suspense } from 'react';
-
-// ... (existing imports and helpers remain, I will target the component definition)
-
-function RequirementsContent() {
-    const searchParams = useSearchParams();
+\n    const searchParams = useSearchParams();
 
     // Init state with defaults but will be overridden by effect
     const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
@@ -99,8 +95,7 @@ function RequirementsContent() {
     const days = getDatesInRange(range.start, range.end);
     const dayNames = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 
-    // --- Effects ---
-
+\n
     // Load Persistence
     useEffect(() => {
         const pYear = searchParams.get('year');
@@ -202,8 +197,8 @@ function RequirementsContent() {
             const [data, budgetData, assignments, staffList] = await Promise.all([reqProm, budgetProm, assignProm, staffProm]);
 
             // Store staff list
-            setStaff(staffList || []);
-            setAssignments(assignments || []);
+            setStaff(Array.isArray(staffList) ? staffList : []);
+            setAssignments(Array.isArray(assignments) ? assignments : []);
 
             // 1. Setup Rows
             let loadedRows: CoverageRow[] = [];
@@ -436,7 +431,7 @@ function RequirementsContent() {
 
     const dailyTotals = days.map((_, i) => dailyLunchTotals[i] + dailyDinnerTotals[i]);
 
-
+\n
     return (
         <div className="max-w-full mx-auto p-4 bg-gray-50 min-h-screen">
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm gap-4">
@@ -474,8 +469,8 @@ function RequirementsContent() {
                     <Link href={`/requirements/details?year=${currentYear}&week=${week}`} className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm font-bold shadow-md animate-pulse">
                         <LayoutGrid size={18} /> DETTAGLIO GIORNALIERO
                     </Link>
-                </div>
-            </div>
+\n                </div >
+            </div >
 
             <div className="flex gap-4 mb-4">
                 <label className="flex items-center gap-2 px-3 py-2 bg-white border border-indigo-600 text-indigo-600 rounded hover:bg-indigo-50 transition text-sm font-medium cursor-pointer shadow-sm">
@@ -489,288 +484,25 @@ function RequirementsContent() {
                     + Riga
                 </button>
             </div>
-
-            <div className="bg-white rounded-xl shadow border border-gray-200 overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[1500px] text-xs">
-                    <thead>
-                        <tr className="bg-gray-100 text-gray-600 uppercase font-bold text-[10px]">
-                            <th className="p-2 border-r w-[40px] sticky left-0 bg-gray-100 z-10 text-center">#</th>
-                            <th className="p-2 border-r w-[150px] sticky left-[40px] bg-gray-100 z-10">Postazione</th>
-                            {days.map((d, i) => (
-                                <th key={d} colSpan={6} className="p-1 border-r text-center border-b-2 border-gray-300">
-                                    <div className="text-gray-900 font-bold">{dayNames[i]} {d.split('-')[2]}</div>
-                                </th>
-                            ))}
-                            <th className="p-2 w-[40px]"></th>
-                        </tr>
-                        <tr className="bg-gray-50 text-[9px] text-gray-500">
-                            <th className="p-2 border-r sticky left-0 bg-gray-50 z-10"></th>
-                            <th className="p-2 border-r sticky left-[40px] bg-gray-50 z-10"></th>
-                            {days.map(d => (
-                                <React.Fragment key={d}>
-                                    <th className="border-r w-16 text-center text-blue-600">IN (P)</th>
-                                    <th className="border-r w-16 text-center text-blue-600">OUT (P)</th>
-                                    <th className="border-r w-20 text-center text-blue-700 bg-blue-50">Staff P</th>
-                                    <th className="border-r w-16 text-center text-indigo-600">IN (C)</th>
-                                    <th className="border-r w-16 text-center text-indigo-600">OUT (C)</th>
-                                    <th className="border-r w-20 text-center text-indigo-700 bg-indigo-50">Staff C</th>
-                                </React.Fragment>
-                            ))}
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {rows.map((row, rIdx) => {
-                            const isActive = row.extra?.active !== false;
-                            return (
-                                <tr key={rIdx} className={`hover:bg-gray-50 transition ${!isActive ? 'opacity-50 grayscale bg-gray-50' : ''}`}>
-                                    <td className="p-2 border-r sticky left-0 bg-white z-10 text-center">
-                                        <button onClick={() => toggleActive(rIdx)} title={isActive ? "Disattiva" : "Attiva"}>
-                                            {isActive ? <Eye size={14} className="text-green-600" /> : <EyeOff size={14} className="text-gray-400" />}
-                                        </button>
-                                    </td>
-                                    <td className="p-2 font-bold text-gray-800 border-r sticky left-[40px] bg-white z-10 w-[150px] truncate">
-                                        <input
-                                            className={`w-full bg-transparent outline-none ${!isActive ? 'line-through text-gray-400' : ''}`}
-                                            value={row.station}
-                                            onChange={e => updateCell(rIdx, 'station', '', e.target.value)}
-                                            disabled={!isActive}
-                                        />
-                                    </td>
-                                    {days.map((d) => {
-                                        const s = row.slots[d] || { lIn: '', lOut: '', dIn: '', dOut: '' };
-
-                                        // Get assignments for this day and station
-                                        const dayAssignments = assignments.filter(a =>
-                                            a.data === d &&
-                                            a.postazione === row.station
-                                        );
-
-                                        // Split by lunch/dinner based on time
-                                        const lunchAssignments = dayAssignments.filter(a => {
-                                            const start = a.start_time || a.shiftTemplate?.oraInizio || '';
-                                            return start < '16:00';
-                                        });
-
-                                        const dinnerAssignments = dayAssignments.filter(a => {
-                                            const start = a.start_time || a.shiftTemplate?.oraInizio || '';
-                                            return start >= '16:00';
-                                        });
-
-                                        return (
-                                            <React.Fragment key={d}>
-                                                <td className="p-0 border-r"><input disabled={!isActive} className="w-full h-8 text-center bg-transparent outline-none focus:bg-blue-50 disabled:bg-gray-50" value={s.lIn} onChange={e => updateSlot(rIdx, d, 'lIn', e.target.value)} /></td>
-                                                <td className="p-0 border-r"><input disabled={!isActive} className="w-full h-8 text-center bg-transparent outline-none focus:bg-blue-50 disabled:bg-gray-50" value={s.lOut} onChange={e => updateSlot(rIdx, d, 'lOut', e.target.value)} /></td>
-
-                                                {/* Staff Pranzo Cell */}
-                                                <td className="p-1 border-r bg-blue-50">
-                                                    <button
-                                                        onClick={() => openAssignModal(d, row.station, 'lunch', { start: s.lIn, end: s.lOut })}
-                                                        disabled={!isActive || !s.lIn || !s.lOut}
-                                                        className="w-full h-8 flex items-center justify-center gap-1.5 hover:bg-blue-100 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                                                        title={`Assegna staff pranzo (${lunchAssignments.length} assegnati)`}
-                                                    >
-                                                        <ChevronRight size={14} className="text-blue-600" />
-                                                        {lunchAssignments.length > 0 && (
-                                                            <span className="text-xs font-bold text-blue-700">
-                                                                {lunchAssignments.length}
-                                                            </span>
-                                                        )}
-                                                    </button>
-                                                </td>
-
-                                                <td className="p-0 border-r"><input disabled={!isActive} className="w-full h-8 text-center bg-transparent outline-none focus:bg-indigo-50 disabled:bg-gray-50" value={s.dIn} onChange={e => updateSlot(rIdx, d, 'dIn', e.target.value)} /></td>
-                                                <td className="p-0 border-r"><input disabled={!isActive} className="w-full h-8 text-center bg-transparent outline-none focus:bg-indigo-50 disabled:bg-gray-50" value={s.dOut} onChange={e => updateSlot(rIdx, d, 'dOut', e.target.value)} /></td>
-
-                                                {/* Staff Cena Cell */}
-                                                <td className="p-1 border-r bg-indigo-50">
-                                                    <button
-                                                        onClick={() => openAssignModal(d, row.station, 'dinner', { start: s.dIn, end: s.dOut })}
-                                                        disabled={!isActive || !s.dIn || !s.dOut}
-                                                        className="w-full h-8 flex items-center justify-center gap-1.5 hover:bg-indigo-100 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                                                        title={`Assegna staff cena (${dinnerAssignments.length} assegnati)`}
-                                                    >
-                                                        <ChevronRight size={14} className="text-indigo-600" />
-                                                        {dinnerAssignments.length > 0 && (
-                                                            <span className="text-xs font-bold text-indigo-700">
-                                                                {dinnerAssignments.length}
-                                                            </span>
-                                                        )}
-                                                    </button>
-                                                </td>
-                                            </React.Fragment>
-                                        );
-                                    })}
-                                    <td className="p-2 text-center">
-                                        <button onClick={() => removeRow(rIdx)} className="text-red-400 hover:text-red-600 transition" title="Elimina Riga">
-                                            <Trash2 size={14} />
-                                        </button>
-                                    </td>
-                                </tr>
-                            );
-                        })}
-
-                        {/* Totals Row - LUNCH */}
-                        <tr className="bg-blue-50 font-bold border-t-2 border-gray-300">
-                            <td className="sticky left-0 bg-blue-50 z-10 p-2"></td>
-                            <td className="p-2 text-right sticky left-[40px] bg-blue-50 z-10 text-blue-700">FABBISOGNO PRANZO</td>
-                            {dailyLunchTotals.map((tot, i) => (
-                                <td key={i} colSpan={6} className="p-2 text-center border-r text-blue-700 font-bold">
-                                    {tot.toFixed(1)} h
-                                </td>
-                            ))}
-                            <td></td>
-                        </tr>
-
-                        {/* Assigned Hours - LUNCH */}
-                        <tr className="bg-blue-100 font-bold text-blue-800">
-                            <td className="sticky left-0 bg-blue-100 z-10 p-2"></td>
-                            <td className="p-2 text-right sticky left-[40px] bg-blue-100 z-10">ORE ASSEGNATE PRANZO</td>
-                            {days.map((d, i) => {
-                                const assigned = assignedLunchHours[d] || 0;
-                                const required = dailyLunchTotals[i];
-                                const diff = assigned - required;
-                                const color = diff >= 0 ? 'text-green-700' : 'text-red-700';
-                                return (
-                                    <td key={i} colSpan={6} className={`p-2 text-center border-r ${color} font-bold`}>
-                                        {assigned.toFixed(1)} h
-                                    </td>
-                                );
-                            })}
-                            <td></td>
-                        </tr>
-
-                        {/* Totals Row - DINNER */}
-                        <tr className="bg-indigo-50 font-bold border-t border-gray-200">
-                            <td className="sticky left-0 bg-indigo-50 z-10 p-2"></td>
-                            <td className="p-2 text-right sticky left-[40px] bg-indigo-50 z-10 text-indigo-700">FABBISOGNO CENA</td>
-                            {dailyDinnerTotals.map((tot, i) => (
-                                <td key={i} colSpan={6} className="p-2 text-center border-r text-indigo-700 font-bold">
-                                    {tot.toFixed(1)} h
-                                </td>
-                            ))}
-                            <td></td>
-                        </tr>
-
-                        {/* Assigned Hours - DINNER */}
-                        <tr className="bg-indigo-100 font-bold text-indigo-800">
-                            <td className="sticky left-0 bg-indigo-100 z-10 p-2"></td>
-                            <td className="p-2 text-right sticky left-[40px] bg-indigo-100 z-10">ORE ASSEGNATE CENA</td>
-                            {days.map((d, i) => {
-                                const assigned = assignedDinnerHours[d] || 0;
-                                const required = dailyDinnerTotals[i];
-                                const diff = assigned - required;
-                                const color = diff >= 0 ? 'text-green-700' : 'text-red-700';
-                                return (
-                                    <td key={i} colSpan={6} className={`p-2 text-center border-r ${color} font-bold`}>
-                                        {assigned.toFixed(1)} h
-                                    </td>
-                                );
-                            })}
-                            <td></td>
-                        </tr>
-
-                        {/* TOTALE FABBISOGNO */}
-                        <tr className="bg-gray-100 font-bold border-t border-gray-300">
-                            <td className="sticky left-0 bg-gray-100 z-10 p-2"></td>
-                            <td className="p-2 text-right sticky left-[40px] bg-gray-100 z-10">TOTALE FABBISOGNO</td>
-                            {dailyTotals.map((tot, i) => (
-                                <td key={i} colSpan={6} className="p-2 text-center border-r text-gray-700 bg-gray-100">
-                                    {tot.toFixed(1)} h
-                                </td>
-                            ))}
-                            <td></td>
-                        </tr>
-
-                        {/* SEPARATOR */}
-                        <tr className="h-2 bg-gray-200"><td colSpan={100}></td></tr>
-
-                        {/* BUDGET HOURS - LUNCH (from Forecast) */}
-                        <tr className="bg-emerald-50 font-bold text-emerald-800 border-t-2 border-emerald-300">
-                            <td className="sticky left-0 bg-emerald-50 z-10 p-2"></td>
-                            <td className="p-2 text-right sticky left-[40px] bg-emerald-50 z-10">BUDGET ORE PRANZO</td>
-                            {days.map((d, i) => {
-                                const budgetLunch = budgetLunchHours[d] || 0;
-                                return (
-                                    <td key={i} colSpan={6} className="p-2 text-center border-r">
-                                        {budgetLunch > 0 ? `${budgetLunch.toFixed(1)} h` : '-'}
-                                    </td>
-                                );
-                            })}
-                            <td></td>
-                        </tr>
-
-                        {/* BUDGET HOURS - DINNER (from Forecast) */}
-                        <tr className="bg-emerald-50 font-bold text-emerald-800">
-                            <td className="sticky left-0 bg-emerald-50 z-10 p-2"></td>
-                            <td className="p-2 text-right sticky left-[40px] bg-emerald-50 z-10">BUDGET ORE CENA</td>
-                            {days.map((d, i) => {
-                                const budgetDinner = budgetDinnerHours[d] || 0;
-                                return (
-                                    <td key={i} colSpan={6} className="p-2 text-center border-r">
-                                        {budgetDinner > 0 ? `${budgetDinner.toFixed(1)} h` : '-'}
-                                    </td>
-                                );
-                            })}
-                            <td></td>
-                        </tr>
-
-                        {/* BUDGET TOTAL */}
-                        <tr className="bg-emerald-100 font-bold text-emerald-900">
-                            <td className="sticky left-0 bg-emerald-100 z-10 p-2"></td>
-                            <td className="p-2 text-right sticky left-[40px] bg-emerald-100 z-10">BUDGET ORE TOTALE</td>
-                            {days.map((d, i) => {
-                                const b = budgetHours[d] || 0;
-                                return (
-                                    <td key={i} colSpan={6} className="p-2 text-center border-r font-bold">
-                                        {b > 0 ? `${b.toFixed(1)} h` : '-'}
-                                    </td>
-                                );
-                            })}
-                            <td></td>
-                        </tr>
-
-                        {/* DIFFERENCE - TOTAL */}
-                        <tr className="bg-white font-bold border-t border-gray-200 text-[10px]">
-                            <td className="sticky left-0 bg-white z-10 p-2"></td>
-                            <td className="p-2 text-right sticky left-[40px] bg-white z-10">DIFFERENZA (Budget - Fabbisogno)</td>
-                            {dailyTotals.map((tot, i) => {
-                                const b = budgetHours[days[i]] || 0;
-                                if (b === 0) {
-                                    return <td key={i} colSpan={6} className="p-2 text-center border-r text-gray-400">-</td>;
-                                }
-                                const diff = b - tot;
-                                const color = diff >= 0 ? 'text-green-600' : 'text-red-600';
-                                return (
-                                    <td key={i} colSpan={6} className={`p-2 text-center border-r ${color}`}>
-                                        {diff > 0 ? '+' : ''}{diff.toFixed(1)} h
-                                    </td>
-                                );
-                            })}
-                            <td></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            {/* Staff Selection Modal */}
-            {modalContext && (
-                <StaffSelectionModal
-                    isOpen={modalOpen}
-                    onClose={() => {
-                        setModalOpen(false);
-                        setModalContext(null);
-                    }}
-                    onSelect={handleStaffSelect}
-                    date={modalContext.date}
-                    postazione={modalContext.postazione}
-                    shift={modalContext.shift}
-                    orari={modalContext.orari}
-                    staff={staff}
-                    existingAssignments={assignments}
-                />
-            )}
-        </div>
+\n\n    {
+        modalContext && (
+            <StaffSelectionModal
+                isOpen={modalOpen}
+                onClose={() => {
+                    setModalOpen(false);
+                    setModalContext(null);
+                }}
+                onSelect={handleStaffSelect}
+                date={modalContext.date}
+                postazione={modalContext.postazione}
+                shift={modalContext.shift}
+                orari={modalContext.orari}
+                staff={staff}
+                existingAssignments={assignments}
+            />
+        )
+    }
+        </div >
     );
 }
 

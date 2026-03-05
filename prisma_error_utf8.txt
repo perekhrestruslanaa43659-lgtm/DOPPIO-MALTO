@@ -1,0 +1,71 @@
+﻿Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+node.exe : 
+In riga:1 car:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo 
+...
++ ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (:String) [],    
+ RemoteException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+Error: Prisma schema 
+validation - (validate 
+wasm)
+Error code: P1012
+[1;91merror[0m: 
+[1mType 
+"Availability" is 
+neither a built-in 
+type, nor refers to 
+another model, 
+composite type, or 
+enum.[0m
+  [1;94m-->[0m  [4mp
+risma\schema.prisma:31
+[0m
+[1;94m   | [0m
+[1;94m30 | [0m  
+assignments        
+Assignment[]
+[1;94m31 | [0m  
+availability       [1;
+91mAvailability[0m[]
+[1;94m   | [0m
+[1;91merror[0m: 
+[1mType 
+"StaffCompetency" is 
+neither a built-in 
+type, nor refers to 
+another model, 
+composite type, or 
+enum.[0m
+  [1;94m-->[0m  [4mp
+risma\schema.prisma:35
+[0m
+[1;94m   | [0m
+[1;94m34 | [0m  
+unavailabilities   
+Unavailability[]
+[1;94m35 | [0m  
+competencies       [1;
+91mStaffCompetency[0m[
+]
+[1;94m   | [0m
+
+Validation Error 
+Count: 2
+[Context: validate]
+
+Prisma CLI Version : 
+6.1.0

@@ -123,3 +123,83 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }
+
+export async function DELETE(request: NextRequest) {
+    try {
+        const tenantKey = request.headers.get('x-user-tenant-key');
+        const userRole = (request.headers.get('x-user-role') || '').toUpperCase();
+
+        if (!tenantKey) {
+            return NextResponse.json({ error: 'Tenant key required' }, { status: 400 });
+        }
+
+        const isAdmin = userRole === 'ADMIN' || userRole === 'MANAGER' || userRole === 'OWNER';
+        if (!isAdmin) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+        }
+
+        const body = await request.json();
+        const { ids } = body;
+
+        if (!ids || !Array.isArray(ids)) {
+            return NextResponse.json({ error: 'Array of ids required' }, { status: 400 });
+        }
+
+        // 1. Fetch all requests to check status and handle cleanup
+        const requestsToDelete = await (prisma as any).permissionRequest.findMany({
+            where: {
+                id: { in: ids },
+                Staff: { tenantKey }
+            }
+        });
+
+        const deletedIds = requestsToDelete.map((r: any) => r.id);
+
+        // 2. Cleanup Unavailability/Availability for approved requests
+        for (const req of requestsToDelete) {
+            if (req.status === 'APPROVED') {
+                const datesAffected = [];
+                if (req.endDate && req.endDate > req.data) {
+                    let curr = new Date(req.data);
+                    const end = new Date(req.endDate);
+                    while (curr <= end) {
+                        datesAffected.push(curr.toISOString().split('T')[0]);
+                        curr.setDate(curr.getDate() + 1);
+                    }
+                } else {
+                    datesAffected.push(req.data);
+                }
+
+                if (req.tipo === 'DISPONIBILITA') {
+                    await (prisma as any).availability.deleteMany({
+                        where: {
+                            staffId: req.staffId,
+                            date: { in: datesAffected },
+                            tenantKey
+                        }
+                    });
+                } else {
+                    await (prisma as any).unavailability.deleteMany({
+                        where: {
+                            staffId: req.staffId,
+                            data: { in: datesAffected },
+                            tenantKey
+                        }
+                    });
+                }
+            }
+        }
+
+        // 3. Delete requests
+        await (prisma as any).permissionRequest.deleteMany({
+            where: {
+                id: { in: deletedIds }
+            }
+        });
+
+        return NextResponse.json({ success: true, count: deletedIds.length });
+    } catch (error) {
+        console.error('Error in bulk delete permission requests:', error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    }
+}
