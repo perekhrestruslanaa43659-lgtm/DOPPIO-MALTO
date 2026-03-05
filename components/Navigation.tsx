@@ -11,6 +11,17 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
+interface MenuItem {
+    label: string;
+    href: string;
+    icon: React.ReactNode;
+}
+
+interface MenuGroup {
+    title: string;
+    items: MenuItem[];
+}
+
 export default function Navigation({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
@@ -26,7 +37,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
         }
     }, [pathname]);
 
-    const menuGroups = [
+    const menuGroups: MenuGroup[] = [
         {
             title: 'OPERATIVO',
             items: [
@@ -59,7 +70,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
     const userAllowedPaths = ['/calendar', '/requests', '/dashboard', '/profile'];
 
     // Filter groups based on role
-    const filteredMenuGroups = menuGroups.map(group => {
+    const filteredMenuGroups: MenuGroup[] = menuGroups.map(group => {
         // If Admin, return full group (or specific admin groups added below)
         if (user?.role === 'ADMIN' || user?.role === 'MANAGER' || user?.role === 'OWNER') {
             return group;
@@ -74,12 +85,12 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
             };
         }
         return null;
-    }).filter(Boolean); // Remove empty groups
+    }).filter((group): group is MenuGroup => group !== null); // Remove empty groups
 
     if (user?.role === 'ADMIN' || user?.role === 'MANAGER' || user?.role === 'OWNER') {
         // Add Admin-specific group
         // Note: We modifying a filtered list locally, so we push to the new list
-        (filteredMenuGroups as any[]).push({
+        filteredMenuGroups.push({
             title: 'GESTIONE',
             items: [
                 { label: 'Gestione Utenti', href: '/users', icon: <Users size={20} /> },
@@ -90,7 +101,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
 
     // Flatten menu items for keyboard navigation
     const allMenuItems = React.useMemo(() => {
-        return (filteredMenuGroups as any[]).flatMap(group => group.items);
+        return filteredMenuGroups.flatMap(group => group.items);
     }, [filteredMenuGroups]);
 
     const userMenuItems = React.useMemo(() => {
@@ -197,7 +208,7 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
 
                 <div className="flex-1 overflow-y-auto py-6 px-3 space-y-8 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-600 overflow-x-hidden">
                     <nav className="space-y-8">
-                        {(filteredMenuGroups as any[]).map((group, idx) => (
+                        {filteredMenuGroups.map((group, idx) => (
                             <div key={idx}>
                                 {!isCollapsed && (
                                     <h3 className="px-4 text-[11px] font-bold text-slate-500 uppercase tracking-widest mb-3 whitespace-nowrap opacity-100 transition-opacity duration-300">
