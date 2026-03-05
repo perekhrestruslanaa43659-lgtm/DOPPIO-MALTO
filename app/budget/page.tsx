@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Component } from 'react';
 import { api } from '@/lib/api';
 import * as XLSX from 'xlsx';
 import { Save, Upload, Download, RefreshCw, DollarSign } from 'lucide-react';
@@ -9,7 +9,37 @@ import { Save, Upload, Download, RefreshCw, DollarSign } from 'lucide-react';
 // Setup Helpers
 import { getWeekNumber, getWeekRange, getDatesInRange } from '@/lib/date-utils';
 
-export default function BudgetPage() {
+// --- Error Boundary ---
+class BudgetErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean; error?: Error }> {
+    constructor(props: any) {
+        super(props);
+        this.state = { hasError: false };
+    }
+    static getDerivedStateFromError(error: Error) {
+        return { hasError: true, error };
+    }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 gap-4">
+                    <div className="bg-white p-8 rounded-xl shadow text-center max-w-md">
+                        <h2 className="text-xl font-bold text-red-600 mb-2">Errore nel caricamento Budget</h2>
+                        <p className="text-gray-600 text-sm mb-4">{this.state.error?.message || 'Errore sconosciuto'}</p>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                        >
+                            Ricarica Pagina
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
+
+function BudgetPageContent() {
     const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
     const [week, setWeek] = useState(getWeekNumber(new Date()));
     const [range, setRange] = useState(getWeekRange(getWeekNumber(new Date()), new Date().getFullYear()));
@@ -149,7 +179,7 @@ export default function BudgetPage() {
 
     const getStats = (date: string) => {
         let hl = 0, hd = 0;
-        schedule.filter(a => a.data.split('T')[0] === date).forEach(a => {
+        (Array.isArray(schedule) ? schedule : []).filter(a => a.data.split('T')[0] === date).forEach(a => {
             let start = a.start_time;
             let end = a.end_time;
             if (!start && a.shiftTemplate) {
@@ -401,5 +431,13 @@ export default function BudgetPage() {
                 </table>
             </div>
         </div>
+    );
+}
+
+export default function BudgetPage() {
+    return (
+        <BudgetErrorBoundary>
+            <BudgetPageContent />
+        </BudgetErrorBoundary>
     );
 }
