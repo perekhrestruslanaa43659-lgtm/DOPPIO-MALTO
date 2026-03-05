@@ -405,7 +405,7 @@ export default function ClosingsPage() {
                     <table className="w-full text-right text-xs border-collapse min-w-[1000px]">
                         <thead className="bg-slate-50 text-slate-500 uppercase font-bold sticky top-0 z-10">
                             <tr>
-                                <th className="p-3 text-left w-48 border-r border-slate-200 bg-slate-50">Voce</th>
+                                <th className="p-3 text-left w-48 border-r border-slate-200 bg-slate-50">Giorni</th>
                                 {cols.map((d, i) => (
                                     <th key={i} className="p-2 border-r border-slate-200 min-w-[80px] bg-slate-50">
                                         <div className="flex flex-col">
