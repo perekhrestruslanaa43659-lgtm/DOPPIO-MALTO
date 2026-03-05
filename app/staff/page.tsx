@@ -598,7 +598,7 @@ export default function StaffPage() {
         <div className="p-6 max-w-7xl mx-auto">
             <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-4">
-                    <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Personale</h1>
+                    <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Staff</h1>
                     {/* View Toggle */}
                     <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-700 p-1 rounded-lg transition-colors">
                         <button
@@ -671,7 +671,17 @@ export default function StaffPage() {
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ruolo</label>
-                            <input className="w-full p-2 border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none" value={form.ruolo} onChange={e => setForm({ ...form, ruolo: e.target.value })} onKeyDown={handleKeyDown} />
+                            <select className="w-full p-2 border border-gray-200 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none" value={form.ruolo} onChange={e => setForm({ ...form, ruolo: e.target.value })} onKeyDown={handleKeyDown}>
+                                <option value="">Seleziona un ruolo</option>
+                                <option value="">Ruolo 1</option>
+                                <option value="">Ruolo 2</option>
+                                <option value="">Ruolo 3</option>
+                                <option value="">Ruolo 4</option>
+                                <option value="">Ruolo 5</option>
+                                <option value="">Ruolo 6</option>
+                                <option value="">Ruolo 7</option>
+                                <option value="">Ruolo 8</option>
+                            </select>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
