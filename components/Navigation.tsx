@@ -164,14 +164,14 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
                 <div className={`h-20 flex items-center ${isCollapsed ? 'justify-center px-0' : 'justify-between px-6'} border-b border-slate-800/50 bg-slate-900/50 backdrop-blur-sm shrink-0 transition-all duration-300`}>
 
                     {!isCollapsed && (
-                        <div className="flex items-center gap-3 group">
+                        <Link href="/" className="flex items-center gap-3 group hover:opacity-80 transition-opacity">
                             <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-2 rounded-xl shadow-lg shadow-blue-900/20 group-hover:shadow-blue-900/40 transition-all duration-300 group-hover:scale-105">
                                 <CalendarDays size={22} className="text-white" />
                             </div>
                             <span className="font-bold text-xl tracking-tight text-white group-hover:text-blue-200 transition-colors whitespace-nowrap">
                                 Schedu<span className="text-blue-400">Flow</span>
                             </span>
-                        </div>
+                        </Link>
                     )}
 
                     {/* Desktop Collapse Toggle */}
@@ -292,7 +292,9 @@ export default function Navigation({ children }: { children: React.ReactNode }) 
                     <button onClick={() => setIsOpen(true)} className="text-gray-600 dark:text-gray-300">
                         <Menu size={24} />
                     </button>
-                    <span className="font-bold text-gray-800 dark:text-white">ScheduFlow</span>
+                    <Link href="/" className="font-bold text-gray-800 dark:text-white hover:opacity-70 transition-opacity">
+                        ScheduFlow
+                    </Link>
                     <div className="w-6" /> {/* Spacer */}
                 </header>
 
