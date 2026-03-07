@@ -221,6 +221,7 @@ export default function BudgetPage() {
 
     const getStats = (date: string) => {
         let hl = 0, hd = 0;
+        if (!Array.isArray(schedule)) return { hl: 0, hd: 0 };
         schedule.filter(a => a.data.split('T')[0] === date).forEach(a => {
             let start = a.start_time;
             let end = a.end_time;
@@ -356,7 +357,7 @@ export default function BudgetPage() {
         <div className="p-8 bg-slate-50 min-h-screen font-sans text-gray-800">
             {/* ... (Header logic unchanged, skipping for brevity in replacement if not needed, but here we replace the render function part or just the inputs?) */}
             {/* To avoid replacing the whole file, I will target specific inputs or the handleKeyDown and then I need to apply onFocus to all inputs. 
-               Since inputs are scattered, I will use MultiReplace for efficiently updating all inputs and the handler.
+            Since inputs are scattered, I will use MultiReplace for efficiently updating all inputs and the handler.
             */ }
 
             {/* Header ... */}
@@ -378,7 +379,7 @@ export default function BudgetPage() {
                                 <span className="text-[10px]">▲</span>
                             </button>
                             <button onClick={() => changeWeek(Math.min(53, week + 1))} className="text-gray-400 hover:text-blue-600 outline-none">
-                                <span className="text-[10px] transform rotate-180">▲</span>
+                                <span className="text-[10px]">▼</span>
                             </button>
                         </div>
                         <span className="font-bold text-gray-700">Settimana:</span>
