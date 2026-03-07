@@ -366,7 +366,7 @@ export default function FixedShiftsPage() {
                             <MapPin className="absolute left-3 top-2.5 text-gray-400 z-10" size={18} />
                             <input
                                 type="text"
-                                className="w-full pl-10 p-2 border rounded shadow-sm focus:ring-2 focus:ring-indigo-500 bg-white font-medium uppercase"
+                                className="w-full pl-10 p-2 border rounded shadow-sm focus:ring-2 focus:ring-indigo-500 bg-white font-xx-small"
                                 placeholder="Inserisci o cerca..."
                                 value={newShift.postazione}
                                 onChange={(e) => setNewShift({ ...newShift, postazione: e.target.value.toUpperCase() })}
